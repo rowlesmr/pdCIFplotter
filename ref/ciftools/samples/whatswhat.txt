@@ -1,0 +1,8 @@
+This directory contains 4 CIFs for testing different aspects 
+of the CIFTOOLS programs. The CIFs are:
+
+148L.cif	A smallish (160K) mmCIF from the PDF
+ALUMINA.cif	A 1-phase & 1-dataset pdCIF - CW neutron Rietveld fit (single block)
+corundum.cif	A very small coordinates-only CIF
+NISI.cif	A two-phase, two-dataset pdCIF - TOF Rietveld fit (6 blocks)
+

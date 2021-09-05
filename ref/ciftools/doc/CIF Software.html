@@ -1,0 +1,151 @@
+
+<!-- saved from url=(0068)https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/ -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>CIF Software</title>
+ 	<meta name="keywords" content="crystallography, Rietveld, diffraction, CIF">
+<style>
+A:link {text-decoration:none}
+A:vlink {text-decoration:none}
+</style><style>@media print {#ghostery-tracker-tally {display:none !important}}</style></head>
+
+
+<body bgcolor="#FFFFFF" topmargin="0" leftmargin="0" marginwidth="0" marginheight="0" text="#000000" link="#0033ff" vlink="#0033ff" alink="#0033ff">
+
+<!--? 
+   include("/var/www/include/navigation.inc");
+   include("/var/www/include/utility.inc"); 
+?-->
+<blockquote><font face="arial, helvetica, sans-serif">
+<center>
+<hr noshade="" width="75%" size="2" align="center">
+<h1>NCNR CIF Software</h1>
+<hr noshade="" width="75%" size="2" align="center">
+</center>
+
+<i>This page describes recently released CIF software. Please send 
+comments, bugs and especially "it worked for me" reports to 
+<a href="mailto:crystal@NIST.gov?subject=CIF_stuff">the primary author</a>.</i>
+<br clear="all">
+
+<hr noshade="">
+<dl>
+
+<dt><a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/gsas2cif.html">GSAS2CIF</a>
+
+</dt><dd>The GSAS2CIF program creates CIF files from GSAS refinements. GSAS2CIF is 
+distributed as part of the GSAS
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/gsas.html">(info)</a>
+software package.
+Use of 
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/gsas2cif.html">GSAS2CIF is documented</a> 
+on a separate web page. 
+This web page also describes two GUI utility programs 
+contained in the <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/">EXPGUI package</a>,
+one that is used to add information to the CIF 
+(<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/gsas2cif.html#filltemplate">FillTemplate</a>), 
+and one that sets the publication flags for the distances and angles 
+(<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/gsas2cif.html#cifselect">CIFSelect</a>).
+
+<p>
+GSAS (and GSAS2CIF) is written in FORTRAN and 
+runs on Windows, Linux, Silicon Graphics, &amp; Mac (OS X) computers.
+The source code for GSAS is not distributed, but to aid
+others wishing to develop similar applications, 
+the source code developed specifically for GSAS2CIF is available, with 
+explanatory materials
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/gsas2cif/gsas2cif_doc.html">in a series of web pages</a>.
+</p><p>
+An <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/gsas2cif.pdf">article on GSAS2CIF</a>, authored by 
+B. H. Toby, R. B. Von Dreele and A. C. Larson, can be found in the
+<a href="http://www.iucr.org/cgi-bin/paper?aj0011">
+<i>Journal of Applied Crystallography</i> <b>36</b>, 1290-1294</a>.
+(<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/gsas2cif.pdf">
+Alternate link</a>).
+</p><p>
+</p></dd></dl>
+<hr noshade="">
+<dl>
+<dt><a name="CIFTOOLS"></a>
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/ciftools.html">CIFTOOLS</a>
+</dt><dd>
+The NCNR CIFTOOLS package contains both the CIFEDIT and pdCIFplot programs, 
+documentation, and some sample CIFs. 
+The programs have been tested using Windows, Linux, Irix (Silicon Graphics) 
+and Mac OS X. CIFPLOT should run on any platform where 
+<a href="http://www.tcl.tk/">
+Tcl/Tk</a> 
+has been ported; this includes virtually all modern operating systems and many 
+unusual ones as well
+<a href="http://resource.tcl.tk/resource/software/ports/">(link)</a>.
+<p>
+The package is distributed in a number of different formats, including
+a self-installing program for Windows
+(<a href="ftp://ftp.ncnr.nist.gov/pub/cryst/cif/ciftools.exe">ftp://ftp.ncnr.nist.gov/pub/cryst/cif/ciftools.exe)</a>. 
+See the 
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/ciftools.html">CIFTOOLS installation instructions</a>
+for more details.
+
+</p><blockquote>
+<p>
+</p><dt><a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/pdCIFplot.html">pdCIFplot</a>
+</dt><dd>The pdCIFplot plotting program is used to create plots of Rietveld 
+results from pdCIF files. See the 
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/pdCIFplot.html">pdCIFplot documentation</a>. The source code 
+(written in Tcl/Tk and using the BLT package) is 
+included in the <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/#CIFTOOLS">CIFTOOLS (see below)</a> 
+distribution package.
+The program has been tested in Windows, Linux, Irix and Mac OS X.
+<p>
+An <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/pdCIFplot.pdf"> article on pdCIFplot</a> 
+can be found in the
+<a href="http://www.iucr.org/cgi-bin/paper?aj0008">
+<i>Journal of Applied Crystallography</i> <b>36</b>, 1285-1287</a>.
+(<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/pdCIFplot.pdf">
+Alternate link</a>).
+
+</p><p>
+</p></dd><dt><a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/cifedit.html">CIFEDIT</a>
+</dt><dd>The CIFEDIT program is used to create browse through and edit CIF files. 
+It may be used with all types of CIF files, including mmCIFs. 
+See the 
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/cifedit.html">CIFEDIT documentation</a>. Code development for
+CIFEDIT was motivated in part so that the capabilities could be incorporated 
+in other software projects. This has been done in the 
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/gsas2cif.html#filltemplate">FillTemplate</a><a>, 
+</a><a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/expgui/">EXPGUI</a>, 
+and
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/pdCIFplot.html">pdCIFplot</a> programs. To help make this code more 
+useful to others wishing to write CIF applications, web pages with 
+documentation for the
+<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/cifedit_doc.html">CIFEDIT source code</a> 
+has been made available.
+The source code (written in Tcl/Tk) is 
+included in the <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/#CIFTOOLS">CIFTOOLS (see below)</a> 
+distribution package.
+The program has been tested in Windows, Linux, Irix and Mac OS X.
+It should be portable to virtually all modern computer platforms.
+<p>
+An <a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/cifedit.pdf">article on CIFEDIT</a> 
+can be found in the
+<a href="http://www.iucr.org/cgi-bin/paper?aj0009">
+<i>Journal of Applied Crystallography</i> <b>36</b>, 1288-1289</a>.
+(<a href="https://www.iucr.org/__data/iucr/cif/software/ciftools/ciftools/doc/cifedit.pdf">
+Alternate link</a>).
+</p></dd></blockquote>
+
+</dd></dl>
+<p></p><hr noshade=""></font></blockquote><font face="arial, helvetica, sans-serif">
+</font><p><font face="arial, helvetica, sans-serif">Neither the U.S. Government nor any author makes any warranty, 
+expressed or implied, or assumes any liability or responsibility 
+for the use of this information or the software described
+here. Brand names cited herein are used for
+identification purposes and do not constitute an endorsement by NIST.
+<br>
+<font size="-1"><a href="mailto:crystal@NIST.gov?subject=WWW%20page%20%3C?=$PHP_SELF?%3E">Comments, corrections or questions: crystal@NIST.gov</a></font><br>
+
+<font size="-1"><!--? lastmod(); ?--></font>
+<br>$Revision: 1.5 $ $Date: 2003/12/29 23:30:37 $
+</font>
+
+
+</p></body></html>
