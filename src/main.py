@@ -95,7 +95,6 @@ def main():
         print(key)
 
     print(cifstrlist_to_nparray(cif["alumina_publ"]["_pd_meas_intensity_total"]))
-
     lst = [cifstrlist_to_nparray(d) for d in cif["alumina_publ"]["_pd_meas_intensity_total"]]
     print(lst)
     print(lst[VAL])
