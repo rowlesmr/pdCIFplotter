@@ -1,0 +1,275 @@
+
+
+macro Out_powder_pattern_cif(file) 
+   { 
+      out file append 
+         Out(Run_Number, "\n\ndata_pattern_%1.0f") 
+          
+         Out(concat_strings(pattern, Run_Number), "\n_pd_block_id %s") 
+ 
+         Out_String("\nloop_") 
+         Out_String("\n_pd_phase_id") 
+         Out_String("\n_pd_phase_block_id") 
+         Out_String("\n_pd_phase_mass_%") 
+         Out_String("\n1\t") 
+         Out_String(concat_strings(Al2O3, Run_Number)) 
+         Out(100-Get(weight_percent), "\t%3.4f") 
+         Out_String("\n2\t") 
+         Out_String(concat_strings(Si, Run_Number)) 
+         Out(Get(weight_percent), "\t%3.4f") 
+          
+         Out(te, "\n\n_diffrn_ambient_temperature      %4.2f") 
+         'Out(Lam, "\n_diffrn_radiation_wavelength     %11.8f") 
+          
+         Out_String("\nloop_") 
+         Out_String("\n_pd_meas_2theta_scan") 
+         Out_String("\n_pd_meas_intensity_total") 
+         Out_String("\n_pd_proc_ls_weight") 
+         Out_String("\n_pd_calc_intensity_total") 
+         Out_String("\n_pd_proc_intensity_bkg_calc")  
+ 
+       
+      xdd_out file append load out_record out_fmt out_eqn 
+      { 
+          "\n%11.6f  " = X; 
+          "  %11.6f  " = Yobs; 
+          "  %11.6f  " = Get(weighting); 
+          "  %11.6f  " = Ycalc; 
+          "  %11.6f  " = Get(bkg); 
+      } 
+   } 
+ 
+ 
+ 
+macro Out_hkl(file, phase_num, header) 
+   { 
+      out file append 
+ 
+		#m_ifarg header #m_code_refine 
+         Out(Run_Number, "\n\ndata_hkl_%1.0f") 
+         Out_String("\nloop_") 
+         Out_String("\n_refln_index_h") 
+         Out_String("\n_refln_index_k") 
+         Out_String("\n_refln_index_l") 
+         Out_String("\n_pd_refln_phase_id") 
+         Out_String("\n_refln_d_spacing") 
+         Out_String("\n_refln_F_squared_calc") 
+         Out_String("\n_refln_F_squared_meas") 
+      #m_endif 
+ 
+         phase_out file append 
+            load out_record out_fmt out_eqn 
+            { 
+               "\n%4.0f" = H; 
+               " %4.0f" = K; 
+               " %4.0f" = L; 
+               " %4.0f" = phase_num; 
+               " %11.6f" = D_spacing; 
+               " %12.2f" = I_no_scale_pks; 
+               " %12.2f" = Iobs_no_scale_pks; 
+            } 
+   } 
+ 
+macro Out_CIF_STR_row(file, with_id, runnum) 
+   { 
+		' https://www.iucr.org/__data/iucr/cifdic_html/1/cif_core.dic/Iatom_site_symmetry_multiplicity.html  
+      out file append 
+         Out(Get(phase_name), "\n\ndata_phase_%s") 
+         Out(Get(phase_name), "\n_pd_block_id %s") 
+         Out(concat_strings(pattern, Run_Number), "\n_pd_block_diffractogram_id %s") 
+         Out(Get(phase_name), "\n\n_pd_phase_name %s") 
+         Out(Get(a), "\n_cell_length_a  %V") 
+         Out(Get(b), "\n_cell_length_b  %V") 
+         Out(Get(c), "\n_cell_length_c  %V") 
+         Out(Get(al), "\n_cell_angle_alpha %V") 
+         Out(Get(be), "\n_cell_angle_beta  %V") 
+         Out(Get(ga), "\n_cell_angle_gamma %V") 
+         Out(Get(cell_volume), "\n_cell_volume %V") 
+         Out(Get(sp_grp_char), "\n_symmetry_space_group_name_H-M %s") 
+         Out_String("\nloop_") 
+         #m_ifarg with_id "" 
+            Out_String("\n\t_symmetry_equiv_pos_as_xyz") 
+            Out(Get(sp_xyzs_txt),  "%s") 
+         #m_else 
+            Out_String("\n\t_symmetry_equiv_pos_site_id\n\t_symmetry_equiv_pos_as_xyz") 
+            Out(Get(sp_xyzs_txt_with_id),  "%s") 
+         #m_endif 
+         Out_String("\nloop_") 
+            Out_String("\n_atom_site_label") 
+            Out_String("\n_atom_site_type_symbol") 
+            Out_String("\n_atom_site_site_symmetry_multiplicity") 
+            Out_String("\n_atom_site_fract_x") 
+            Out_String("\n_atom_site_fract_y") 
+            Out_String("\n_atom_site_fract_z") 
+            Out_String("\n_atom_site_occupancy") 
+            Out_String("\n_atom_site_B_iso_or_equiv") 
+            atom_out file append 
+               load out_record out_fmt out_eqn 
+               { 
+						"\n%s" = Get_From_String(Get(current_atom), site); 
+						" %s" = Get_From_String(Get(current_atom), atom); 
+                  " %3.0f" = Get_From_String(Get(current_atom), num_posns); 
+                  " %V" = Get_From_String(Get(current_atom), x); 
+                  " %V" = Get_From_String(Get(current_atom), y); 
+                  " %V" = Get_From_String(Get(current_atom), z); 
+                  " %V" = Get_From_String(Get(current_atom), occ); 
+                  " %V" = Get_From_String(Get(current_atom), beq); 
+               } 
+   } 
+ 
+'--------------------------------------------------------------  
+'Fitting Si + Al2O3 temperature standard  
+'Data collected with hot air blower so T(actual) < T(set) at high T  
+'File set up so that either topas v6 #list command or topas <v6 + command file can be used  
+'--------------------------------------------------------------  
+r_wp  14.7889281 r_exp  9.5411932 r_p  11.209361 r_wp_dash  24.7011123 r_p_dash  23.8464194 r_exp_dash  15.9361167 weighted_Durbin_Watson  1.48655084 gof  1.55000825
+  
+iters 100000  
+chi2_convergence_criteria 0.001  
+  
+'#define topas_old_version 'include this if using v4 or v5  
+  
+'{{{ Information on file names and temperatures in topas v6 #list style  
+#ifdef !topas_old_version 'i.e. use v6 as you haven't been told it's an old version of topas  
+Backup_INP  
+out_file = Concat(String(INP_File), ".INP");   
+num_runs 30  
+#list File_Name Temperature {  
+xye_files\576460-mac-001_reb_0003.xye	30  
+xye_files\576461-mac-001_reb_0003.xye	50  
+xye_files\576462-mac-001_reb_0003.xye	70  
+xye_files\576463-mac-001_reb_0003.xye	90  
+xye_files\576464-mac-001_reb_0003.xye	110  
+xye_files\576465-mac-001_reb_0003.xye	130  
+xye_files\576466-mac-001_reb_0003.xye	150  
+xye_files\576467-mac-001_reb_0003.xye	170  
+xye_files\576468-mac-001_reb_0003.xye	190  
+xye_files\576469-mac-001_reb_0003.xye	210  
+xye_files\576470-mac-001_reb_0003.xye	230  
+xye_files\576471-mac-001_reb_0003.xye	250  
+xye_files\576472-mac-001_reb_0003.xye	270  
+xye_files\576473-mac-001_reb_0003.xye	290  
+xye_files\576474-mac-001_reb_0003.xye	310  
+xye_files\576475-mac-001_reb_0003.xye	330  
+xye_files\576476-mac-001_reb_0003.xye	350  
+xye_files\576477-mac-001_reb_0003.xye	370  
+xye_files\576478-mac-001_reb_0003.xye	400  
+xye_files\576479-mac-001_reb_0003.xye	450  
+xye_files\576480-mac-001_reb_0003.xye	500  
+xye_files\576481-mac-001_reb_0003.xye	550  
+xye_files\576482-mac-001_reb_0003.xye	600  
+xye_files\576483-mac-001_reb_0003.xye	650  
+xye_files\576484-mac-001_reb_0003.xye	700  
+xye_files\576485-mac-001_reb_0003.xye	750  
+xye_files\576486-mac-001_reb_0003.xye	800  
+xye_files\576487-mac-001_reb_0003.xye	850  
+xye_files\576488-mac-001_reb_0003.xye	900  
+xye_files\576489-mac-001_reb_0003.xye	950      
+}  
+  
+prm !te =Temperature(Run_Number);:30
+macro filename { File_Name(Run_Number) }  
+#endif  
+'}}}  
+  
+'{{{ older version of topas  
+#ifdef topas_old_version  
+	#ifdef !GUI_LINES 'use these lines when in gui mode  
+	macro filename { xye_files\576460-mac-001_reb_0003.xye }   
+	macro information {prm !te 30  }   
+	#endif  
+	information  
+  
+#endif  
+'}}}  
+  
+ 
+macro concat_strings(s1, s2) { s1##_##s2 } 
+ 
+ 
+ 
+xdd filename  
+	start_X 5  
+	finish_X 65  
+	x_calculation_step = Yobs_dx_at(Xo);  
+	'lambda derived on peak shape derived on 574646-mac-001_offline.xye on 21/4/2017.xye by John 2016  
+	'Si zero was -1.69258/1000 degrees  
+	lam ymin_on_ymax 0.00001 la 1.0 lo   0.8257653_8.44468382e-008 lh 0.1  
+	LP_Factor( 90) 'change the LP correction  or lh value if required  
+   prm zero -0.69794407` th2_offset = (zero/1000);: -0.00069794407`
+	bkg @  33.9393964` -20.4946541` -0.0107230168`  4.01299851` -7.25623443`  11.0401865` -8.59201614`  0.491441325`  5.0027526` -5.47424404`  3.68470931` -2.29883752` -0.856561859`  3.94311766` -3.73878716`  2.61521036` -1.69329291`  0.632501738`
+	
+  
+    str  
+		phase_name concat_strings(Al2O3, Run_Number)  
+		local !phase_num =1; 
+		a  lpa_1  4.759320`  
+		b =lpa_1;:4.759320`  
+		c lpc_1  12.992406`  
+		al 90.        
+		be 90.        
+		ga 120.       
+		cell_volume vol_1  254.865`  
+		space_group "R-3cH"  
+		site Al1    x 0             y 0             z 0.148         occ Al+3 1.         beq bval_1  0.41836`   
+		site O1     x 0.306         y 0             z 0.25          occ O-2  1.         beq bval_1  0.41836`  
+		scale  scal_1  6.18825139e-05`
+		r_bragg  2.25337893
+		Phase_Density_g_on_cm3( 3.98589529`)  
+		'Sample size/strain include these lines for your sample  
+  		LVol_FWHM_CS_G_L(1, 207.751441`, 0.89, 289.669887`, csgc, 9999.96185`_LIMIT_MIN_0.3 , cslc, 325.128728`)  
+  		e0_from_Strain( 3.96506784e-07`, sgc, 0.000116623418`_LIMIT_MIN_0.0001, slc, 0.000103216787`_LIMIT_MIN_0.0001)  
+  
+	str  
+		phase_name concat_strings(Si, Run_Number)  
+		local !phase_num =2; 
+		a  lpa_2  5.431047` '5.431597124  
+		b =lpa_2;      
+		c =lpa_2;      
+		al 90.        
+		be 90.        
+		ga 90.        
+		cell_volume vol_2  160.196`  
+		space_group "Fd-3mS"  
+		site Si1    x 0             y 0             z 0             occ Si   1.         beq bval_2  0.37832`  
+		scale  scal_2  0.000102879473`
+		r_bragg  1.97628176
+		Phase_Density_g_on_cm3( 2.32900753`)  
+
+		Out_powder_pattern_cif("patterns.cif") 
+
+		
+for strs {  
+		'peak shape derived on 574646-mac-001_offline.xye on 21/4/2017  
+		'This is a fixed instrumental profile  
+		'Just use size/strain on your sample  
+		TCHZ_Peak_Type(!pku,-0.00072_0.00002,!pkv, -0.00008_0.00001,!pkw, -0.00080_0.00002,!pkz, 0.00087_0.00002,!pky, 0.01490_0.00011,!pkx, 0.00175_0.00002)  
+		Simple_Axial_Model(!axial, 2.12938_0.00228)  
+		 
+		Out_CIF_STR_row("strs.cif", , Run_Number) 
+		 
+}  
+  
+for strs 1 to 1 { Out_hkl("hkls.cif", phase_num, header) } 
+for strs 2 to 2 { Out_hkl("hkls.cif", phase_num, !header) } 
+ 
+'{{{ Output lines here  
+#define write_out  
+#ifdef write_out  
+out "results.txt" append  
+Out_String(filename)  
+Out(te, " %11.5f")  
+Out(Get (r_wp), " %11.5f")  
+Out(lpa_1, " %11.5f", " %11.5f")  
+Out(lpc_1, " %11.5f", " %11.5f")  
+Out(vol_1, " %11.5f", " %11.5f")  
+Out(lpa_2, " %11.5f", " %11.5f")  
+Out(vol_2, " %11.5f", " %11.5f")  
+Out(scal_1, " %18.9f", " %18.9f")  
+Out(scal_2, " %18.9f", " %18.9f")  
+Out(bval_1, " %11.5f", " %11.5f")  
+Out(bval_2, " %11.5f", " %11.5f")  
+Out(te, " %11.5f\n")  
+#endif  
+'}}}	     
+  

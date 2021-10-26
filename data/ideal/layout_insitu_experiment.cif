@@ -1,0 +1,77 @@
+data_overall_insitu_experiment
+	# Many experimental patterns
+	# Each experimental pattern collected at a different temperatures, pressures, and/or times, but on the same instrument
+	# Each experimental pattern has many phases
+	# Each phase has only one experimental pattern
+	# Each phase has only one calculated profile
+	# Experiment probably done to report quantitative phase analysis
+	
+	# insert common information here
+	
+	loop_
+	_pd_phase_block_id
+	phase_1_pattern_1_unique_string
+	phase_2_pattern_1_unique_string
+	#...
+	
+	loop_
+	_pd_block_diffractogram_id
+	pattern_1_unique_string
+	pattern_2_unique_string
+	#...
+	
+data_phase_1_pattern_1
+	_pd_block_id	phase_1_pattern_1_unique_string
+	_pd_block_diffractogram_id	pattern_1_unique_string
+		
+	# crystal structure information would go here
+	
+	loop_
+	_pd_data_point_id
+	_pd_calc_phase_intensity_net
+	1	0
+	2	3
+	#...
+	
+data_phase_2_pattern_1
+	_pd_block_id	phase_2_pattern_1_unique_string
+	_pd_block_diffractogram_id	pattern_1_unique_string
+		
+	# crystal structure information would go here
+	
+	loop_
+	_pd_data_point_id
+	_pd_calc_phase_intensity_net
+	1	0
+	2	1
+	#...
+	
+data_pattern_1	
+	_pd_block_id	pattern_1_unique_string
+	
+	loop_
+	_pd_phase_id
+	_pd_phase_block_id
+	_pd_phase_mass_%
+	1	phase_1_pattern_1_unique_string	45.5
+	2	phase_2_pattern_1_unique_string	54.5
+
+	#time, temperature, pressure, other information
+	#hkl info goes here too?
+	
+	loop_
+	_pd_data_point_id
+	_pd_meas_2theta_scan
+	_pd_meas_intensity_total
+	_pd_proc_ls_weight
+	_pd_calc_intensity_total
+	_pd_proc_intensity_bkg_calc
+	1	5.00	43.364	0.040297	25.962	25.962  
+	2	5.01	38.007	0.050546	26.168	26.168  
+	#...
+
+# etc....	
+	
+	
+	
+	
