@@ -1,6 +1,7 @@
 #other things
 .idea/
 ref/papers
+*.*~
 
 
 # Byte-compiled / optimized / DLL files
