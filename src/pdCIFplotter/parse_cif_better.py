@@ -39,11 +39,13 @@ def blockname_lookupdict_from_blockid(cif):
     :param cif:
     :return: dictionary with blockids as keys and blocknames as values.
     """
-    lookup_dict = {}
-    for blockname in cif.block_input_order:
-        if "_pd_block_id" in cif[blockname]:
-            lookup_dict[cif[blockname]["_pd_block_id"]] = blockname
-    return lookup_dict
+    # lookup_dict = {}
+    # for blockname in cif.block_input_order:
+    #     if "_pd_block_id" in cif[blockname]:
+    #         lookup_dict[cif[blockname]["_pd_block_id"]] = blockname
+    # return lookup_dict
+    return {cif[blockname]["_pd_block_id"]: blockname for blockname in cif.block_input_order if "_pd_block_id" in cif[blockname]}
+
 
 
 def grouped_blocknames(cif):
@@ -203,7 +205,7 @@ def calc_cumrwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, y
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
-    :param yobs_dataname_err: defaults to the "_err" column of the yobs name. If you want '_pd_proc_ls_weight', you need to say so
+    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
     :param ymod_dataname: this currently does nothing.
     :return: a numpy array with values of Rwp. It has the same length as yobs
     """
@@ -213,10 +215,13 @@ def calc_cumrwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, y
     if ymod_dataname is not None:  # I don't know what this means yet...
         return [-1] * len(yobs)
     if yobs_dataname_err is None:
-        yobs_dataname_err = yobs_dataname + "_err"
-    if yobs_dataname_err == "_pd_proc_ls_weight":
-        yweight = cifpat[yobs_dataname_err]
+        if "_pd_proc_ls_weight" in cifpat:
+            yweight = cifpat["_pd_proc_ls_weight"]
+        else:
+            yobs_dataname_err = yobs_dataname + "_err"
+            yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
     else:
+        yobs_dataname_err = yobs_dataname + "_err"
         yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
     top_over_bottom = np.sqrt((yweight * (yobs - ycalc) ** 2) / (yweight * yobs ** 2))
     rwp = np.cumsum(top_over_bottom)
@@ -271,6 +276,8 @@ class ParseCIF:
         self.remove_empty_items()
         self.expand_multiple_dataloops()
         self._process()
+
+        print("I'm using me")
 
     def remove_empty_items(self):
         """
@@ -351,7 +358,6 @@ class ParseCIF:
             if any(x in cifpat for x in can_no_do_d):
                 cifpat.RemoveItem("_pd_phase_id")
                 cifpat.RemoveItem("_pd_phase_block_id")
-
 
     def _process(self):
         lookup_blockid = blockname_lookupdict_from_blockid(self.ciffile)  # a dictionary with block_id keys and dataname values
@@ -499,7 +505,6 @@ class ParseCIF:
                         cifsubstr["refln_hovertext"] = [h + " " + k + " " + l for h, k, l in
                                                         zip(cifsubstr['_refln_index_h'], cifsubstr['_refln_index_k'], cifsubstr["_refln_index_l"])]
 
-
         # end of pattern loop
 
     def get_processed_cif(self):
@@ -534,21 +539,17 @@ class ParseCIF:
         rwp = np.sqrt(np.cumsum(yweight * (yobs - ycalc) ** 2) / np.cumsum(yweight * yobs ** 2))
         return rwp
 
-    def rwp(self, pattern, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
-        return self.cumrwp(pattern=pattern, yobs_dataname=yobs_dataname, ycalc_dataname=ycalc_dataname,
-                           yobs_dataname_err=yobs_dataname_err, ymod_dataname=ymod_dataname)[-1]
-
 
 # end of class
 
 
 if __name__ == "__main__":
-    # # filename = r"data\forJames_before.cif"
-    # # filename = r"data\ideal_condensed.cif"
-    # filename = r"data\ideal_strsWithHKLs_condensed.cif"
-    filename = r"data\nisi.cif"
-    # filename = r"data\ideal_5patterns.cif"
-    # filename = r"data\pam\ws5072ibuprofen_all.cif"
+    # # filename = r"..\..\data\forJames_before.cif"
+    filename = r"..\..\data\ideal_condensed.cif"
+    # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
+    # filename = r"..\..\data\nisi.cif"
+    # filename = r"..\..\data\ideal_5patterns.cif"
+    # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     #
 
     cf = ParseCIF(filename)

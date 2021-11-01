@@ -16,13 +16,10 @@ import matplotlib.colors as mc  # a lot of colour choices in here to use
 import time
 
 # Potential themes that work for me.  #reddit is the only one that doesn't jitter...  ?
+#
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[2])
 sg.set_options(dpi_awareness=True)
-
-# import traceback
-# import sys
-
 
 # global parameters
 action_column_width = 30
@@ -32,32 +29,20 @@ canvas_y = 300
 single_fig = None
 single_ax = None
 single_figure_agg = None
-single_xlims = None
-single_ylims = None
-single_unzoom = None
-single_ax_scale = 0.05  # for unzooming calculations
 y_style = [["mediumblue", "+", "none", "2"],  # yobs
            ["red", None, "solid", "1"],  # ycalc
            ["gray", None, "solid", "2"],  # ybkg
            ["lightgrey", None, "solid", "2"],  # ydiff
-           ["lightgrey", None, "solid", "2"]  # cRwp
+           ["lightgrey", None, "solid", "1"]  # cRwp
            ]
 
 stack_fig = None
 stack_ax = None
 stack_figure_agg = None
-stack_xlims = None
-stack_ylims = None
-stack_unzoom = None
-stack_ax_scale = 0.05  # for unzooming calculations
 
 surface_fig = None
 surface_ax = None
 surface_figure_agg = None
-surface_xlims = None
-surface_ylims = None
-surface_unzoom = None
-surface_ax_scale = 0.05  # for unzooming calculations
 surface_z_color = "viridis"
 
 
@@ -73,9 +58,10 @@ def pretty(d, indent=0, print_values=True):
                 print('\t' * (indent + 1) + str(value))
 
 
-def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, plot_diff: bool, plot_cRwp: bool, axis_scale: dict, window):
-    global single_figure_agg
-    global single_fig, single_ax
+def single_update_plot(pattern, x_ordinate, y_ordinates: list,
+                       plot_hkls: bool, plot_diff: bool, plot_cRwp: bool,
+                       axis_scale: dict, window):
+    global single_figure_agg, single_fig, single_ax
 
     dpi = plt.gcf().get_dpi()
     if single_fig is not None:
@@ -86,21 +72,14 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
     # if single_fig is None or single_ax is None:
     single_fig, single_ax = plt.subplots(1, 1)
     single_fig = plt.gcf()
-    x_inches = canvas_x / float(dpi)
-    y_inches = canvas_y / float(dpi)
-    single_fig.set_size_inches(x_inches, y_inches)
+    single_fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
     single_fig.set_tight_layout(True)
     plt.margins(x=0)
-    # else:
-    # for artist in plt.gca().lines + plt.gca().collections:
-    #     artist.remove()
-    #     pass
 
     cifpat = cif[pattern]
-    x = cifpat[x_ordinate]
 
+    x = cifpat[x_ordinate]
     if axis_scale["x"] == "log":
-        print("inthesplit")
         x = np.log10(x)
     elif axis_scale["x"] == "sqrt":
         x = np.sqrt(x)
@@ -117,8 +96,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
         else:
             ys.append(None)
 
-    # difference plot shenanigans
-    # need to calculate it after the y axis transforms
+    # need to calculate diff after the y axis transforms to get the right magnitudes
     if plot_diff:
         ydiff = ys[0] - ys[1]
         ys.append(ydiff)
@@ -129,8 +107,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
 
     min_plot = 999999999
     max_plot = -min_plot
-    for i, val in enumerate(zip(ys, y_ordinates)):
-        y, y_name = val
+    for i, (y, y_name) in enumerate(zip(ys, y_ordinates)):
         if y is not None:
             if y_name == "Diff":
                 y -= max(y) - min_plot
@@ -140,12 +117,11 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
                      linestyle=y_style[i][2], linewidth=y_style[i][3],
                      markersize=float(y_style[i][3]) * 3
                      )
-            # these are for hkl plotting
+            # keep track of min and max to plot hkl ticks and diff correctly
             min_plot = min(min_plot, min(y))
             max_plot = max(max_plot, max(y))
 
     # hkl plotting below     single_height_px
-
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
     if plot_hkls:
@@ -194,18 +170,12 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
     else:
         plt.legend(frameon=False, loc='upper right')  # loc='best')
 
-    # offset for all the mins and maxs
-    # sx = bkgremove_ax_scale * (bkgremove_unzoom[1] - bkgremove_unzoom[0])
-    # sy = bkgremove_ax_scale * (bkgremove_unzoom[3] - bkgremove_unzoom[2])
-    # bkgremove_unzoom = [bkgremove_unzoom[0] - sx, bkgremove_unzoom[1] + sx,
-    #                     bkgremove_unzoom[2] - sy, bkgremove_unzoom[3] + sy, ]
     if "intensity" in y_ordinates[0]:
         y_axis_title = "Intensity (arb. units)"
     else:
         y_axis_title = "Counts"
 
     wavelength = pc.get_from_cif(cifpat, "wavelength")
-
     if axis_scale["x"] == "log":
         x_axis_label = f"Log10[{x_axis_title(x_ordinate, wavelength)}]"
     elif axis_scale["x"] == "sqrt":
@@ -234,9 +204,15 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list, plot_hkls: bool, 
                                               window["single_matplotlib_controls"].TKCanvas)
 
 
-def stack_update_plot(x_ordinate, y_ordinate, offset, window):
-    global canvas_x, canvas_y, stack_figure_agg
-    global stack_fig, stack_ax, data_list
+def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scale: dict, window):
+    global stack_figure_agg, stack_fig, stack_ax
+
+    print("get into stack_update_plot")
+    dpi = plt.gcf().get_dpi()
+    if stack_fig is not None:
+        stack_height_px = single_fig.get_size_inches()[1] * dpi
+    else:
+        stack_height_px = 382
 
     stack_fig, stack_ax = plt.subplots(1, 1)
     stack_fig = plt.gcf()
@@ -245,13 +221,38 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, window):
     stack_fig.set_tight_layout(True)
     plt.margins(x=0)
 
-    # We need to set the plot limits, they will not autoscale when doing a linecollection
-    # going to assume that the y's are well behaved, and that the minimum of the first pattern
+    print(1)
+    # given the x and y ordinates, we need to generate a list of patterns that all have those ordinates
+    # this is the list that we will end up plotting
+    # we will also grab the data limits to do the plot set up
+    # assume that the y's are well behaved, and that the minimum of the first pattern
     # and the max of the last pattern define the limits of the plot
-    x_min = min(dd[x_ordinate])
-    x_max = max(dd[x_ordinate])
-    y_min = min(dd[data_list[0]][y_ordinate])
-    y_max = max(dd[data_list[-1]][y_ordinate]) + (len(data_list) * offset)
+    x_min = 9999999
+    x_max = -x_min
+    plot_list = []
+    for pattern in cif.keys():
+        cifpat = cif[pattern]
+        if x_ordinate in cifpat and y_ordinate in cifpat:
+            plot_list.append(pattern)
+            x = cifpat[x_ordinate]
+            if axis_scale["x"] == "log":
+                x = np.log10(x)
+            elif axis_scale["x"] == "sqrt":
+                x = np.sqrt(x)
+            x_min = min(x_min, min(x))
+            x_max = max(x_max, max(x))
+
+    y_min = min(cif[plot_list[0]][y_ordinate])
+    y_max = max(cif[plot_list[-1]][y_ordinate])
+    if axis_scale["y"] == "log":
+        y_min = np.log10(y_min)
+        y_max = np.log10(y_max)
+        offset = np.log10(offset)
+    elif axis_scale["y"] == "sqrt":
+        y_min = np.sqrt(y_min)
+        y_max = np.sqrt(y_max)
+        offset = np.sqrt(offset)
+    y_max += len(plot_list) * offset
     y_range = y_max - y_min
     y_buffer = 0.04 * y_range
     y_max += y_buffer
@@ -264,9 +265,22 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, window):
     ys = []
     # put the data into the correct format
     for i in range(len(data_list) - 1, -1, -1):
-        pattern = data_list[i]
-        xs.append(dd[pattern][x_ordinate])
-        ys.append(dd[pattern][y_ordinate] + i * offset)
+        pattern = plot_list[i]
+        x = cif[pattern][x_ordinate]
+        y = cif[pattern][y_ordinate]
+
+        if axis_scale["x"] == "log":
+            x = np.log10(x)
+        elif axis_scale["x"] == "sqrt":
+            x = np.sqrt(x)
+        if axis_scale["y"] == "log":
+            y = np.log10(y)
+        elif axis_scale["y"] == "sqrt":
+            y = np.sqrt(y)
+
+        xs.append(x)
+        ys.append(y + i * offset)
+
     xy = [np.column_stack([x, y]) for x, y in zip(xs, ys)]
     line_segments = LineCollection(xy, linestyles='solid', color=mc.TABLEAU_COLORS)
     stack_ax.add_collection(line_segments)
@@ -276,14 +290,34 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, window):
     else:
         y_axis_title = "Counts"
 
+    # check that the wavelength for all patterns is the same
+    wavelength = pc.get_from_cif(cif[plot_list[0]], "wavelength")
+    for pattern in plot_list:
+        if wavelength != pc.get_from_cif(cif[pattern], "wavelength"):
+            wavelength = None
+            break
+
+    if axis_scale["x"] == "log":
+        x_axis_label = f"Log10[{x_axis_title(x_ordinate, wavelength)}]"
+    elif axis_scale["x"] == "sqrt":
+        x_axis_label = f"Sqrt[{x_axis_title(x_ordinate, wavelength)}]"
+    else:
+        x_axis_label = f"{x_axis_title(x_ordinate, wavelength)}"
+
+    if axis_scale["y"] == "log":
+        y_axis_title = f"Log10[{y_axis_title}]"
+    elif axis_scale["y"] == "sqrt":
+        y_axis_title = f"Sqrt[{y_axis_title}]"
+
     if x_ordinate in ["d", "_pd_proc_d_spacing"]:
         plt.gca().invert_xaxis()
 
-    plt.xlabel(X_AXIS_TITLES[x_ordinate])
-    plt.ylabel(y_axis_title)
+    stack_ax.set_xlabel(x_axis_label)
+    stack_ax.set_ylabel(y_axis_title)
 
     stack_figure_agg = draw_figure_w_toolbar(window["stack_plot"].TKCanvas, stack_fig,
                                              window["stack_matplotlib_controls"].TKCanvas)
+
 
 
 def surface_update_plot(x_ordinate, z_ordinate, window):
@@ -395,7 +429,7 @@ class Toolbar(NavigationToolbar2Tk):
 
 
 def y_ordinate_styling_popup(window_title, color_default, marker_styles_default, line_style_default, size_default, key, window):
-    layout = [
+    layout_def = [
         [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
         [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
          sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
@@ -404,20 +438,20 @@ def y_ordinate_styling_popup(window_title, color_default, marker_styles_default,
         [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
          sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
     ]
-    win = sg.Window(window_title, layout, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
     event, values = win.read()
     win.close()
     window.write_event_value(event, values)
 
 
 def z_ordinate_styling_popup(window_title, color_default, key, window):
-    layout = [
+    layout_def = [
         [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
         [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
         [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
          sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
     ]
-    win = sg.Window(window_title, layout, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
     event, values = win.read()
     win.close()
     window.write_event_value(event, values)
@@ -433,7 +467,7 @@ _by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color 
 LINE_MARKER_COLORS = [name for hsv, name in _by_hsv]
 MARKER_STYLES = [None, ".", "o", "s", "*", "+", "x", "D"]
 LINE_STYLES = ["solid", "None", "dashed", "dashdot", "dotted"]
-LINE_MARKER_SIZE = [str(s) for s in range(1, 30)]
+LINE_MARKER_SIZE = [str(s) for s in range(1, 10)]
 
 SURFACE_COLOR_MAPS_SOURCE = [
     'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
@@ -509,6 +543,9 @@ cif = {}  # the cif dictionary from my parsing
 data_list = []  # a list of all pattern blocknames in the cif
 dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
 
+stack_x_ordinates = []
+stack_y_ordinates = {}
+
 
 def read_cif(filename):
     global cif
@@ -534,6 +571,27 @@ def initialise_pattern_and_dropdown_lists():
         dropdown_lists[difpat]["yobs_value"] = dropdown_lists[difpat]["yobs_values"][0]
         dropdown_lists[difpat]["ycalc_value"] = dropdown_lists[difpat]["ycalc_values"][0]
         dropdown_lists[difpat]["ybkg_value"] = dropdown_lists[difpat]["ybkg_values"][0]
+
+
+def initialise_stack_xy_lists():
+    """
+    Goes through every pattern and looks for an x-ordinate. If that x-ordinate isn't already in the list,
+    add it to the list, and also add it as a potential pair with a y ordinate.
+    Also check all the y-ordinates that match with a particular x-ordinate
+    :return:
+    """
+    global stack_x_ordinates, stack_y_ordinates
+    stack_x_ordinates = []
+    stack_y_ordinates = {}
+    for pattern in cif.keys():
+        for x_ordinate in pc.ParseCIF.COMPLETE_X_LIST:
+            if x_ordinate in cif[pattern]:
+                if x_ordinate not in stack_x_ordinates:
+                    stack_x_ordinates.append(x_ordinate)
+                    stack_y_ordinates[x_ordinate] = []
+                for y_ordinate in pc.ParseCIF.COMPLETE_Y_LIST:
+                    if y_ordinate in cif[pattern] and y_ordinate not in stack_y_ordinates[x_ordinate]:
+                        stack_y_ordinates[x_ordinate].append(y_ordinate)
 
 
 # single                                    # stack                                     # surface                                    
@@ -688,51 +746,64 @@ layout_single = \
 # --- stack tab
 #
 #################################################################################################################
-#
-# layout_stack_left = \
-#     [
-#         [sg.Column(layout=[[sg.Canvas(size=(canvas_x, canvas_y), key="stack_plot", expand_x=True, expand_y=True)]], pad=(0, 0), expand_x=True, expand_y=True)],
-#         [sg.Canvas(key="stack_matplotlib_controls")]
-#     ]
-#
-# layout_stack_plot_control = \
-#     [
-#         label_dropdown_row("X axis:", x_list, "", "stack_x_ordinate"),
-#         label_dropdown_row("Y axis:", y_list, "", "stack_y_ordinate"),
-#         # label_dropdown_button_row("Y axis:", "Options", y_list, y_list[0], "stack_y_ordinate"),
-#         [sg.T("Offset:"), sg.Input(default_text=100, size=(6, 1), enable_events=False, key="stack_offset_input"),
-#          sg.Button('Submit_offset', visible=False, bind_return_key=True, key="stack_offset_value", enable_events=True)],
-#         # --
-#         [sg.T("")],
-#         [sg.Checkbox("Show HKL ticks", enable_events=True, key="stack_hkl_checkbox"),
-#          sg.Radio("Above", "hkl", enable_events=True, key="stack_hkl_checkbox_above"),
-#          sg.Radio("Below", "hkl", default=True, enable_events=True, key="stack_hkl_checkbox_below")],
-#         # [sg.Checkbox("Normalise intensity", enable_events=True, key="stack_normalise_intensity_checkbox")],
-#         # --
-#         [sg.T("")],
-#         [sg.Text("X scale:"),
-#          sg.Radio("Linear", "stack_x_scale_radio", default=True, enable_events=True, key="stack_x_scale_linear"),
-#          sg.Radio("Sqrt", "stack_x_scale_radio", enable_events=True, key="stack_x_scale_sqrt"),
-#          sg.Radio("Log", "stack_x_scale_radio", enable_events=True, key="stack_x_scale_log")],
-#         [sg.Text("Y scale:"),
-#          sg.Radio("Linear", "stack_y_scale_radio", default=True, enable_events=True, key="stack_y_scale_linear"),
-#          sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key="stack_y_scale_sqrt"),
-#          sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key="stack_y_scale_log")]
-#     ]
-#
-# layout_stack_right = \
-#     [
-#         [sg.Frame("Plot controls", layout_stack_plot_control, key="stack_plot_controls_frame")]
-#     ]
-#
-# layout_stack = \
-#     [
-#         [
-#             sg.Column(layout_stack_left, pad=(0, 0), expand_x=True, expand_y=True),
-#             sg.VerticalSeparator(),
-#             sg.Column(layout_stack_right, key="stack_right_column", pad=(0, 0), vertical_alignment="top")
-#         ]
-#     ]
+stack_keys = {"x_axis": "stack_x_ordinate",
+              "y_axis": "stack_y_ordinate",
+              "offset_input": "stack_y_offset_input",
+              "offset_value": "stack_y_offset_value",
+              "hkl_checkbox": "stack_hkl_checkbox",
+              "hkl_above": "stack_hkl_checkbox_above",
+              "hkl_below": "stack_hkl_checkbox_below",
+              "x_scale_linear": "stack_x_scale_linear",
+              "x_scale_sqrt": "stack_x_scale_sqrt",
+              "x_scale_log": "stack_x_scale_log",
+              "y_scale_linear": "stack_y_scale_linear",
+              "y_scale_sqrt": "stack_y_scale_sqrt",
+              "y_scale_log": "stack_y_scale_log"}
+
+layout_stack_left = \
+    [
+        [sg.Column(layout=[[sg.Canvas(size=(canvas_x, canvas_y), key="stack_plot", expand_x=True, expand_y=True)]], pad=(0, 0), expand_x=True, expand_y=True)],
+        [sg.Canvas(key="stack_matplotlib_controls")]
+    ]
+
+layout_stack_plot_control = \
+    [
+        label_dropdown_row("X axis:", [], "", stack_keys["x_axis"]),
+        label_dropdown_row("Y axis:", [], "", stack_keys["y_axis"]),
+        # label_dropdown_button_row("Y axis:", "Options", y_list, y_list[0], "stack_y_ordinate"),
+        [sg.T("Offset:"), sg.Input(default_text=100, size=(6, 1), enable_events=False, key=stack_keys["offset_input"]),
+         sg.Button('Submit_offset', visible=False, bind_return_key=True, key=stack_keys["offset_value"], enable_events=True)],
+        # --
+        [sg.T("")],
+        [sg.Checkbox("Show HKL ticks", enable_events=True, key=stack_keys["hkl_checkbox"]),
+         sg.Radio("Above", "hkl", enable_events=True, key=stack_keys["hkl_above"]),
+         sg.Radio("Below", "hkl", default=True, enable_events=True, key=stack_keys["hkl_below"])],
+        # [sg.Checkbox("Normalise intensity", enable_events=True, key="stack_normalise_intensity_checkbox")],
+        # --
+        [sg.T("")],
+        [sg.Text("X scale:"),
+         sg.Radio("Linear", "stack_x_scale_radio", default=True, enable_events=True, key=stack_keys["x_scale_linear"]),
+         sg.Radio("Sqrt", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_sqrt"]),
+         sg.Radio("Log", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_log"])],
+        [sg.Text("Y scale:"),
+         sg.Radio("Linear", "stack_y_scale_radio", default=True, enable_events=True, key=stack_keys["y_scale_linear"]),
+         sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_sqrt"]),
+         sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_log"])]
+    ]
+
+layout_stack_right = \
+    [
+        [sg.Frame("Plot controls", layout_stack_plot_control, key="stack_plot_controls_frame")]
+    ]
+
+layout_stack = \
+    [
+        [
+            sg.Column(layout_stack_left, pad=(0, 0), expand_x=True, expand_y=True),
+            sg.VerticalSeparator(),
+            sg.Column(layout_stack_right, key="stack_right_column", pad=(0, 0), vertical_alignment="top")
+        ]
+    ]
 #
 # #################################################################################################################
 # #
@@ -813,7 +884,7 @@ layout = \
             sg.TabGroup(
                 [[
                     sg.Tab("Single", layout_single, key="single_tab"),
-                    # sg.Tab("Stack", layout_stack, key="stack_tab"),
+                    sg.Tab("Stack", layout_stack, key="stack_tab"),
                     # sg.Tab("Surface", layout_surface, key="surface_tab")
                 ]],
                 tab_location='topleft',
@@ -857,6 +928,8 @@ def gui():
         print("-----------------\n", event, ":", the_value, " --- ", values, "\n-----------------")
 
         replot_single = False
+        replot_stack = False
+        replot_surface = False
 
         # Exit the program
         if event is None:
@@ -900,6 +973,21 @@ def gui():
 
             update_single_element_disables(pattern, window)
 
+            ###
+            # Update the stack elements
+            ###
+            initialise_stack_xy_lists()
+            window[stack_keys["x_axis"]].update(values=stack_x_ordinates, value=stack_x_ordinates[0])
+            window[stack_keys["y_axis"]].update(values=stack_y_ordinates[stack_x_ordinates[0]], value=stack_y_ordinates[stack_x_ordinates[0]][0])
+
+            ###
+            # Update the surface elements
+            ###
+
+            ###
+            # At the very end:
+            ###
+
             # this updates all of values in the values dictionary so that lookups further down work.
             _, values = window.read(timeout=0)
 
@@ -928,7 +1016,6 @@ def gui():
 
         elif event in list(single_keys.values())[1:]:  # ie if I click anything apart from the data chooser
             replot_single = True
-            # need to update the current value of each element in the dropdown dictionary
 
         elif event in list(single_buttons_keys.values()):
             y_ordinate_styling_popup(f"{single_buttons_values[event][0]} styling",
@@ -955,15 +1042,21 @@ def gui():
         # --------------------------------------------------------------------------------------
         #  stack window things
         # --------------------------------------------------------------------------------------
-        elif (event == "tab-change" and values[event] == "stack_tab" and stack_figure_agg is None) or \
-                event in ["stack_x_ordinate", "stack_y_ordinate", "stack_offset_input", "stack_offset_value"]:
-            x_ordinate = values["stack_x_ordinate"]
-            y_ordinate = values["stack_y_ordinate"]
-            offset = float(values["stack_offset_input"])
-            try:
-                stack_update_plot(x_ordinate, y_ordinate, offset, window)
-            except (IndexError, ValueError) as e:
-                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+
+        elif event == "tab-change" and values[event] == "stack_tab" and stack_figure_agg is None:
+            replot_stack = True
+            print("did the tab change")
+
+        elif event == stack_keys["x_axis"]:
+            replot_stack = True
+
+            # update the dropdownlists
+            window[stack_keys["y_axis"]].update(values=stack_y_ordinates[the_value], value=stack_y_ordinates[the_value][0])
+            _, values = window.read(timeout=0)
+            print("did the x_axis change")
+
+        elif event in list(stack_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+            replot_stack = True
 
         # --------------------------------------------------------------------------------------
         #  surface window things
@@ -990,7 +1083,6 @@ def gui():
         # as there are multiple reasons to replot, I've put it down here so I only
         # need to write it once.
         if replot_single:
-            print("I got to the plotting step")
             pattern = values[single_keys["data"]]
             # update the value of all the dropdown lists
             dropdown_lists[pattern]["x_value"] = values[single_keys["x_axis"]]
@@ -1015,6 +1107,30 @@ def gui():
                                    values[single_keys["cRwp"]],
                                    single_axis_scale,
                                    window)
+            except (IndexError, ValueError) as e:
+                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+
+        if replot_stack:
+            print("got into the replot_stack")
+            x_ordinate = values[stack_keys["x_axis"]]
+            y_ordinate = values[stack_keys["y_axis"]]
+            offset = float(values[stack_keys["offset_input"]])
+            plot_hkls = values[stack_keys["hkl_checkbox"]]
+            # construct axis scale dictionary
+            x_axes = [values[stack_keys["x_scale_linear"]], values[stack_keys["x_scale_sqrt"]], values[stack_keys["x_scale_log"]]]
+            y_axes = [values[stack_keys["y_scale_linear"]], values[stack_keys["y_scale_sqrt"]], values[stack_keys["y_scale_log"]]]
+            axis_words = ["linear", "sqrt", "log"]
+            stack_axis_scale = {}
+            stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
+            stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+
+            print(f"{x_ordinate=}")
+            print(f"{y_ordinate=}")
+            print(f"{offset=}")
+            print(f"{plot_hkls=}")
+            print(f"{stack_axis_scale=}")
+            try:
+                stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_axis_scale, window)
             except (IndexError, ValueError) as e:
                 pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
