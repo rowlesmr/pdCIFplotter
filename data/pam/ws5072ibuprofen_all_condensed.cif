@@ -1,0 +1,492 @@
+##############################################################################
+#                                                                            #
+# This CIF contains the data in a paper accepted for publication in Acta     #
+# Crystallographica Section B. It has been peer reviewed under the auspices  #
+# of the IUCr Commission on Journals.                                        #
+#                                                                            #
+# Full details of the Crystallographic Information File format               #
+# are given in the paper "The Crystallographic Information File (CIF):       #
+# a New Standard Archive File for Crystallography" by S. R. Hall, F. H.      #
+# Allen and I. D. Brown [Acta Cryst. (1991), A47, 655-685].                  #
+#                                                                            #
+# The current version of the core CIF dictionary may be obtained from        #
+# ftp://ftp.iucr.org/pub/cif_core.dic. The current version number is 2.4.    #
+#                                                                            #
+# Software is freely available for graphical display of the structure(s) in  #
+# this CIF.  For information consult the CIF home page http://www.iucr.org/  #
+# cif/home.html                                                              #
+#                                                                            #
+# This file may be used for bona fide research purposes within the           #
+# scientific community so long as proper attribution is given to the journal # 
+# article from which it was obtained.                                        #
+#                                                                            #
+##############################################################################
+
+data_global
+_journal_data_validation_number     ?
+_journal_date_recd_electronic     2009-05-04
+_journal_date_accepted     2009-11-09
+_journal_name_full     'Acta Crystallographica, Section B'
+_journal_year     2010
+_journal_volume     66
+_journal_issue      1
+_journal_page_first     76
+_journal_page_last     80
+_journal_paper_category     FA
+_journal_coeditor_code     WS5072
+_publ_contact_author_name     'Patrick Derollez'
+_publ_contact_author_address
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+_publ_contact_author_email     'Patrick.Derollez@univ-lille1.fr'
+_publ_contact_author_fax     ?
+_publ_contact_author_phone     ?
+_publ_section_title
+;
+Ab <i>initio</i> structure determination of the phase II of racemic ibuprofen by
+X-ray powder diffraction.
+;
+_publ_section_title_footnote     .
+loop_
+    _publ_author_name
+    _publ_author_address
+    'Derollez, Patrick'
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+    'Dudognon, Emeline'
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+    'Affouard, Fr\'ed\'eric'
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+    'Dan\'ede, Florence'
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+    'Correia, Nat\'alia T.'
+;
+REQUIMTE, Departamento de Quimica, Faculdade de Ci\^encias e Tecnologia
+da Universidade Nova de Lisboa, 2829-516 Caparica, Portugal.
+;
+    'Descamps, Marc'
+;
+Laboratoire de Dynamique et Structure des Mat\'eriaux Mol\'eculaires.
+UFR de Physique, Universit\'e Lille 1, Sciences et Technologies.
+59655 Villeneuve d'Ascq Cedex, France.
+;
+_publ_section_synopsis     .
+data_ibuprofen
+_pd_block_id  ibuprofen
+_pd_block_diffractogram_id     ibuprofen_pattern
+_chemical_name_systematic
+; ?
+;
+_chemical_name_common     'ibuprofen'
+_chemical_formula_moiety     'C13 H18 O2'
+_chemical_formula_sum     ?
+_chemical_formula_structural     ?
+_chemical_formula_analytical     ?
+_chemical_formula_iupac     ?
+_chemical_formula_weight     206.28
+_chemical_melting_point     ?
+_symmetry_cell_setting     Monoclinic
+_symmetry_space_group_name_H-M     'P 21/c'
+_symmetry_space_group_name_Hall     '-P 2ybc'
+loop_
+    _symmetry_equiv_pos_as_xyz
+    'x,y,z'
+    '-x,y+1/2,-z+1/2'
+    '-x,-y,-z'
+    'x,-y+1/2,z+1/2'
+_cell_length_a     12.3794(9)
+_cell_length_b     5.8723(5)
+_cell_length_c     17.5615(15)
+_cell_angle_alpha     90.00000
+_cell_angle_beta     94.873(4)
+_cell_angle_gamma     90.00000
+_cell_volume     1272.03(18)
+_cell_formula_units_Z     4
+_cell_measurement_temperature     258
+_cell_special_details
+; ?
+;
+_exptl_crystal_density_diffrn     1.077
+_pd_char_colour     white
+_pd_char_particle_morphology     ?
+_exptl_absorpt_coefficient_mu     0.562
+_exptl_absorpt_correction_type     ?
+_exptl_absorpt_process_details     ?
+_exptl_absorpt_correction_T_min     ?
+_exptl_absorpt_correction_T_max     ?
+_exptl_special_details
+; ?
+;
+_diffrn_ambient_temperature     ?
+_diffrn_radiation_type     'X-ray'
+_diffrn_radiation_wavelength     1.540560
+_diffrn_radiation_monochromator     ?
+_diffrn_measurement_device_type     'Inel CPS120'
+_diffrn_measurement_method     ?
+_diffrn_detector_area_resol_mean     ?
+_pd_instr_location
+; ?
+;
+_pd_meas_2theta_range_min     0.15300
+_pd_meas_2theta_range_max     113.82300
+_pd_meas_2theta_range_inc     0.015002
+_pd_meas_number_of_points     7579
+_pd_meas_scan_method     'fixed'
+_pd_meas_special_details
+;  ?
+;
+_refine_special_details
+; ?
+;
+_refine_ls_goodness_of_fit_all     20.1
+_refine_ls_number_reflns     2063
+_refine_ls_number_parameters     59
+_refine_ls_number_restraints     35
+loop_
+    _atom_type_symbol
+    _atom_type_scat_dispersion_real
+    _atom_type_scat_dispersion_imag
+    _atom_type_scat_source
+    c 0.01700 0.00900
+ International_Tables_for_Crystallography_Vol.C(1991)_Tables_6.1.1.4_and_6.1.1.5
+    o 0.04700 0.03200
+ International_Tables_for_Crystallography_Vol.C(1991)_Tables_6.1.1.4_and_6.1.1.5
+    h 0.00000 0.00000
+ International_Tables_for_Crystallography_Vol.C(1991)_Tables_6.1.1.4_and_6.1.1.5
+_computing_data_collection     ?
+_computing_structure_solution     ?
+_computing_structure_refinement     FULLPROF
+_computing_molecular_graphics     ?
+_computing_publication_material     ?
+_pd_calibration_special_details
+; ?
+;
+_pd_prep_cool_rate     ?
+_pd_prep_pressure     ?
+_pd_prep_temperature     ?
+_pd_proc_2theta_range_min     0.2092
+_pd_proc_2theta_range_max     113.8792
+_pd_proc_2theta_range_inc     0.015002
+_pd_proc_info_data_reduction     ?
+_pd_proc_info_excluded_regions     ?
+_pd_proc_ls_background_function
+                                  'linear interpolation between selected points'
+_pd_proc_ls_pref_orient_corr
+; ?
+;
+_pd_proc_ls_prof_R_factor     0.040009
+_pd_proc_ls_prof_wR_factor     0.056337
+_pd_proc_ls_prof_wR_expected     0.12564
+_pd_proc_ls_profile_function     pseudo-Voigt
+_pd_proc_ls_special_details
+; ?
+;
+_pd_proc_wavelength     1.540560
+_pd_spec_mount_mode     'transmission'
+_pd_spec_mounting
+; 0.7 mm diameter Lindemann capillary
+;
+_pd_spec_shape     'cylinder'
+_pd_spec_size_axial     ?
+_pd_spec_size_equat     ?
+_pd_spec_size_thick     ?
+loop_
+    _atom_site_type_symbol
+    _atom_site_label
+    _atom_site_fract_x
+    _atom_site_fract_y
+    _atom_site_fract_z
+    _atom_site_U_iso_or_equiv
+    _atom_site_adp_type
+    _atom_site_occupancy
+    C C1 0.5572(6) 0.6766(19) 0.4158(4) 0.00000 Uiso 1.00000
+    C C2 0.6059(6) 0.8680(12) 0.3731(4) 0.00000 Uiso 1.00000
+    C C3 0.6963(8) 0.967(2)   0.4240(6) 0.00000 Uiso 1.00000
+    C C4 0.6641(11) 0.734(4)   0.3179(5) 0.00000 Uiso 1.00000
+    C C5 0.7604(12) 0.631(4)   0.3441(7) 0.00000 Uiso 1.00000
+    C C6 0.8130(12) 0.489(3)   0.2963(5) 0.00000 Uiso 1.00000
+    C C7 0.7692(11) 0.450(3)   0.2225(6) 0.00000 Uiso 1.00000
+    C C8 0.6729(11) 0.554(3)   0.1962(6) 0.00000 Uiso 1.00000
+    C C9 0.6204(11) 0.696(3)   0.2439(5) 0.00000 Uiso 1.00000
+    C C10 0.8061(12) 0.2511(11) 0.1767(6) 0.00000 Uiso 1.00000
+    C C11 0.8511(5) 0.3890(10) 0.1113(4) 0.00000 Uiso 1.00000
+    C C12 0.9146(10) 0.1809(16) 0.0890(7) 0.00000 Uiso 1.00000
+    C C13 0.9565(7) 0.507(2)   0.1420(7) 0.00000 Uiso 1.00000
+    O O1 0.6004(8) 0.6812(17) 0.4845(4) 0.00000 Uiso 1.00000
+    O O2 0.4615(5) 0.6338(17) 0.4159(5) 0.00000 Uiso 1.00000
+    H H1 0.54252 0.59460 0.51577 0.00000 Uiso 1.00000
+    H H2 0.54247 0.95211 0.34572 0.00000 Uiso 1.00000
+    H H3 0.69457 0.93109 0.47765 0.00000 Uiso 1.00000
+    H H4 0.76245 0.93109 0.40258 0.00000 Uiso 1.00000
+    H H5 0.68509 1.14351 0.42214 0.00000 Uiso 1.00000
+    H H6 0.79091 0.64412 0.39829 0.00000 Uiso 1.00000
+    H H7 0.88185 0.41905 0.31802 0.00000 Uiso 1.00000
+    H H8 0.64266 0.52523 0.14303 0.00000 Uiso 1.00000
+    H H9 0.55273 0.76436 0.22148 0.00000 Uiso 1.00000
+    H H10 0.75186 0.17634 0.14443 0.00000 Uiso 1.00000
+    H H11 0.85372 0.14644 0.21091 0.00000 Uiso 1.00000
+    H H12 0.79116 0.42036 0.07230 0.00000 Uiso 1.00000
+    H H13 0.97950 0.16131 0.12476 0.00000 Uiso 1.00000
+    H H14 0.94623 0.20722 0.04049 0.00000 Uiso 1.00000
+    H H15 0.86032 0.06455 0.06744 0.00000 Uiso 1.00000
+    H H16 0.99160 0.58868 0.10212 0.00000 Uiso 1.00000
+    H H17 0.98938 0.39791 0.18671 0.00000 Uiso 1.00000
+    H H18 0.95001 0.64061 0.18671 0.00000 Uiso 1.00000
+_geom_special_details     ?
+loop_
+    _geom_bond_atom_site_label_1
+    _geom_bond_atom_site_label_2
+    _geom_bond_site_symmetry_1
+    _geom_bond_site_symmetry_2
+    _geom_bond_distance
+    _geom_bond_publ_flag
+    ? ? ? ? ? ?
+loop_
+    _geom_contact_atom_site_label_1
+    _geom_contact_atom_site_label_2
+    _geom_contact_distance
+    _geom_contact_site_symmetry_1
+    _geom_contact_site_symmetry_2
+    _geom_contact_publ_flag
+    ? ? ? ? ? ?
+loop_
+    _geom_angle_atom_site_label_1
+    _geom_angle_atom_site_label_2
+    _geom_angle_atom_site_label_3
+    _geom_angle_site_symmetry_1
+    _geom_angle_site_symmetry_2
+    _geom_angle_site_symmetry_3
+    _geom_angle
+    _geom_angle_publ_flag
+    ? ? ? ? ? ? ? ?
+loop_
+    _geom_torsion_atom_site_label_1
+    _geom_torsion_atom_site_label_2
+    _geom_torsion_atom_site_label_3
+    _geom_torsion_atom_site_label_4
+    _geom_torsion_site_symmetry_1
+    _geom_torsion_site_symmetry_2
+    _geom_torsion_site_symmetry_3
+    _geom_torsion_site_symmetry_4
+    _geom_torsion
+    _geom_torsion_publ_flag
+    ? ? ? ? ? ? ? ? ? ?
+loop_
+    _geom_hbond_atom_site_label_D
+    _geom_hbond_atom_site_label_H
+    _geom_hbond_atom_site_label_A
+    _geom_hbond_site_symmetry_D
+    _geom_hbond_site_symmetry_H
+    _geom_hbond_site_symmetry_A
+    _geom_hbond_distance_DH
+    _geom_hbond_distance_HA
+    _geom_hbond_distance_DA
+    _geom_hbond_angle_DHA
+    _geom_hbond_publ_flag
+    ? ? ? ? ? ? ? ? ? ? ?
+	
+#==============================================
+# Powder diffraction pattern number  1
+#==============================================
+ 
+data_ibuprofen_pattern
+ 
+# the block_id doesn't have to be the same as the data_ block name, but it can be.
+_pd_block_id  ibuprofen_pattern 
+
+
+#This is needed as you used _pd_refln_phase_id in the hkl listing.
+loop_
+_pd_phase_id
+_pd_phase_block_id
+1 ibuprofen
+
+#============================================
+# 9. INSTRUMENT CHARACTERIZATION                                  
+                                                  
+_exptl_special_details          
+; ?
+;                                                  
+                                                  
+# if regions of the data are excluded, the reason(s) are supplied here:  
+_pd_proc_info_excluded_regions                                   
+; ?                                                 
+;                                                  
+                                                  
+# The following item is used to identify the equipment used to record    
+# the powder pattern when the diffractogram was measured at a laboratory   
+# other than the authors' home institution, e.g. when neutron or synchrotron  
+# radiation is used.                                        
+                                                  
+_pd_instr_location                                         
+; ?                                                 
+;                                                  
+_pd_calibration_special_details      # description of the method used  
+                     # to calibrate the instrument               
+; ?                                                 
+;                                                  
+                                                  
+_diffrn_ambient_temperature    ?                                 
+_diffrn_source          'X-ray tube'                                 
+_diffrn_source_target       ?                                 
+_diffrn_source_type        ?                                 
+_diffrn_measurement_device_type  ?                                 
+_diffrn_detector         ?                                 
+_diffrn_detector_type       'Inel CPS120'                
+                                                  
+_pd_meas_scan_method       'fixed'                 
+_pd_meas_special_details                                      
+; ?                                                
+;                                                  
+                                                  
+# The following two items identify the program(s) used (if appropriate).  
+_computing_data_collection    ?                                 
+_computing_data_reduction     ?                                 
+                                                  
+# Describe any processing performed on the data, prior to refinement.    
+# For example: a manual Lp correction or a precomputed absorption correction  
+_pd_proc_info_data_reduction   ?                                 
+                                                  
+# The following item is used for angular dispersive measurements only.
+                                                  
+_diffrn_radiation_monochromator  ?                                 
+                                                  
+# The following items are used to define the size of the instrument.
+# Not all distances are appropriate for all instrument types. 
+                                                  
+_pd_instr_dist_src/mono      ?                                 
+_pd_instr_dist_mono/spec     ?                                 
+_pd_instr_dist_src/spec      ?                                 
+_pd_instr_dist_spec/anal     ?                                 
+_pd_instr_dist_anal/detc     ?                                 
+_pd_instr_dist_spec/detc     ?                                 
+                                                  
+# 10. Specimen size and mounting information                            
+                                                  
+# The next three fields give the specimen dimensions in mm. The equatorial 
+# plane contains the incident and diffracted beam.                         
+                                                  
+_pd_spec_size_axial        ?    # perpendicular to                    
+                     # equatorial plane                    
+                                                  
+_pd_spec_size_equat        ?    # parallel to                       
+                     # scattering vector                    
+                     # in transmission                     
+                                                  
+_pd_spec_size_thick        ?    # parallel to                       
+                     # scattering vector                    
+                     # in reflection                      
+                                                  
+_pd_spec_mounting             # This field should be                  
+                     # used to give details of the               
+                     # container.                       
+; ?                                                 
+;                                                  
+                                                  
+_pd_spec_mount_mode        'transmission'                    
+                                                  
+_pd_spec_shape          'cylinder'              
+                                                  
+   
+_diffrn_radiation_probe        'x-ray' 
+_diffrn_radiation_wavelength      1.5406
+   
+# The following profile R-factors are NOT CORRECTED for background
+# The sum is extended to all non-excluded points.
+# These are the current CIF standard
+ 
+_pd_proc_ls_prof_R_factor        0.040009
+_pd_proc_ls_prof_wR_factor        0.056337
+_pd_proc_ls_prof_wR_expected    0.12564
+ 
+# The following profile R-factors are CORRECTED for background
+# The sum is extended to all non-excluded points.
+# These items are not in the current CIF standard, but are defined above
+ 
+_pd_proc_ls_prof_cR_factor        0.138967
+_pd_proc_ls_prof_cwR_factor       0.136371
+_pd_proc_ls_prof_cwR_expected       0.030412
+ 
+# The following items are not in the CIF standard, but are defined above
+ 
+_pd_proc_ls_prof_chi2        20.1076
+_pd_proc_ls_prof_echi2        20.1076
+ 
+_pd_proc_ls_background_function  
+;  FullProf Background function number 
+;                                                  
+                                                  
+_exptl_absorpt_process_details                                   
+;  FullProf Absorption/surface roughness correction  
+ No correction is applied ?.                                     
+;                                                  
+                                                  
+_pd_proc_ls_profile_function                                    
+;                                                  
+;                                                  
+_pd_proc_ls_peak_cutoff 0.00500                                   
+_pd_calc_method "  Rietveld Refinement" 
+                                                  
+#---- raw/calc data loop -----  
+_pd_meas_2theta_range_min   0.1530
+_pd_meas_2theta_range_max  113.8230
+_pd_meas_2theta_range_inc   0.0150
+_pd_proc_2theta_range_min   0.2092
+_pd_proc_2theta_range_max  113.8792
+_pd_proc_2theta_range_inc   0.0150
+ 
+loop_
+_pd_proc_point_id
+_pd_proc_2theta_corrected  
+_pd_proc_intensity_total
+_pd_calc_intensity_total
+_pd_proc_intensity_bkg_calc
+ 
+  325   5.0692  6679(82)         6768.4961     6720.4746   
+  326   5.0842  6596(81)         6770.4604     6721.7437   
+  327   5.0992  6566(81)         6772.4404     6723.0132   
+ 5988  90.0142  2046(45)         2117.3408     2040.8278   
+ 5989  90.0292  2132(46)         2116.6147     2040.3604   
+ 5990  90.0442  2102(46)         2040.1421     2040.1421   
+_pd_proc_number_of_points  6
+ 
+loop_             
+   _refln_index_h      
+   _refln_index_k      
+   _refln_index_l
+   _refln_mult            
+   _pd_refln_phase_id    
+   _refln_observed_status  
+   _refln_F_squared_meas  
+   _refln_F_squared_calc  
+   _refln_phase_calc    
+   _refln_d_spacing     
+  1  0  0 2 1 o    2915.4597   2887.9639 180.26 12.33456
+  0  0  2 2 1 o    1300.5454   1320.5348 179.92  8.74894
+ -1  0  2 2 1 o    671.6462   639.6791 180.32  7.44057
+ -11  1  4 4 1 o     2.5741    2.6443  1.16  1.08983
+ -7  2 12 4 1 o    356.3940   366.0640  0.41  1.08962
+  0  5  6 4 1 o    255.0585   261.9569 180.19  1.08943
+ 
+# The following lines are used to test the character set of files sent by   
+# network email or other means. They are not part of the CIF data set.    
+# abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789       
+# !@#$%^&*()_+{}:"~<>?|\-=[];'`,./ 
