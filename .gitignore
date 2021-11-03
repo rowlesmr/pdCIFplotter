@@ -2,8 +2,9 @@
 .idea/
 ref/papers
 *.*~
-venv/
-data/
+data/simon/
+data/pam/
+data/ideal/
 
 
 # Byte-compiled / optimized / DLL files
