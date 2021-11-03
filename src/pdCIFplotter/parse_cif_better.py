@@ -275,7 +275,7 @@ class ParseCIF:
                                        NICE_TO_HAVE_DATANAMES[:-1]
 
     def __init__(self, ciffilename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
-        # print(f"Now reading {ciffilename}. This may take a while.")
+        print(f"Now reading {ciffilename}. This may take a while.")
         self.ciffile = CifFile.ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
         self.ncif = {}  # this will be the cif file with pattern information only
         self.cif = {}

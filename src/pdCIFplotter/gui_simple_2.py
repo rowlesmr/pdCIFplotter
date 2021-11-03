@@ -30,12 +30,14 @@ canvas_y = 300
 single_fig = None
 single_ax = None
 single_figure_agg = None
-y_style = [["mediumblue", "+", "none", "2"],  # yobs
-           ["red", None, "solid", "1"],  # ycalc
-           ["gray", None, "solid", "2"],  # ybkg
-           ["lightgrey", None, "solid", "2"],  # ydiff
-           ["lightgrey", None, "solid", "1"]  # cRwp
-           ]
+y_style = \
+    [
+        ["mediumblue", "+", "none", "2"],  # yobs
+        ["red", None, "solid", "1"],  # ycalc
+        ["gray", None, "solid", "2"],  # ybkg
+        ["lightgrey", None, "solid", "2"],  # ydiff
+        ["lightgrey", None, "solid", "1"]  # cRwp
+    ]
 
 stack_fig = None
 stack_ax = None
@@ -46,8 +48,98 @@ surface_ax = None
 surface_figure_agg = None
 surface_z_color = "viridis"
 
+cif = {}  # the cif dictionary from my parsing
+single_data_list = []  # a list of all pattern blocknames in the cif
+single_dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
 
-# plotting functions
+stack_x_ordinates = []
+stack_y_ordinates = {}
+
+surface_x_ordinates = []
+surface_z_ordinates = {}
+
+
+def empty_globals():
+    global single_fig, single_ax, single_figure_agg
+    global stack_fig, stack_ax, stack_figure_agg
+    global surface_fig, surface_ax, surface_figure_agg
+
+    global cif
+    global single_data_list, single_dropdown_lists
+    global stack_x_ordinates, stack_y_ordinates
+    global surface_x_ordinates, surface_z_ordinates
+
+    single_fig = None
+    single_ax = None
+    single_figure_agg = None
+
+    stack_fig = None
+    stack_ax = None
+    stack_figure_agg = None
+
+    surface_fig = None
+    surface_ax = None
+    surface_figure_agg = None
+
+    cif = {}  # the cif dictionary from my parsing
+    single_data_list = []  # a list of all pattern blocknames in the cif
+    single_dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
+
+    stack_x_ordinates = []
+    stack_y_ordinates = {}
+
+    surface_x_ordinates = []
+    surface_z_ordinates = {}
+
+
+# LINE_MARKER_COLORS = list(mc.CSS4_COLORS.keys())
+# from here: https://matplotlib.org/stable/gallery/color/named_colors.html
+_by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
+LINE_MARKER_COLORS = [name for hsv, name in _by_hsv]
+MARKER_STYLES = [None, ".", "o", "s", "*", "+", "x", "D"]
+LINE_STYLES = ["solid", "None", "dashed", "dashdot", "dotted"]
+LINE_MARKER_SIZE = [str(s) for s in range(1, 10)]
+
+SURFACE_COLOR_MAPS_SOURCE = [
+    'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+
+SURFACE_COLOR_MAPS = []
+for c in SURFACE_COLOR_MAPS_SOURCE:
+    SURFACE_COLOR_MAPS.append(c)
+    SURFACE_COLOR_MAPS.append(c + "_r")
+
+# these lists contain all the possible x and y ordinate data items that I want to worry about in this program
+# the last few entries in each list correspond to values that could potentially be calc'd from the given
+# information, but were not presented in the CIF.
+COMPLETE_X_LIST = pc.ParseCIF.COMPLETE_X_LIST
+OBSERVED_Y_LIST = pc.ParseCIF.OBSERVED_Y_LIST
+CALCULATED_Y_LIST = pc.ParseCIF.CALCULATED_Y_LIST
+BACKGROUND_Y_LIST = pc.ParseCIF.BACKGROUND_Y_LIST
+COMPLETE_XY_PLAINTEXT_DICT = {"_pd_meas_2theta_scan": "\u00B0 2\u03b8 measured",
+                              "_pd_proc_2theta_corrected": "\u00B0 2\u03b8 corrected",
+                              "_pd_meas_time_of_flight": "Time of flight (\u00b5s)",
+                              "_pd_meas_position": "Position (mm)",
+                              "_pd_proc_energy_incident": "Incident energy (eV)",
+                              "_pd_proc_wavelength": "Incident wavelength (\u212b)",
+                              "_pd_proc_d_spacing": "d spacing (\u212b)",
+                              "_pd_proc_recip_len_Q": "q (1/\u212b)",
+                              "d": "d spacing (calc'd from 2\u03b8) (\u212b)",
+                              "q": "q (calc'd from 2\u03b8) (1/\u212b)",
+                              "_pd_meas_counts_total": "Total measured counts",
+                              "_pd_meas_intensity_total": "Total measured intensity",
+                              "_pd_proc_intensity_total": "Total processed intensity",
+                              "_pd_proc_intensity_net": "Net processed intensity",
+                              "_pd_calc_intensity_net": "Net calculated intensity",
+                              "_pd_calc_intensity_total": "Total calculated intensity",
+                              "_pd_meas_counts_background": "Background measured counts",
+                              "_pd_meas_counts_container": "Container measured counts",
+                              "_pd_meas_intensity_background": "Background measured intensity",
+                              "_pd_meas_intensity_container": "Container measured intensity",
+                              "_pd_proc_intensity_bkg_calc": "Calculated background intensity",
+                              "_pd_proc_intensity_bkg_fix": "Background intensity, fixed points",
+                              "diff": "Difference"}
+
 
 def pretty(d, indent=0, print_values=True):
     for key, value in d.items():
@@ -71,6 +163,8 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
         single_height_px = 382
 
     # if single_fig is None or single_ax is None:
+    if single_fig is not None:
+        plt.close(single_fig)
     single_fig, single_ax = plt.subplots(1, 1)
     single_fig = plt.gcf()
     single_fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
@@ -108,6 +202,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
 
     min_plot = 999999999
     max_plot = -min_plot
+    cchi2_zero = 0
     for i, (y, y_name) in enumerate(zip(ys, y_ordinates)):
         if y is not None:
             if y_name == "Diff":
@@ -176,14 +271,14 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
         single_ax2.set_ylabel("c\u03C7\u00b2")
         align_cchi2(single_ax, cchi2_zero, single_ax2)
 
-    # organise legends:
-    # https://stackoverflow.com/a/10129461/36061
-    if plot_cchi2:
+        # organise legends:
+        # https://stackoverflow.com/a/10129461/36061
         # ask matplotlib for the plotted objects and their labels
         lines, labels = single_ax.get_legend_handles_labels()
         lines2, labels2 = single_ax2.get_legend_handles_labels()
         single_ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
-    else:
+
+    if not plot_cchi2:
         plt.legend(frameon=False, loc='upper right')  # loc='best')
 
     if "intensity" in y_ordinates[0]:
@@ -225,10 +320,12 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
 
     dpi = plt.gcf().get_dpi()
     if stack_fig is not None:
-        stack_height_px = single_fig.get_size_inches()[1] * dpi
+        stack_height_px = stack_fig.get_size_inches()[1] * dpi
     else:
         stack_height_px = 382
 
+    if stack_fig is not None:
+        plt.close(stack_fig)
     stack_fig, stack_ax = plt.subplots(1, 1)
     stack_fig = plt.gcf()
     dpi = stack_fig.get_dpi()
@@ -278,7 +375,7 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     xs = []
     ys = []
     # put the data into the correct format
-    for i in range(len(data_list) - 1, -1, -1):
+    for i in range(len(single_data_list) - 1, -1, -1):
         pattern = plot_list[i]
         x = cif[pattern][x_ordinate]
         y = cif[pattern][y_ordinate]
@@ -333,8 +430,8 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate, z_ordinate, window):
-    global canvas_x, canvas_y, surface_figure_agg
+def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
+    global surface_figure_agg, surface_fig, surface_ax, surface_z_color
     # try:
     #     bkr = get_bkgremove_from_displayname(displayname)
     # except ValueError:
@@ -343,20 +440,34 @@ def surface_update_plot(x_ordinate, z_ordinate, window):
     # if single_figure_agg:
     #     single_figure_agg.get_tk_widget().forget()
     #     plt.close('all')
+    dpi = plt.gcf().get_dpi()
 
-    global surface_fig, surface_ax, surface_z_color
-
+    if surface_fig is not None:
+        plt.close(surface_fig)
     surface_fig, surface_ax = plt.subplots(1, 1)
     surface_fig = plt.gcf()
-    dpi = surface_fig.get_dpi()
     surface_fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
     surface_fig.set_tight_layout(True)
     plt.margins(x=0)
-
-    # todo: need to change to dd, not df
-    x = df[x_ordinate].to_numpy()
-    z = df[z_ordinate].to_numpy()
-    y = pd.factorize(df._pd_block_id)[0]
+    # need to construct a single array for each x, y, z, by looping through only those patterns which have the
+    # x and z ordinates necessary to make the piccie I want to see.
+    x = np.array([])
+    y = np.array([])
+    z = np.array([])
+    i = 0
+    plot_list = []
+    for pattern in cif.keys():
+        cifpat = cif[pattern]
+        if not (x_ordinate in cif[pattern] and z_ordinate in cif[pattern]):
+            continue
+        print(pattern)
+        # now both x and z are in the pattern
+        cifpat = cif[pattern]
+        plot_list.append(pattern)
+        x = np.append(x, cifpat[x_ordinate])
+        z = np.append(z, cifpat[z_ordinate])
+        y = np.append(y, [i] * len(cifpat[x_ordinate]))
+        i += 1
     # https://stackoverflow.com/a/33943276/36061
     # https://stackoverflow.com/a/38025451/36061
     x = np.unique(x)
@@ -364,21 +475,59 @@ def surface_update_plot(x_ordinate, z_ordinate, window):
     xx, yy = np.meshgrid(x, y)
     zz = z.reshape(len(y), len(x))
 
+    if axis_scale["x"] == "log":
+        xx = np.log10(xx)
+    elif axis_scale["x"] == "sqrt":
+        xx = np.sqrt(xx)
+    if axis_scale["y"] == "log":
+        yy = np.log10(yy)
+    elif axis_scale["y"] == "sqrt":
+        yy = np.sqrt(yy)
+    if axis_scale["z"] == "log":
+        zz = np.log10(zz)
+    elif axis_scale["z"] == "sqrt":
+        zz = np.sqrt(zz)
+
     plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=surface_z_color)
-    plt.colorbar(label=z_ordinate)
 
     # offset for all the mins and maxs
     # sx = bkgremove_ax_scale * (bkgremove_unzoom[1] - bkgremove_unzoom[0])
     # sy = bkgremove_ax_scale * (bkgremove_unzoom[3] - bkgremove_unzoom[2])
     # bkgremove_unzoom = [bkgremove_unzoom[0] - sx, bkgremove_unzoom[1] + sx,
     #                     bkgremove_unzoom[2] - sy, bkgremove_unzoom[3] + sy, ]
-    y_axis_title = "Pattern number"
-
     if x_ordinate in ["d", "_pd_proc_d_spacing"]:
         plt.gca().invert_xaxis()
 
-    plt.xlabel(X_AXIS_TITLES[x_ordinate])
+    # check that the wavelength for all patterns is the same
+    wavelength = pc.get_from_cif(cif[plot_list[0]], "wavelength")
+    for pattern in plot_list:
+        if wavelength != pc.get_from_cif(cif[pattern], "wavelength"):
+            wavelength = None
+            break
+
+    y_axis_title = "Pattern number"
+    z_axis_title = z_ordinate
+    if axis_scale["x"] == "log":
+        x_axis_label = f"Log10[{x_axis_title(x_ordinate, wavelength)}]"
+    elif axis_scale["x"] == "sqrt":
+        x_axis_label = f"Sqrt[{x_axis_title(x_ordinate, wavelength)}]"
+    else:
+        x_axis_label = f"{x_axis_title(x_ordinate, wavelength)}"
+
+    if axis_scale["y"] == "log":
+        y_axis_title = f"Log10[{y_axis_title}]"
+    elif axis_scale["y"] == "sqrt":
+        y_axis_title = f"Sqrt[{y_axis_title}]"
+
+    if axis_scale["z"] == "log":
+        z_axis_title = f"Log10[{z_axis_title}]"
+    elif axis_scale["z"] == "sqrt":
+        z_axis_title = f"Sqrt[{z_axis_title}]"
+
+    plt.xlabel(x_axis_label)
     plt.ylabel(y_axis_title)
+    plt.colorbar(label=z_axis_title)
+
     #
     # plt.plot(40, 15, marker="|", markersize=6)
     #
@@ -399,16 +548,6 @@ def surface_update_plot(x_ordinate, z_ordinate, window):
     #         hkl_y = [min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkld[block_id]["hkl"][phase][hkl_x_ordinate])
     #         plt.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
 
-    # updates the viewing area of the plot so when a new dataset is  chosen, I can open in it the same viewpoint
-    # if single_xlims is not None:
-    #     ax.set_xlim(single_xlims[0], single_xlims[1])
-    # if single_ylims is not None:
-    #     ax.set_ylim(single_ylims[0], single_ylims[1])
-    #
-    # ax.callbacks.connect('xlim_changed', on_xlims_change)  # gets the xlims
-    # ax.callbacks.connect('ylim_changed', on_ylims_change)  # gets the ylims
-    # # plt.connect('motion_notify_event', bkgremove_mouse_coordinates)  # gets the mouse coordinates. TODO add these to the status bar
-
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
 
@@ -416,7 +555,6 @@ def surface_update_plot(x_ordinate, z_ordinate, window):
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
 def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
-    # start_time = time.time()
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -428,10 +566,6 @@ def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
     toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
     toolbar.update()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
-
-    # finish_time = time.time()
-
-    # print(f"draw_figure_w_toolbar took {finish_time - start_time} units of time.")
     return figure_canvas_agg
 
 
@@ -442,15 +576,16 @@ class Toolbar(NavigationToolbar2Tk):
 
 
 def y_ordinate_styling_popup(window_title, color_default, marker_styles_default, line_style_default, size_default, key, window):
-    layout_def = [
-        [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
-        [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
-         sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
-         sg.Combo(LINE_STYLES, default_value=line_style_default, key=key + "-popup-linestyle"),
-         sg.Combo(LINE_MARKER_SIZE, default_value=size_default, key=key + "-popup-size")],
-        [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
-         sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
-    ]
+    layout_def = \
+        [
+            [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
+            [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
+             sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
+             sg.Combo(LINE_STYLES, default_value=line_style_default, key=key + "-popup-linestyle"),
+             sg.Combo(LINE_MARKER_SIZE, default_value=size_default, key=key + "-popup-size")],
+            [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
+             sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+        ]
     win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
     event, values = win.read()
     win.close()
@@ -473,24 +608,6 @@ def z_ordinate_styling_popup(window_title, color_default, key, window):
 ######################################################################################################
 #######################################################################################################
 ######################################################################################################
-
-# LINE_MARKER_COLORS = list(mc.CSS4_COLORS.keys())
-# from here: https://matplotlib.org/stable/gallery/color/named_colors.html
-_by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
-LINE_MARKER_COLORS = [name for hsv, name in _by_hsv]
-MARKER_STYLES = [None, ".", "o", "s", "*", "+", "x", "D"]
-LINE_STYLES = ["solid", "None", "dashed", "dashdot", "dotted"]
-LINE_MARKER_SIZE = [str(s) for s in range(1, 10)]
-
-SURFACE_COLOR_MAPS_SOURCE = [
-    'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
-    'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
-
-SURFACE_COLOR_MAPS = []
-for c in SURFACE_COLOR_MAPS_SOURCE:
-    SURFACE_COLOR_MAPS.append(c)
-    SURFACE_COLOR_MAPS.append(c + "_r")
-
 
 def make_list_for_ordinate_dropdown(complete_list, possible_list):
     used_list = []
@@ -519,47 +636,6 @@ def x_axis_title(x_ordinate, wavelength=None):
     return X_AXIS_TITLES[x_ordinate]
 
 
-# these lists contain all the possible x and y ordinate data items that I want to worry about in this program
-# the last few entries in each list correspond to values that could potentially be calc'd from the given
-# information, but were not presented in the CIF.
-COMPLETE_X_LIST = pc.ParseCIF.COMPLETE_X_LIST
-
-OBSERVED_Y_LIST = pc.ParseCIF.OBSERVED_Y_LIST
-CALCULATED_Y_LIST = pc.ParseCIF.CALCULATED_Y_LIST
-BACKGROUND_Y_LIST = pc.ParseCIF.BACKGROUND_Y_LIST
-
-COMPLETE_XY_PLAINTEXT_DICT = {"_pd_meas_2theta_scan": "\u00B0 2\u03b8 measured",
-                              "_pd_proc_2theta_corrected": "\u00B0 2\u03b8 corrected",
-                              "_pd_meas_time_of_flight": "Time of flight (\u00b5s)",
-                              "_pd_meas_position": "Position (mm)",
-                              "_pd_proc_energy_incident": "Incident energy (eV)",
-                              "_pd_proc_wavelength": "Incident wavelength (\u212b)",
-                              "_pd_proc_d_spacing": "d spacing (\u212b)",
-                              "_pd_proc_recip_len_Q": "q (1/\u212b)",
-                              "d": "d spacing (calc'd from 2\u03b8) (\u212b)",
-                              "q": "q (calc'd from 2\u03b8) (1/\u212b)",
-                              "_pd_meas_counts_total": "Total measured counts",
-                              "_pd_meas_intensity_total": "Total measured intensity",
-                              "_pd_proc_intensity_total": "Total processed intensity",
-                              "_pd_proc_intensity_net": "Net processed intensity",
-                              "_pd_calc_intensity_net": "Net calculated intensity",
-                              "_pd_calc_intensity_total": "Total calculated intensity",
-                              "_pd_meas_counts_background": "Background measured counts",
-                              "_pd_meas_counts_container": "Container measured counts",
-                              "_pd_meas_intensity_background": "Background measured intensity",
-                              "_pd_meas_intensity_container": "Container measured intensity",
-                              "_pd_proc_intensity_bkg_calc": "Calculated background intensity",
-                              "_pd_proc_intensity_bkg_fix": "Background intensity, fixed points",
-                              "diff": "Difference"}
-
-cif = {}  # the cif dictionary from my parsing
-data_list = []  # a list of all pattern blocknames in the cif
-dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
-
-stack_x_ordinates = []
-stack_y_ordinates = {}
-
-
 def read_cif(filename):
     global cif
     cif = pc.ParseCIF(filename).get_processed_cif()
@@ -570,20 +646,20 @@ def make_xy_dropdown_list(master_list, difpat):
 
 
 def initialise_pattern_and_dropdown_lists():
-    global data_list, dropdown_lists
-    data_list = [difpat for difpat in cif.keys()]
-    for difpat in data_list:
-        dropdown_lists[difpat] = {}
+    global single_data_list, single_dropdown_lists
+    single_data_list = [pattern for pattern in cif.keys()]
+    for pattern in single_data_list:
+        single_dropdown_lists[pattern] = {}
         # these are the possible values that the ordinate could be
-        dropdown_lists[difpat]["x_values"] = make_xy_dropdown_list(COMPLETE_X_LIST, difpat)
-        dropdown_lists[difpat]["yobs_values"] = make_xy_dropdown_list(OBSERVED_Y_LIST, difpat)
-        dropdown_lists[difpat]["ycalc_values"] = make_xy_dropdown_list(CALCULATED_Y_LIST, difpat)
-        dropdown_lists[difpat]["ybkg_values"] = make_xy_dropdown_list(BACKGROUND_Y_LIST, difpat)
+        single_dropdown_lists[pattern]["x_values"] = make_xy_dropdown_list(COMPLETE_X_LIST, pattern)
+        single_dropdown_lists[pattern]["yobs_values"] = make_xy_dropdown_list(OBSERVED_Y_LIST, pattern)
+        single_dropdown_lists[pattern]["ycalc_values"] = make_xy_dropdown_list(CALCULATED_Y_LIST, pattern)
+        single_dropdown_lists[pattern]["ybkg_values"] = make_xy_dropdown_list(BACKGROUND_Y_LIST, pattern)
         # this is my choice of the initial value of that ordinate
-        dropdown_lists[difpat]["x_value"] = dropdown_lists[difpat]["x_values"][0]
-        dropdown_lists[difpat]["yobs_value"] = dropdown_lists[difpat]["yobs_values"][0]
-        dropdown_lists[difpat]["ycalc_value"] = dropdown_lists[difpat]["ycalc_values"][0]
-        dropdown_lists[difpat]["ybkg_value"] = dropdown_lists[difpat]["ybkg_values"][0]
+        single_dropdown_lists[pattern]["x_value"] = single_dropdown_lists[pattern]["x_values"][0]
+        single_dropdown_lists[pattern]["yobs_value"] = single_dropdown_lists[pattern]["yobs_values"][0]
+        single_dropdown_lists[pattern]["ycalc_value"] = single_dropdown_lists[pattern]["ycalc_values"][0]
+        single_dropdown_lists[pattern]["ybkg_value"] = single_dropdown_lists[pattern]["ybkg_values"][0]
 
 
 def initialise_stack_xy_lists():
@@ -607,7 +683,28 @@ def initialise_stack_xy_lists():
                         stack_y_ordinates[x_ordinate].append(y_ordinate)
 
 
-# single                                    # stack                                     # surface                                    
+def initialise_surface_xz_lists():
+    """
+    Goes through every pattern and looks for an x-ordinate. If that x-ordinate isn't already in the list,
+    add it to the list, and also add it as a potential pair with a z ordinate.
+    Also check all the z-ordinates that match with a particular z-ordinate
+    :return:
+    """
+    global surface_x_ordinates, surface_z_ordinates
+    surface_x_ordinates = []
+    surface_z_ordinates = {}
+    for pattern in cif.keys():
+        for x_ordinate in pc.ParseCIF.COMPLETE_X_LIST:
+            if x_ordinate in cif[pattern]:
+                if x_ordinate not in surface_x_ordinates:
+                    surface_x_ordinates.append(x_ordinate)
+                    surface_z_ordinates[x_ordinate] = []
+                for y_ordinate in pc.ParseCIF.COMPLETE_Y_LIST:
+                    if y_ordinate in cif[pattern] and y_ordinate not in surface_z_ordinates[x_ordinate]:
+                        surface_z_ordinates[x_ordinate].append(y_ordinate)
+
+
+# single                                    # stack                                     # surface
 # --------------------------------------- # # --------------------------------------- # # --------------------------------------- #
 # |                      |              | # # |                      |              | # # |                      |              | #
 # |                      | data_chooser | # # |                      | plot_control | # # |                      | plot_control | #
@@ -621,7 +718,6 @@ def initialise_stack_xy_lists():
 # |                      |              | # # |                      |              | # # |                      |              | #
 # |                      |              | # # |                      |              | # # |                      |              | #
 # |-------------------------------------| # # |-------------------------------------| # # |-------------------------------------| #
-
 
 decimalplaces = 4
 
@@ -671,24 +767,33 @@ single_buttons_values = {v: (k, i) for i, (k, v) in enumerate(single_buttons_key
 
 
 def update_single_element_disables(pattern, values, window):
+    if pattern == "":
+        return
+
     # enable all buttons and dropdowns
     for key in single_keys.keys():
         window[single_keys[key]].update(disabled=False)
+    for key in single_buttons_keys.keys():
+        window[single_buttons_keys[key]].update(disabled=False)
+
     # disable buttons and dropdowns that need disabling
     #   if x list is length 1 disable x combo
-    if len(dropdown_lists[pattern]["x_values"]) == 1:
+    if len(single_dropdown_lists[pattern]["x_values"]) == 1:
         window[single_keys["data"]].update(disabled=True)
     #   if y list is length 1 (ie it says "None") disable ycombo and button
     for yname in ["yobs", "ycalc", "ybkg"]:
-        if len(dropdown_lists[pattern][yname + "_values"]) == 1:
+        if len(single_dropdown_lists[pattern][yname + "_values"]) == 1:
             window[single_keys[yname]].update(disabled=True)
             window[single_buttons_keys[yname]].update(disabled=True)
-    #   if yobs and ycalc lists are length 1, disable difference checkbox and cumRwp checbox
-    if len(dropdown_lists[pattern]["yobs_values"]) == 1 or len(dropdown_lists[pattern]["ycalc_values"]) == 1:
+    #   if yobs or ycalc lists are length 1, disable difference checkbox and cumRwp checbox
+    #  or if you've chosen one of them to be none
+    if (len(single_dropdown_lists[pattern]["yobs_values"]) == 1 or len(single_dropdown_lists[pattern]["ycalc_values"]) == 1) or \
+            (values[single_keys["yobs"]] == "None" or values[single_keys["ycalc"]] == "None"):
         window[single_keys["ydiff"]].update(disabled=True, value=False)
         window[single_keys["cchi2"]].update(disabled=True, value=False)
-    #   If there isn't at least one hkl list, disable hkl checkbox and radio
-    if "_pd_phase_id" not in cif[pattern]:
+    #   If there isn't at least one hkl list, or you've chosen an x-ordinate that
+    #   doesn't allow hkl ticks, disable hkl checkbox and radio
+    if "_pd_phase_id" not in cif[pattern] or values[single_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[single_keys["hkl_checkbox"]].update(disabled=True, value=False)
         window[single_keys["hkl_above"]].update(disabled=True)
         window[single_keys["hkl_below"]].update(disabled=True)
@@ -773,6 +878,22 @@ stack_keys = {"x_axis": "stack_x_ordinate",
               "y_scale_sqrt": "stack_y_scale_sqrt",
               "y_scale_log": "stack_y_scale_log"}
 
+
+def update_stack_element_disables(values, window):
+    # enable all buttons and dropdowns
+    for key in stack_keys.keys():
+        window[stack_keys[key]].update(disabled=False)
+
+    # disable buttons and dropdowns that need disabling
+        #   If you've chosen an x-ordinate that
+        #   doesn't allow hkl ticks, disable hkl checkbox and radio
+    # also, I need to figure out how to do the hkl ticks the way I want to do them...
+    if True or values[stack_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
+        window[stack_keys["hkl_checkbox"]].update(disabled=True, value=False)
+        window[stack_keys["hkl_above"]].update(disabled=True)
+        window[stack_keys["hkl_below"]].update(disabled=True)
+
+
 layout_stack_left = \
     [
         [sg.Column(layout=[[sg.Canvas(size=(canvas_x, canvas_y), key="stack_plot", expand_x=True, expand_y=True)]], pad=(0, 0), expand_x=True, expand_y=True)],
@@ -823,53 +944,83 @@ layout_stack = \
 # # --- surface tab
 # #
 # #################################################################################################################
-#
-# layout_surface_left = \
-#     [
-#         [sg.Column(layout=[[sg.Canvas(size=(canvas_x, canvas_y), key="surface_plot", expand_x=True, expand_y=True)]], pad=(0, 0), expand_x=True, expand_y=True)],
-#         [sg.Canvas(key="surface_matplotlib_controls")]
-#     ]
-#
-# layout_surface_plot_control = \
-#     [
-#         label_dropdown_row("X axis:", x_list, "", "surface_x_ordinate"),
-#         label_dropdown_row("Y axis:", ["Pattern number"], "Pattern number", "surface_y_ordinate"),
-#         label_dropdown_button_row("Z axis:", "Options", y_list, "", "surface_z_ordinate"),
-#         # --
-#         [sg.T("")],
-#         [sg.Checkbox("Show HKL ticks", enable_events=True, key="surface_hkl_checkbox"),
-#          sg.Radio("Above", "hkl", enable_events=True, key="surface_hkl_checkbox_above"),
-#          sg.Radio("Below", "hkl", default=True, enable_events=True, key="surface_hkl_checkbox_below")],
-#         # [sg.Checkbox("Normalise intensity", enable_events=True, key="surface_normalise_intensity_checkbox")],
-#         # --
-#         [sg.T("")],
-#         [sg.Text("X scale:"),
-#          sg.Radio("Linear", "surface_x_scale_radio", default=True, enable_events=True, key="surface_x_scale_linear"),
-#          sg.Radio("Sqrt", "surface_x_scale_radio", enable_events=True, key="surface_x_scale_sqrt"),
-#          sg.Radio("Log", "surface_x_scale_radio", enable_events=True, key="surface_x_scale_log")],
-#         [sg.Text("Y scale:"),
-#          sg.Radio("Linear", "surface_y_scale_radio", default=True, enable_events=True, key="surface_y_scale_linear"),
-#          sg.Radio("Sqrt", "surface_y_scale_radio", enable_events=True, key="surface_y_scale_sqrt"),
-#          sg.Radio("Log", "surface_y_scale_radio", enable_events=True, key="surface_y_scale_log")],
-#         [sg.Text("Z scale:"),
-#          sg.Radio("Linear", "surface_z_scale_radio", default=True, enable_events=True, key="surface_z_scale_linear"),
-#          sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key="surface_z_scale_sqrt"),
-#          sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key="surface_z_scale_log")]
-#     ]
-#
-# layout_surface_right = \
-#     [
-#         [sg.Frame("Plot controls", layout_surface_plot_control, key="surface_plot_controls_frame")]
-#     ]
-#
-# layout_surface = \
-#     [
-#         [
-#             sg.Column(layout_surface_left, pad=(0, 0), expand_x=True, expand_y=True),
-#             sg.VerticalSeparator(),
-#             sg.Column(layout_surface_right, key="surface_right_column", pad=(0, 0), vertical_alignment="top")
-#         ]
-#     ]
+surface_keys = {"x_axis": "surface_x_ordinate",
+                "y_axis": "surface_y_ordinate",
+                "z_axis": "surface_z_ordinate",
+                "hkl_checkbox": "surface_hkl_checkbox",
+                "x_scale_linear": "surface_x_scale_linear",
+                "x_scale_sqrt": "surface_x_scale_sqrt",
+                "x_scale_log": "surface_x_scale_log",
+                "y_scale_linear": "surface_y_scale_linear",
+                "y_scale_sqrt": "surface_y_scale_sqrt",
+                "y_scale_log": "surface_y_scale_log",
+                "z_scale_linear": "surface_z_scale_linear",
+                "z_scale_sqrt": "surface_z_scale_sqrt",
+                "z_scale_log": "surface_z_scale_log"}
+surface_keys_with_buttons = ["z_axis"]
+surface_buttons_keys = {k: surface_keys[k] + "_button" for k in surface_keys_with_buttons}
+surface_buttons_values = {v: (k, i) for i, (k, v) in enumerate(surface_buttons_keys.items())}
+
+def update_surface_element_disables(values, window):
+    # enable all buttons and dropdowns
+    for key in surface_keys.keys():
+        window[surface_keys[key]].update(disabled=False)
+    for key in surface_buttons_keys.keys():
+        window[surface_buttons_keys[key]].update(disabled=False)
+
+    # disable buttons and dropdowns that need disabling
+    window[surface_keys["y_axis"]].update(disabled=True)
+        #   If you've chosen an x-ordinate that
+        #   doesn't allow hkl ticks, disable hkl checkbox and radio
+    # also, I need to figure out how to do the hkl ticks the way I want to do them...
+    if True or values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
+        window[surface_keys["hkl_checkbox"]].update(disabled=True, value=False)
+
+
+layout_surface_left = \
+    [
+        [sg.Column(layout=[[sg.Canvas(size=(canvas_x, canvas_y), key="surface_plot", expand_x=True, expand_y=True)]], pad=(0, 0), expand_x=True, expand_y=True)],
+        [sg.Canvas(key="surface_matplotlib_controls")]
+    ]
+
+layout_surface_plot_control = \
+    [
+        label_dropdown_row("X axis:", [], "", surface_keys["x_axis"]),
+        label_dropdown_row("Y axis:", ["Pattern number"], "Pattern number", surface_keys["y_axis"]),
+        label_dropdown_button_row("Z axis:", "Options", [], "", surface_keys["z_axis"]),
+        # --
+        [sg.T("")],
+        [sg.Checkbox("Show HKL ticks", enable_events=True, key=surface_keys["hkl_checkbox"])],
+        # [sg.Checkbox("Normalise intensity", enable_events=True, key="surface_normalise_intensity_checkbox")],
+        # --
+        [sg.T("")],
+        [sg.Text("X scale:"),
+         sg.Radio("Linear", "surface_x_scale_radio", default=True, enable_events=True, key=surface_keys["x_scale_linear"]),
+         sg.Radio("Sqrt", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_sqrt"]),
+         sg.Radio("Log", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_log"])],
+        [sg.Text("Y scale:"),
+         sg.Radio("Linear", "surface_y_scale_radio", default=True, enable_events=True, key=surface_keys["y_scale_linear"]),
+         sg.Radio("Sqrt", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_sqrt"]),
+         sg.Radio("Log", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_log"])],
+        [sg.Text("Z scale:"),
+         sg.Radio("Linear", "surface_z_scale_radio", default=True, enable_events=True, key=surface_keys["z_scale_linear"]),
+         sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_sqrt"]),
+         sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_log"])]
+    ]
+
+layout_surface_right = \
+    [
+        [sg.Frame("Plot controls", layout_surface_plot_control, key="surface_plot_controls_frame")]
+    ]
+
+layout_surface = \
+    [
+        [
+            sg.Column(layout_surface_left, pad=(0, 0), expand_x=True, expand_y=True),
+            sg.VerticalSeparator(),
+            sg.Column(layout_surface_right, key="surface_right_column", pad=(0, 0), vertical_alignment="top")
+        ]
+    ]
 
 #################################################################################################################
 #
@@ -898,7 +1049,7 @@ layout = \
                 [[
                     sg.Tab("Single", layout_single, key="single_tab"),
                     sg.Tab("Stack", layout_stack, key="stack_tab"),
-                    # sg.Tab("Surface", layout_surface, key="surface_tab")
+                    sg.Tab("Surface", layout_surface, key="surface_tab")
                 ]],
                 tab_location='topleft',
                 key='tab-change',
@@ -914,15 +1065,21 @@ layout = \
 #
 #################################################################################################################
 def gui():
-    global single_figure_agg, stack_figure_agg, surface_figure_agg
+    global single_figure_agg, stack_figure_agg, surface_figure_agg, surface_z_color
 
-    window = sg.Window("pdCIFplotter", layout, finalize=True, use_ttk_buttons=True, resizable=True)  # , ttk_theme=sg.THEME_WINNATIVE)
+    window = sg.Window("pdCIFplotter", layout, finalize=True, use_ttk_buttons=True, resizable=True)
 
-    window["single_data_chooser"].update(disabled=True)
-    # # set all the buttons to disabled before I have data to do things to.
-    # single window disables
+    # set all the dropdowns and buttons to disabled before I have data to do things to.
     for key in single_keys.keys():
         window[single_keys[key]].update(disabled=True)
+    for key in single_buttons_keys.keys():
+        window[single_buttons_keys[key]].update(disabled=True)
+    for key in stack_keys.keys():
+        window[stack_keys[key]].update(disabled=True)
+    for key in surface_keys.keys():
+        window[surface_keys[key]].update(disabled=True)
+    for key in surface_buttons_keys.keys():
+        window[surface_buttons_keys[key]].update(disabled=True)
 
     ##################################################################################################################
     #
@@ -944,9 +1101,9 @@ def gui():
         replot_stack = False
         replot_surface = False
 
-        # Exit the program
+        # this is a big if/elif that controls the entire gui flow
         if event is None:
-            break
+            break  # Exit the program
 
         # ----------
         # load file
@@ -956,16 +1113,21 @@ def gui():
             if files_str == "":
                 continue  # the file wasn't chosen, so just keep looping
 
+            # you've loaded a new file, so I need to scrub all variables
+            empty_globals()
+
             try:
+                popup = sg.popup_no_wait('Now opening your CIF file.\nIt may take a while...')
                 read_cif(files_str)
             except Exception as e:
                 # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
-                msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. Some informatio may be apparant from the information below:\n\n{e}"
-                sg.popup(msg, title="ERROR!", keep_on_top=True)
+                msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. Some information may be apparant from the text below:\n\n{e}"
+                sg.Print(msg)
                 print(e)
                 continue
-            # reset the figures
-            surface_figure_agg = None
+            finally:
+                popup.close()
+                pass
 
             window["file_string"].update(value=[])
             window["file_string_name"].update(value=values["file_string"])
@@ -973,26 +1135,17 @@ def gui():
             ###
             # Update the single elements
             ###
-
-            # initialise datalist
-            # initialise xy dropdown lists
             initialise_pattern_and_dropdown_lists()
-            # initialise plot
-            single_figure_agg = None
             # update single_data combo information
-            pattern = data_list[0]
+            pattern = single_data_list[0]
             window[single_keys["data"]].update(disabled=False)
-            window[single_keys["data"]].update(values=data_list, value=pattern)
+            window[single_keys["data"]].update(values=single_data_list, value=pattern)
 
             # update xy combo dropdown information
-            window[single_keys["x_axis"]].update(values=dropdown_lists[pattern]["x_values"], value=dropdown_lists[pattern]["x_value"])
-            window[single_keys["yobs"]].update(values=dropdown_lists[pattern]["yobs_values"], value=dropdown_lists[pattern]["yobs_value"])
-            window[single_keys["ycalc"]].update(values=dropdown_lists[pattern]["ycalc_values"], value=dropdown_lists[pattern]["ycalc_value"])
-            window[single_keys["ybkg"]].update(values=dropdown_lists[pattern]["ybkg_values"], value=dropdown_lists[pattern]["ybkg_value"])
-
-            # update all of the window contents, and then call the update command
-            _, values = window.read(timeout=0)
-            update_single_element_disables(pattern, values, window)
+            window[single_keys["x_axis"]].update(values=single_dropdown_lists[pattern]["x_values"], value=single_dropdown_lists[pattern]["x_value"])
+            window[single_keys["yobs"]].update(values=single_dropdown_lists[pattern]["yobs_values"], value=single_dropdown_lists[pattern]["yobs_value"])
+            window[single_keys["ycalc"]].update(values=single_dropdown_lists[pattern]["ycalc_values"], value=single_dropdown_lists[pattern]["ycalc_value"])
+            window[single_keys["ybkg"]].update(values=single_dropdown_lists[pattern]["ybkg_values"], value=single_dropdown_lists[pattern]["ybkg_value"])
 
             ###
             # Update the stack elements
@@ -1001,18 +1154,24 @@ def gui():
             initialise_stack_xy_lists()
             window[stack_keys["x_axis"]].update(values=stack_x_ordinates, value=stack_x_ordinates[0])
             window[stack_keys["y_axis"]].update(values=stack_y_ordinates[stack_x_ordinates[0]], value=stack_y_ordinates[stack_x_ordinates[0]][0])
-
             ###
             # Update the surface elements
             ###
+            surface_figure_agg = None
+            initialise_surface_xz_lists()
+            window[surface_keys["x_axis"]].update(values=surface_x_ordinates, value=surface_x_ordinates[0])
+            window[surface_keys["z_axis"]].update(values=surface_z_ordinates[surface_x_ordinates[0]], value=surface_z_ordinates[surface_x_ordinates[0]][0])
 
             ###
             # At the very end:
             ###
 
-            # this updates all of values in the values dictionary so that lookups further down work.
+            # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
-
+            update_single_element_disables(pattern, values, window)
+            update_stack_element_disables(values, window)
+            update_surface_element_disables(values, window)
+            _, values = window.read(timeout=0)
             # plot first pattern
             replot_single = True
 
@@ -1021,6 +1180,8 @@ def gui():
         #  single window things
         #
         # --------------------------------------------------------------------------------------
+        elif event == "tab-change" and values[event] == "single_tab" and single_figure_agg is None:
+            replot_single = True
 
         elif event == single_keys["data"]:
             replot_single = True
@@ -1028,16 +1189,22 @@ def gui():
             # because I'm changing the pattern I'm plotting, there may be different data available to plot
             #  This will change the options for the dropdown boxes and the like
             # update the dropdownlists
-            window[single_keys["x_axis"]].update(values=dropdown_lists[pattern]["x_values"], value=dropdown_lists[pattern]["x_value"])
-            window[single_keys["yobs"]].update(values=dropdown_lists[pattern]["yobs_values"], value=dropdown_lists[pattern]["yobs_value"])
-            window[single_keys["ycalc"]].update(values=dropdown_lists[pattern]["ycalc_values"], value=dropdown_lists[pattern]["ycalc_value"])
-            window[single_keys["ybkg"]].update(values=dropdown_lists[pattern]["ybkg_values"], value=dropdown_lists[pattern]["ybkg_value"])
-            # update the element disables
+            window[single_keys["x_axis"]].update(values=single_dropdown_lists[pattern]["x_values"], value=single_dropdown_lists[pattern]["x_value"])
+            window[single_keys["yobs"]].update(values=single_dropdown_lists[pattern]["yobs_values"], value=single_dropdown_lists[pattern]["yobs_value"])
+            window[single_keys["ycalc"]].update(values=single_dropdown_lists[pattern]["ycalc_values"], value=single_dropdown_lists[pattern]["ycalc_value"])
+            window[single_keys["ybkg"]].update(values=single_dropdown_lists[pattern]["ybkg_values"], value=single_dropdown_lists[pattern]["ybkg_value"])
+
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
             update_single_element_disables(pattern, values, window)
             _, values = window.read(timeout=0)
 
         elif event in list(single_keys.values())[1:]:  # ie if I click anything apart from the data chooser
             replot_single = True
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_single_element_disables(pattern, values, window)
+            _, values = window.read(timeout=0)
 
         elif event in list(single_buttons_keys.values()):
             y_ordinate_styling_popup(f"{single_buttons_values[event][0]} styling",
@@ -1067,45 +1234,59 @@ def gui():
 
         elif event == stack_keys["x_axis"]:
             replot_stack = True
-
-            # update the dropdownlists
             window[stack_keys["y_axis"]].update(values=stack_y_ordinates[the_value], value=stack_y_ordinates[the_value][0])
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
 
         elif event in list(stack_keys.values())[1:]:  # ie if I click anything apart from the x-axis
             replot_stack = True
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_stack_element_disables(values, window)
+            _, values = window.read(timeout=0)
 
         # --------------------------------------------------------------------------------------
         #  surface window things
         # --------------------------------------------------------------------------------------
-        elif (event == "tab-change" and values[event] == "surface_tab" and surface_figure_agg is None) or \
-                event in ["surface_x_ordinate", "surface_z_ordinate"]:
-            x_ordinate = values["surface_x_ordinate"]
-            z_ordinate = values["surface_z_ordinate"]
-            try:
-                surface_update_plot(x_ordinate, z_ordinate, window)
-            except (IndexError, ValueError) as e:
-                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+        elif event == "tab-change" and values[event] == "surface_tab" and surface_figure_agg is None:
+            replot_surface = True
+
+        elif event == surface_keys["x_axis"]:
+            replot_surface = True
+            # update the dropdownlists
+            window[surface_keys["z_axis"]].update(values=surface_z_ordinates[the_value], value=surface_z_ordinates[the_value][0])
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_surface_element_disables(values, window)
+            _, values = window.read(timeout=0)
+
+        elif event in list(surface_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+            replot_surface = True
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_surface_element_disables(values, window)
+            _, values = window.read(timeout=0)
 
         elif event == "surface_z_ordinate_button":
             z_ordinate_styling_popup("Surface Z colour scale", surface_z_color, "surface_z_color", window)
         elif event == "surface_z_color-popup-ok":
             surface_z_color = values["surface_z_color-popup-ok"]['surface_z_color-popup-color']
-            try:
-                surface_update_plot(values["surface_x_ordinate"], values["surface_z_ordinate"], window)
-            except (IndexError, ValueError) as e:
-                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+            replot_surface = True
+        # end of window events
+
 
         # at the bottom of the event loop, I pop into the replots for the three plots.
         # as there are multiple reasons to replot, I've put it down here so I only
         # need to write it once.
-        if replot_single:
+        if replot_single and cif != {}:
             pattern = values[single_keys["data"]]
-            # update the value of all the dropdown lists
-            dropdown_lists[pattern]["x_value"] = values[single_keys["x_axis"]]
-            dropdown_lists[pattern]["yobs_value"] = values[single_keys["yobs"]]
-            dropdown_lists[pattern]["ycalc_value"] = values[single_keys["ycalc"]]
-            dropdown_lists[pattern]["ybkg_value"] = values[single_keys["ybkg"]]
+            # # update the value of all the dropdown lists
+            x_ordinate = values[single_keys["x_axis"]]
+            yobs = values[single_keys["yobs"]]
+            ycalc = values[single_keys["ycalc"]]
+            ybkg = values[single_keys["ybkg"]]
 
             # construct axis scale dictionary
             x_axes = [values[single_keys["x_scale_linear"]], values[single_keys["x_scale_sqrt"]], values[single_keys["x_scale_log"]]]
@@ -1114,21 +1295,20 @@ def gui():
             single_axis_scale = {}
             single_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             single_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
-
             try:
                 single_update_plot(pattern,
-                                   dropdown_lists[pattern]["x_value"],
-                                   [dropdown_lists[pattern]["yobs_value"], dropdown_lists[pattern]["ycalc_value"], dropdown_lists[pattern]["ybkg_value"]],
+                                   x_ordinate,
+                                   [yobs, ycalc, ybkg],
                                    values[single_keys["hkl_checkbox"]],
                                    values[single_keys["ydiff"]],
                                    values[single_keys["cchi2"]],
                                    single_axis_scale,
                                    window)
             except (IndexError, ValueError) as e:
-                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+                pass
 
         if replot_stack:
-           x_ordinate = values[stack_keys["x_axis"]]
+            x_ordinate = values[stack_keys["x_axis"]]
             y_ordinate = values[stack_keys["y_axis"]]
             offset = float(values[stack_keys["offset_input"]])
             plot_hkls = values[stack_keys["hkl_checkbox"]]
@@ -1139,9 +1319,26 @@ def gui():
             stack_axis_scale = {}
             stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
-
             try:
                 stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_axis_scale, window)
+            except (IndexError, ValueError) as e:
+                pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+
+        if replot_surface:
+            x_ordinate = values["surface_x_ordinate"]
+            z_ordinate = values["surface_z_ordinate"]
+            plot_hkls = False  # values[stack_keys["hkl_checkbox"]]
+            # construct axis scale dictionary
+            x_axes = [values[surface_keys["x_scale_linear"]], values[surface_keys["x_scale_sqrt"]], values[surface_keys["x_scale_log"]]]
+            y_axes = [values[surface_keys["y_scale_linear"]], values[surface_keys["y_scale_sqrt"]], values[surface_keys["y_scale_log"]]]
+            z_axes = [values[surface_keys["z_scale_linear"]], values[surface_keys["z_scale_sqrt"]], values[surface_keys["z_scale_log"]]]
+            axis_words = ["linear", "sqrt", "log"]
+            surface_axis_scale = {}
+            surface_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
+            surface_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            surface_axis_scale["z"] = [word for word, scale in zip(axis_words, z_axes) if scale][0]
+            try:
+                surface_update_plot(x_ordinate, z_ordinate, plot_hkls, surface_axis_scale, window)
             except (IndexError, ValueError) as e:
                 pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
