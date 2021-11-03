@@ -223,7 +223,6 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
 def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scale: dict, window):
     global stack_figure_agg, stack_fig, stack_ax
 
-    print("get into stack_update_plot")
     dpi = plt.gcf().get_dpi()
     if stack_fig is not None:
         stack_height_px = single_fig.get_size_inches()[1] * dpi
@@ -237,7 +236,6 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     stack_fig.set_tight_layout(True)
     plt.margins(x=0)
 
-    print(1)
     # given the x and y ordinates, we need to generate a list of patterns that all have those ordinates
     # this is the list that we will end up plotting
     # we will also grab the data limits to do the plot set up
@@ -505,7 +503,7 @@ def make_list_for_ordinate_dropdown(complete_list, possible_list):
 
 def x_axis_title(x_ordinate, wavelength=None):
     if wavelength is None:
-        wavelength = "(Various wavelengths)"
+        wavelength = "(Wavelength unknown)"
     else:
         wavelength = f"(\u03BB = {wavelength} \u212b)"
     X_AXIS_TITLES = {"_pd_meas_2theta_scan": f"\u00B0 2\u03b8 {wavelength}",
@@ -1051,9 +1049,6 @@ def gui():
                                      window)
         elif event in [v + "-popupkey-popup-ok" for v in single_buttons_keys.values()]:
             button = event.replace('-popupkey-popup-ok', '')
-            print(f"{button=}")
-            print(f"{single_buttons_values[button][0]=}")
-            print(f"{single_buttons_values[button][1]=}")
 
             # update the style values
             y_style[single_buttons_values[button][1]] = \
@@ -1069,7 +1064,6 @@ def gui():
 
         elif event == "tab-change" and values[event] == "stack_tab" and stack_figure_agg is None:
             replot_stack = True
-            print("did the tab change")
 
         elif event == stack_keys["x_axis"]:
             replot_stack = True
@@ -1077,7 +1071,6 @@ def gui():
             # update the dropdownlists
             window[stack_keys["y_axis"]].update(values=stack_y_ordinates[the_value], value=stack_y_ordinates[the_value][0])
             _, values = window.read(timeout=0)
-            print("did the x_axis change")
 
         elif event in list(stack_keys.values())[1:]:  # ie if I click anything apart from the x-axis
             replot_stack = True
@@ -1135,8 +1128,7 @@ def gui():
                 pass  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
         if replot_stack:
-            print("got into the replot_stack")
-            x_ordinate = values[stack_keys["x_axis"]]
+           x_ordinate = values[stack_keys["x_axis"]]
             y_ordinate = values[stack_keys["y_axis"]]
             offset = float(values[stack_keys["offset_input"]])
             plot_hkls = values[stack_keys["hkl_checkbox"]]
@@ -1148,11 +1140,6 @@ def gui():
             stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
 
-            print(f"{x_ordinate=}")
-            print(f"{y_ordinate=}")
-            print(f"{offset=}")
-            print(f"{plot_hkls=}")
-            print(f"{stack_axis_scale=}")
             try:
                 stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_axis_scale, window)
             except (IndexError, ValueError) as e:

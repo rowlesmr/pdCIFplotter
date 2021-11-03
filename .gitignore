@@ -6,6 +6,7 @@ data/simon/
 data/pam/
 data/ideal/
 PySimpleGUI.py
+src/pdcifplotter/old
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
