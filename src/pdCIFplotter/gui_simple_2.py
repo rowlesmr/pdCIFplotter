@@ -13,7 +13,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.collections import LineCollection
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 
-import time
+# import traceback
+# from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
 
 # Potential themes that work for me.  #reddit is the only one that doesn't jitter...  ?
 #
@@ -59,7 +60,7 @@ def pretty(d, indent=0, print_values=True):
 
 
 def single_update_plot(pattern, x_ordinate, y_ordinates: list,
-                       plot_hkls: bool, plot_diff: bool, plot_cRwp: bool,
+                       plot_hkls: bool, plot_diff: bool, plot_cchi2: bool,
                        axis_scale: dict, window):
     global single_figure_agg, single_fig, single_ax
 
@@ -120,10 +121,14 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
             # keep track of min and max to plot hkl ticks and diff correctly
             min_plot = min(min_plot, min(y))
             max_plot = max(max_plot, max(y))
+            if y_name != "Diff":
+                cchi2_zero = min_plot
 
     # hkl plotting below     single_height_px
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
+    if x_ordinate == "_pd_meas_time_of_flight":
+        plot_hkls = False  # just guarding against things
     if plot_hkls:
         y_range = max_plot - min_plot
         hkl_markersize_pt = 6
@@ -143,14 +148,24 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
 
             plt.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
 
-    if plot_cRwp:
-        c_rwp = pc.calc_cumrwp(cifpat, y_ordinates[0], y_ordinates[1])
+    if plot_cchi2:
+        # https://stackoverflow.com/a/10482477/36061
+        def align_cchi2(ax1, v1, ax2):
+            """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
+            miny1, maxy1 = ax1.get_ylim()
+            rangey1 = maxy1 - miny1
+            f = (v1 - miny1) / rangey1
+            _, maxy2 = ax2.get_ylim()
+            miny2 = (f / (f - 1)) * maxy2
+            ax2.set_ylim(miny2, maxy2)
+
+        cchi2 = pc.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1])
         if axis_scale["y"] == "log":
-            c_rwp = np.log10(c_rwp)
+            cchi2 = np.log10(cchi2)
         elif axis_scale["y"] == "sqrt":
-            c_rwp = np.sqrt(c_rwp)
+            cchi2 = np.sqrt(cchi2)
         single_ax2 = single_ax.twinx()
-        single_ax2.plot(x, c_rwp, label=" c_Rwp",
+        single_ax2.plot(x, cchi2, label=" c\u03C7\u00b2",
                         color=y_style[4][0], marker=y_style[4][1],
                         linestyle=y_style[4][2], linewidth=y_style[4][3],
                         markersize=float(y_style[3][3]) * 3
@@ -158,11 +173,12 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
         single_ax2.set_yticklabels([])
         single_ax2.set_yticks([])
         single_ax2.margins(x=0)
-        single_ax2.set_ylabel("cRwp")
+        single_ax2.set_ylabel("c\u03C7\u00b2")
+        align_cchi2(single_ax, cchi2_zero, single_ax2)
 
     # organise legends:
     # https://stackoverflow.com/a/10129461/36061
-    if plot_cRwp:
+    if plot_cchi2:
         # ask matplotlib for the plotted objects and their labels
         lines, labels = single_ax.get_legend_handles_labels()
         lines2, labels2 = single_ax2.get_legend_handles_labels()
@@ -196,7 +212,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
     plt.title(pattern, loc="left")
 
     # https://stackoverflow.com/a/30506077/36061
-    if plot_cRwp:
+    if plot_cchi2:
         single_ax.set_zorder(single_ax2.get_zorder() + 1)
         single_ax.patch.set_visible(False)
 
@@ -319,7 +335,6 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-
 def surface_update_plot(x_ordinate, z_ordinate, window):
     global canvas_x, canvas_y, surface_figure_agg
     # try:
@@ -403,7 +418,7 @@ def surface_update_plot(x_ordinate, z_ordinate, window):
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
 def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
-    start_time = time.time()
+    # start_time = time.time()
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -416,9 +431,9 @@ def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
     toolbar.update()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
 
-    finish_time = time.time()
+    # finish_time = time.time()
 
-    print(f"draw_figure_w_toolbar took {finish_time - start_time} units of time.")
+    # print(f"draw_figure_w_toolbar took {finish_time - start_time} units of time.")
     return figure_canvas_agg
 
 
@@ -644,7 +659,7 @@ single_keys = {"data": "single_data_chooser",  # this entry must remain at the b
                "hkl_checkbox": "single_hkl_checkbox",
                "hkl_above": "single_hkl_checkbox_above",
                "hkl_below": "single_hkl_checkbox_below",
-               "cRwp": "single_cRwp_checkbox",
+               "cchi2": "single_cchi2_checkbox",
                "x_scale_linear": "single_x_scale_linear",
                "x_scale_sqrt": "single_x_scale_sqrt",
                "x_scale_log": "single_x_scale_log",
@@ -652,12 +667,12 @@ single_keys = {"data": "single_data_chooser",  # this entry must remain at the b
                "y_scale_sqrt": "single_y_scale_sqrt",
                "y_scale_log": "single_y_scale_log"}
 
-single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cRwp"]
+single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cchi2"]
 single_buttons_keys = {k: single_keys[k] + "_button" for k in single_keys_with_buttons}
 single_buttons_values = {v: (k, i) for i, (k, v) in enumerate(single_buttons_keys.items())}
 
 
-def update_single_element_disables(pattern, window):
+def update_single_element_disables(pattern, values, window):
     # enable all buttons and dropdowns
     for key in single_keys.keys():
         window[single_keys[key]].update(disabled=False)
@@ -673,7 +688,7 @@ def update_single_element_disables(pattern, window):
     #   if yobs and ycalc lists are length 1, disable difference checkbox and cumRwp checbox
     if len(dropdown_lists[pattern]["yobs_values"]) == 1 or len(dropdown_lists[pattern]["ycalc_values"]) == 1:
         window[single_keys["ydiff"]].update(disabled=True, value=False)
-        window[single_keys["cRwp"]].update(disabled=True, value=False)
+        window[single_keys["cchi2"]].update(disabled=True, value=False)
     #   If there isn't at least one hkl list, disable hkl checkbox and radio
     if "_pd_phase_id" not in cif[pattern]:
         window[single_keys["hkl_checkbox"]].update(disabled=True, value=False)
@@ -711,7 +726,7 @@ layout_single_plot_control = \
         [sg.Checkbox("Show HKL ticks", enable_events=True, key=single_keys["hkl_checkbox"]),
          sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
          sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
-        checkbox_button_row("Show cumulative Rwp", "Options", False, single_keys["cRwp"]),
+        checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
         # [sg.Checkbox("Normalise intensity", enable_events=True, key="single_normalise_intensity_checkbox")],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
@@ -943,9 +958,15 @@ def gui():
             if files_str == "":
                 continue  # the file wasn't chosen, so just keep looping
 
-            read_cif(files_str)
+            try:
+                read_cif(files_str)
+            except Exception as e:
+                # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
+                msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. Some informatio may be apparant from the information below:\n\n{e}"
+                sg.popup(msg, title="ERROR!", keep_on_top=True)
+                print(e)
+                continue
             # reset the figures
-            stack_figure_agg = None
             surface_figure_agg = None
 
             window["file_string"].update(value=[])
@@ -971,11 +992,14 @@ def gui():
             window[single_keys["ycalc"]].update(values=dropdown_lists[pattern]["ycalc_values"], value=dropdown_lists[pattern]["ycalc_value"])
             window[single_keys["ybkg"]].update(values=dropdown_lists[pattern]["ybkg_values"], value=dropdown_lists[pattern]["ybkg_value"])
 
-            update_single_element_disables(pattern, window)
+            # update all of the window contents, and then call the update command
+            _, values = window.read(timeout=0)
+            update_single_element_disables(pattern, values, window)
 
             ###
             # Update the stack elements
             ###
+            stack_figure_agg = None
             initialise_stack_xy_lists()
             window[stack_keys["x_axis"]].update(values=stack_x_ordinates, value=stack_x_ordinates[0])
             window[stack_keys["y_axis"]].update(values=stack_y_ordinates[stack_x_ordinates[0]], value=stack_y_ordinates[stack_x_ordinates[0]][0])
@@ -1011,7 +1035,7 @@ def gui():
             window[single_keys["ycalc"]].update(values=dropdown_lists[pattern]["ycalc_values"], value=dropdown_lists[pattern]["ycalc_value"])
             window[single_keys["ybkg"]].update(values=dropdown_lists[pattern]["ybkg_values"], value=dropdown_lists[pattern]["ybkg_value"])
             # update the element disables
-            update_single_element_disables(pattern, window)
+            update_single_element_disables(pattern, values, window)
             _, values = window.read(timeout=0)
 
         elif event in list(single_keys.values())[1:]:  # ie if I click anything apart from the data chooser
@@ -1104,7 +1128,7 @@ def gui():
                                    [dropdown_lists[pattern]["yobs_value"], dropdown_lists[pattern]["ycalc_value"], dropdown_lists[pattern]["ybkg_value"]],
                                    values[single_keys["hkl_checkbox"]],
                                    values[single_keys["ydiff"]],
-                                   values[single_keys["cRwp"]],
+                                   values[single_keys["cchi2"]],
                                    single_axis_scale,
                                    window)
             except (IndexError, ValueError) as e:

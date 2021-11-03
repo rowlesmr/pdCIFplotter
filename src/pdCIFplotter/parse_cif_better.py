@@ -2,7 +2,7 @@ import numpy as np
 import re
 import math
 import copy
-from timeit import default_timer as timer
+# from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
 import CifFile
 
 
@@ -45,7 +45,6 @@ def blockname_lookupdict_from_blockid(cif):
     #         lookup_dict[cif[blockname]["_pd_block_id"]] = blockname
     # return lookup_dict
     return {cif[blockname]["_pd_block_id"]: blockname for blockname in cif.block_input_order if "_pd_block_id" in cif[blockname]}
-
 
 
 def grouped_blocknames(cif):
@@ -100,9 +99,12 @@ def get_hklds(structure):
         return None
     d_len = len(d_local)
     # h,k,l, and d must be of the same length
-    if h_local is None or len(h_local) != d_len: h_local = ["."] * d_len
-    if k_local is None or len(k_local) != d_len: k_local = ["."] * d_len
-    if l_local is None or len(l_local) != d_len: l_local = ["."] * d_len
+    if h_local is None or len(h_local) != d_len:
+        h_local = ["."] * d_len
+    if k_local is None or len(k_local) != d_len:
+        k_local = ["."] * d_len
+    if l_local is None or len(l_local) != d_len:
+        l_local = ["."] * d_len
 
     return {"h": h_local, "k": k_local, "l": l_local, "d": d_local}
 
@@ -152,7 +154,7 @@ def get_hkld_from_matching_id(hklds, phase_id, phase_ids):
         return hkld
 
 
-def split_val_err(input, default_error="zero"):
+def split_val_err(ve, default_error="zero"):
     """
     Takes a string representing a number with an error in brackets
     such as 12.34(4), and splits off the value and error terms,
@@ -165,15 +167,17 @@ def split_val_err(input, default_error="zero"):
     1.2(34) -> (1.2, 3.4)
 
     :param default_error: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
-    :param input: a string representing a number with/without an error eg '12.34(5)' or '10'
+    :param ve: a string representing a number with/without an error eg '12.34(5)' or '10'
     :return: a tuple of floats (val, err)
     """
-    if "(" not in input:  # then there is no error
+    if "(" not in ve:  # then there is no error
         if default_error == "sqrt":
-            return (float(input), math.sqrt(float(input)))
+            return (float(ve), math.sqrt(math.fabs(float(ve))))
         else:
-            return (float(input), 0.0)
-    value, error = re.search("([0-9.]+)\(([0-9]*)\)", input).groups()
+            if ve == "." or ve == "?":
+                ve = 'nan'
+            return (float(ve), 0.0)
+    value, error = re.search("([0-9.]+)\(([0-9]*)\)", ve).groups()
     if "." not in value:  # it makes it much easier if there is a decimal place to count
         value += "."
     pow10 = len(value) - value.find(".") - 1
@@ -197,11 +201,12 @@ def split_val_err_list(inlist, default_error="zero"):
     return (vals, errs)
 
 
-def calc_cumrwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
+def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
     """
     Calculate the cumulative Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     This is the value of Rwp taking into account only the data with the x-ordinate <= the current
     x-ordinate. It shows where there are large deviations contributing to the overall Rwp
+    see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23. https://doi.org/10.6028/jres.008.
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
@@ -212,7 +217,7 @@ def calc_cumrwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, y
     yobs = cifpat[yobs_dataname]
     ycalc = cifpat[ycalc_dataname]
 
-    if ymod_dataname is not None:  # I don't know what this means yet...
+    if ymod_dataname is not None:  # I don't know what ymod means yet...
         return [-1] * len(yobs)
     if yobs_dataname_err is None:
         if "_pd_proc_ls_weight" in cifpat:
@@ -223,12 +228,11 @@ def calc_cumrwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, y
     else:
         yobs_dataname_err = yobs_dataname + "_err"
         yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
-    top_over_bottom = np.sqrt((yweight * (yobs - ycalc) ** 2) / (yweight * yobs ** 2))
-    rwp = np.cumsum(top_over_bottom)
-    return rwp
+
+    return np.nancumsum(yweight * (yobs - ycalc) ** 2) #treats nan as 0
 
 
-# from timeit import default_timer as timer
+
 
 
 class ParseCIF:
@@ -267,19 +271,17 @@ class ParseCIF:
                                        COMPLETE_X_LIST + COMPLETE_Y_LIST + MODIFIER_Y_LIST + \
                                        NICE_TO_HAVE_DATANAMES[:-1]
 
-    def __init__(self, filename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
-        print(f"Now reading {filename}. This may take a while.")
-        self.ciffile = CifFile.ReadCif(filename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
+    def __init__(self, ciffilename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
+        #print(f"Now reading {ciffilename}. This may take a while.")
+        self.ciffile = CifFile.ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
         self.ncif = {}  # this will be the cif file with pattern information only
         self.cif = {}
 
-        self.remove_empty_items()
-        self.expand_multiple_dataloops()
+        self._remove_empty_items()
+        self._expand_multiple_dataloops()
         self._process()
 
-        print("I'm using me")
-
-    def remove_empty_items(self):
+    def _remove_empty_items(self):
         """
         Checks every item in each block and if all the values are '?' or '.', it removes them from the cif
         :return: nother. alters in place
@@ -303,7 +305,7 @@ class ParseCIF:
                 else:
                     print("How did we even get here?")
 
-    def expand_multiple_dataloops(self):
+    def _expand_multiple_dataloops(self):
         """
         This looks for patterns which have multiple loops containing diffraction data
         This clones the block as many times as there are loops, with each clone containing
@@ -355,11 +357,23 @@ class ParseCIF:
             cifpat = self.ciffile[pattern]
             # this bit looks at the x ordinate and if they are part of this list, I remove any link to structures
             can_no_do_d = ["_pd_meas_time_of_flight", "_pd_meas_position", ]  # "_pd_proc_wavelength",
-            if any(x in cifpat for x in can_no_do_d):
+            can_do_d = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_proc_energy_incident",
+                        "_pd_proc_d_spacing", "_pd_proc_recip_len_Q"]
+            if any(x in cifpat for x in can_no_do_d) and not any(x in cifpat for x in can_do_d):
                 cifpat.RemoveItem("_pd_phase_id")
                 cifpat.RemoveItem("_pd_phase_block_id")
 
+            # This bit removes the wavelength if the x-ordinate is "_pd_meas_time_of_flight"
+            if "_pd_meas_time_of_flight" in cifpat:
+                cifpat.RemoveItem("_diffrn_radiation_wavelength")
+                cifpat.RemoveItem("_cell_measurement_wavelength")
+
     def _process(self):
+        """
+        only run this on cifs that have been unrolled so that they contain only one
+        dataloop of diffraction information.
+        :return:
+        """
         lookup_blockid = blockname_lookupdict_from_blockid(self.ciffile)  # a dictionary with block_id keys and dataname values
         blocknames = grouped_blocknames(self.ciffile)  # blocknames corresponding to patterns, structures, and others.
 
@@ -370,6 +384,7 @@ class ParseCIF:
         self.cif = convert_cif_to_dict(self.ciffile)
         # update each pattern's information
         for pattern in patterns:
+            #print(f"Now doing {pattern}")
             cifpat = self.cif[pattern]
             structures = []  # assume there are no linked structures unless it gets updated just below
 
@@ -379,7 +394,9 @@ class ParseCIF:
                 # do I need to check that the structure linked to by the pattern also links back to the pattern?
                 # get the block_ids and the structures linked to this particular pattern
                 phase_block_ids = cifpat["_pd_phase_block_id"]
-                structures = [lookup_blockid[block_id] for block_id in phase_block_ids]
+                if isinstance(phase_block_ids, str): # it needs to be as a list for later
+                    phase_block_ids = [phase_block_ids]
+                structures = [lookup_blockid[block_id] for block_id in phase_block_ids if block_id in lookup_blockid.keys()]
 
                 # setup the phase_ids in the cif so I can get the correct phaseid for each structure I call
                 if "_pd_phase_id" not in cifpat:
@@ -418,15 +435,19 @@ class ParseCIF:
                         ds = get_from_cif(cifpat, '_refln_d_spacing')
                         ids = get_from_cif(cifpat, '_pd_refln_phase_id')
 
-                        for phase_id in cifpat["_pd_refln_phase_id"]:
+                        for phase_id in cifpat["_pd_phase_id"]: # this used to be _pd_refln_phase_id
                             h = get_hkld_from_matching_id(hs, phase_id, ids)
                             k = get_hkld_from_matching_id(ks, phase_id, ids)
                             l = get_hkld_from_matching_id(ls, phase_id, ids)
                             d = get_hkld_from_matching_id(ds, phase_id, ids)
-                            if h is not None: cifpat["str"][phase_id]['_refln_index_h'] = h
-                            if k is not None: cifpat["str"][phase_id]['_refln_index_k'] = k
-                            if l is not None: cifpat["str"][phase_id]['_refln_index_l'] = l
-                            if d is not None: cifpat["str"][phase_id]['_refln_d_spacing'] = d
+                            if h is not None:
+                                cifpat["str"][phase_id]['_refln_index_h'] = h
+                            if k is not None:
+                                cifpat["str"][phase_id]['_refln_index_k'] = k
+                            if l is not None:
+                                cifpat["str"][phase_id]['_refln_index_l'] = l
+                            if d is not None:
+                                cifpat["str"][phase_id]['_refln_d_spacing'] = d
             # end of if
 
             # look for other datanames that it would be nice to have in the pattern
@@ -464,7 +485,12 @@ class ParseCIF:
                             cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
                 elif isinstance(cifpat[dataname], str):
                     if not (cifpat[dataname] == "." or cifpat[dataname] == "?"):
-                        cifpat[dataname] = float(cifpat[dataname])
+                        try:
+                            cifpat[dataname] = float(cifpat[dataname])
+                        except ValueError:
+                            val, err = split_val_err(cifpat[dataname])
+                            cifpat[dataname] = val
+                            cifpat[dataname + "_err"] = err
 
             # now that I've gotten floats, I can do the additional data conversions to give me more
             #  x-axis values and other nice things
@@ -501,7 +527,8 @@ class ParseCIF:
                         cifsubstr = cifpat["str"][structure]
                         cifsubstr["_refln_d_spacing"] = np.asarray(cifsubstr["_refln_d_spacing"], dtype=float)
                         cifsubstr["refln_q"] = 2. * np.pi / cifsubstr["_refln_d_spacing"]
-                        if lam is not None: cifsubstr["refln_2theta"] = 2. * np.arcsin(lam / (2. * cifsubstr["_refln_d_spacing"])) * 180. / np.pi
+                        if lam is not None:
+                            cifsubstr["refln_2theta"] = 2. * np.arcsin(lam / (2. * cifsubstr["_refln_d_spacing"])) * 180. / np.pi
                         cifsubstr["refln_hovertext"] = [h + " " + k + " " + l for h, k, l in
                                                         zip(cifsubstr['_refln_index_h'], cifsubstr['_refln_index_k'], cifsubstr["_refln_index_l"])]
 
@@ -544,17 +571,48 @@ class ParseCIF:
 
 
 if __name__ == "__main__":
+
+    #these files failed parsecif parsing
+    files =['C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya6147Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bs0018IIIsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE0sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE5_monosup12.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE5_tetrsup11.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yb5011TrigonalIn2S3sup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE4_monosup10.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE3_monosup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE2_monosup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE1_monosup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE4_tetrsup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE3_tetrsup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE2_tetrsup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wf5122ZE1_tetrsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yb5011TetragonalIn2S3sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yb5011CubicIn2S3sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/av5015sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bk0130Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ru2074Rb2W3SeO123sup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/iz1029X-raysup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ks0109sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ru2074Cs2W3SeO122sup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ru2074NH42W3SeO121sup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5019Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ty1006LTsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya6107Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1310IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5034PY213sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1286Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1305IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sk1513Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya6064Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1310Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya6063Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw0101IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sk1513IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5036PY183alphasup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1357Isup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50322sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50323sup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50321sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50324sup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50325sup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd5024115Ksup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50327sup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd50326sup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Sm2Ti2O7-x-25Csup28.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi3053IMsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-n-25C-monosup13.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Nd2Ti2O7-n-25C-monosup20.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Pr2Ti2O7-n-25C-monosup24.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-n-883C-monosup14.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-n-883C-orthosup15.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Nd2Ti2O7-n-1138C-monosup19.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Pr2Ti2O7-n-1138C-monosup23.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/cu3043Msup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/cu3043Osup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lg3133Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/cf6258Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi5031ACM-PAMsup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_0.40GPasup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_0.13GPasup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_0.00GPasup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi5031ACM-PPZsup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_0.17GPasup14.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_0.00GPasup13.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_2.75GPasup17.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_0.59GPasup15.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ru2074K2W3SeO124sup10.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ws5063GeD4_5Ksup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_0.98GPasup16.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ws5063SnD4_5Ksup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_1.84GPasup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_5.10GPasup10.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_7.35GPasup12.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_2.63GPasup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/cv2721Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd5008LiNCSsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sk1538Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_5.48GPasup11.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh5832Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/xu2006Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_1.51GPasup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_3.58GPasup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST_1.09GPasup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bp5070IIsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_3.52GPasup18.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hw5008PST-Ba_6.87GPasup19.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wn6225Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li10.35Si1.35P1.65S12_at_17Ksup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li9.81Sn0.81P2.19S12_at_12Ksup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li10.35Si1.35P1.65S12_at_300Ksup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li9.81Sn0.81P2.19S12_at_300Ksup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li9.81Sn0.81P2.19S12_at_800Ksup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5021Li10.35Si1.35P1.65S12_at_800Ksup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ws5045sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm2094Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/os0078gesnmesup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/iz1043Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi10mo3o24_3d_phasesup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi10mo3o24_ssp_phasesup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh2648Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1236sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi14mo5o36_3d_phasesup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh2866Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/vn2088Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi14mo5o36_ssp_phasesup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1336IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/qd0006Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sf3190IIsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi3053ITsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ed5011ACMNAMIsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ed5011ACMVLMsup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ed5011ACMPABAsup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ed5011ACMNAMHsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi8mo3o21_3d_phasesup15.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/os0078sisnmesup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh5126Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi8mo3o21_ssp_phasesup17.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/er2073Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5036PY191betasup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd5008CuL2sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/iz1026Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi6mo2o15_3d_phasesup11.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ed5011ACM2HPsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya2118Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh2329IIsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/cu3037Isup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi6mo2o15_ssp_phasesup13.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/he0320IIIsup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ks0107sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi50027-Csup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sf3190IVsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya2062Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lh5082Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ks0107sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi5002D-1-Asup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5036PY191alphasup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi50025-Asup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi50025-Dsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi5002rac-1sup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi50025-Esup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/he0320Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn0029Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/he0320IIsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Yb2Ti2O7-x-25Csup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Yb2Ti2O7-x-1550Csup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Y2Ti2O7-x-1685Csup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Y2Ti2O7-x-25Csup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Sm2Ti2O7-x-1674Csup27.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Dy2Ti2O7-x-25Csup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Er2Ti2O7-x-1545Csup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Er2Ti2O7-x-25Csup10.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Dy2Ti2O7-x-1516Csup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ya6211Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bi5031ACM-CPRsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Gd2Ti2O7-x-25Csup12.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Gd2Ti2O7-x-1534Csup11.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm5581Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-x-25C-monosup16.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Pr2Ti2O7-x-25C-monosup26.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-x-855C-monosup17.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_La2Ti2O7-x-898C-orthosup18.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Pr2Ti2O7-x-1345C-monosup25.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5067IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/fa3079Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm2726Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm2324Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm5021Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm2244Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/lg3071Isup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Nd2Ti2O7-x-25C-monosup22.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5011phase_Nd2Ti2O7-x-1456C-monosup21.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/gt3018Isup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/fa3396Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sk3362IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5013Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yo30461asup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sq3214Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/tu5005Tl2LiYCl6_cubic_537Ksup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022VIsup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022Vsup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022VIIsup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/na0125Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kd5029sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/kc5042TCL_ABsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/dq5022IIIsup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yo30462asup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/og5067Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5008CAS-850Ksup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5008SAS-850Ksup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm6101IIsup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/wm6100Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/vn2075Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5008SAS-850Ksup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5008CAS-850Ksup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1322Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/iz1021Isup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/br1322IIsup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005betastrontiumdiformate540Ksup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005betastrontiumdiformate334Ksup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005alphastrontiumdiformate293Ksup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005deltastrontiumdiformate605Ksup5.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005betastrontiumfumarate105Ksup7.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/zb5005alphastrontiumfumarate293Ksup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/yh5008SAS-1100Ksup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ws5037sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bk5091Ca8Pb12Si12O42Cl3.8O0.1sup9.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/bk5091Pb15Ge9O33sup3.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ks5226sup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi10mo3o24_3d_phasesup2.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi10mo3o24_ssp_phasesup4.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi14mo5o36_3d_phasesup6.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi8mo3o21_3d_phasesup14.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi14mo5o36_ssp_phasesup8.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi8mo3o21_ssp_phasesup16.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi6mo2o15_3d_phasesup10.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/sn5110bi6mo2o15_ssp_phasesup12.rtv.combined.cif', 'C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/ra5050Isup2.rtv.combined.cif']
+
+
     # # filename = r"..\..\data\forJames_before.cif"
-    filename = r"..\..\data\ideal_condensed.cif"
+    # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
     # filename = r"..\..\data\nisi.cif"
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
+    # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
     #
+    # _diffrn_wavelength = two values for ka1 ka2
 
+    import os
+    # #18
+    # filename = files[189]
+    filename = r"C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/rw5065LSCT10_NPDsup4.rtv.combined.cif"
+    # os.system("start " + filename)
     cf = ParseCIF(filename)
+    cif_dict = cf.get_processed_cif()
+    pretty(cif_dict, print_values=True)
+    chi2 = calc_cumchi2(cif_dict["npd"], "_pd_proc_intensity_net","_pd_calc_intensity_net")
+    print(chi2)
+    # print(filename)
+    # print(files[18])
+    #18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif
 
-    pretty(cf.get_processed_cif(), print_values=False)
+#
+    # for i in range(len(files)):
+    #     filename = files[i]
+    #     try:
+    #         cf = ParseCIF(filename)
+    #         # print(i)
+    #     except Exception as e:
+    #         print(f"{i}\t{e}\t{filename}")
+    #         continue
+
+
+
+
 
     # print(cf.rwp("pattern_0", "_pd_meas_intensity_total", "_pd_calc_intensity_total", "_pd_proc_ls_weight"))
 
