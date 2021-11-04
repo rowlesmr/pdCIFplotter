@@ -24,6 +24,9 @@ def convert_cif_to_dict(cif):
     """
     key_list = cif.block_input_order
     cif_dict = cif.__dict__["dictionary"]
+    # i need to iterate, rather than just copying, as the dictionary order in the PyCIFRW object isn't
+    # necessarily the same order as in the original file, and I want to keep the file order, as it
+    # probably has some semantic meaning.
     for key in key_list:  # Python >=3.7 keeps dictionary keys in insertion order: https://mail.python.org/pipermail/python-dev/2017-December/151283.html
         cif_dict[key] = cif[key].__dict__["block"]
         for sub_key in cif_dict[key].keys():
@@ -243,7 +246,9 @@ class ParseCIF:
     # for d and/or q calculated from Th2, q, or d, where it is possible from the data in the pattern.
     COMPLETE_X_LIST = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_meas_time_of_flight",
                        "_pd_meas_position", "_pd_proc_energy_incident",
-                       "_pd_proc_d_spacing", "_pd_proc_recip_len_Q", "d", "q"]  # "_pd_proc_wavelength",
+                       "_pd_proc_d_spacing", "_pd_proc_recip_len_Q",
+                       "_pd_meas_2theta_range_inc", "_pd_proc_2theta_range_inc", #these are here to capture blocks with start step stop values
+                       "d", "q"]  # "_pd_proc_wavelength",
 
     # These are datanames that fit correspond to the data you are modelling
     # these are also the only ones that could have an error
@@ -317,6 +322,44 @@ class ParseCIF:
         """
         patterns = grouped_blocknames(self.ciffile)["patterns"]
 
+        ## need to unroll _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan
+        #  and _pd_proc_2theta_range_min/max/inc into _pd_proc_2theta_corrected
+        for pattern in patterns:
+            cifpat = self.ciffile[pattern]
+            if "_pd_meas_2theta_range_min" in cifpat and "_pd_meas_2theta_scan" not in cifpat:
+                start = float(cifpat["_pd_meas_2theta_range_min"])
+                stop  = float(cifpat["_pd_meas_2theta_range_max"])
+                step  = float(cifpat["_pd_meas_2theta_range_inc"])
+                num_points = int((stop - start)/step) + 1
+                th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
+                # chooses the best place to put it based on trying _meas_ first, and then proc
+                for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total", "_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
+                    if y not in cifpat:
+                        continue
+                    cifpat.AddToLoop(y, {"_pd_meas_2theta_scan": th2_scan})
+                    cifpat.RemoveItem("_pd_meas_2theta_range_min")
+                    cifpat.RemoveItem("_pd_meas_2theta_range_max")
+                    cifpat.RemoveItem("_pd_meas_2theta_range_inc")
+                    break #only do it to the first that matches
+
+            if "_pd_proc_2theta_range_min" in cifpat and "_pd_proc_2theta_corrected" not in cifpat:
+                start = float(cifpat["_pd_proc_2theta_range_min"])
+                stop  = float(cifpat["_pd_proc_2theta_range_max"])
+                step  = float(cifpat["_pd_proc_2theta_range_inc"])
+                num_points = int((stop - start)/step) + 1
+                th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
+                # chooses the best place to put it based on trying _proc_ first, and then _meas_
+                for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net", "_pd_meas_counts_total", "_pd_meas_intensity_total"]:
+                    if y not in cifpat:
+                        continue
+                    cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
+                    cifpat.RemoveItem("_pd_proc_2theta_range_min")
+                    cifpat.RemoveItem("_pd_proc_2theta_range_max")
+                    cifpat.RemoveItem("_pd_proc_2theta_range_inc")
+                break
+
+
+        # now that I've (potentially) unrolled some 2theta lists, now I can expand the dataloops.
         for pattern in patterns:
             cifpat = self.ciffile[pattern]
             loops = copy.deepcopy(cifpat.loops)  # this needs to be a deepcopy or it updates itself on RemoveItem !
@@ -583,6 +626,7 @@ if __name__ == "__main__":
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
+    filename = r"..\..\data\simon\cifs\av5086sup2.rtv.combined.cif"
     #
     # _diffrn_wavelength = two values for ka1 ka2
 
@@ -593,10 +637,8 @@ if __name__ == "__main__":
 
     # os.system("start " + filename)
     cf = ParseCIF(filename)
-    cif_dict = cf.get_processed_cif()
-    pretty(cif_dict, print_values=True)
-    chi2 = calc_cumchi2(cif_dict["npd"], "_pd_proc_intensity_net", "_pd_calc_intensity_net")
-    print(chi2)
+    cifd = cf.get_processed_cif()
+    pretty(cifd, print_values=False)
     # print(filename)
     # print(files[18])
     # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif

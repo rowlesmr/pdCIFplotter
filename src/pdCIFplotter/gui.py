@@ -2,7 +2,7 @@
 """
 Created on Sun Jul  4 20:56:13 2021
 
-@author: 184277J
+@author: Matthew Rowles
 """
 
 import PySimpleGUI as sg
@@ -15,11 +15,7 @@ from matplotlib.collections import LineCollection
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-# import traceback
-# from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
-
-# Potential themes that work for me.  #reddit is the only one that doesn't jitter...  ?
-#
+# Potential themes that work for me.
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[2])
 sg.set_options(dpi_awareness=True)
@@ -63,7 +59,13 @@ surface_x_ordinates = []
 surface_z_ordinates = {}
 
 
-def empty_globals():
+def reset_globals():
+    """
+    Resets all the contents of global parameters of interest.
+    Takes them back to empty lists, dictionarys, or None, as appropriate
+    Initialising them again is somebody else's problem...
+    :return:
+    """
     global single_fig, single_ax, single_figure_agg
     global stack_fig, stack_ax, stack_figure_agg
     global surface_fig, surface_ax, surface_figure_agg
@@ -562,11 +564,8 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
         # create the x interpolation array
         xi = np.arange(min_x, max_x, math.fabs(x_step))
         # interpolate each diffraction pattern
-        start = timer()
         for j in range(len(xs)):
             zs[j] = np.interp(xi, xs[j], zs[j], left=float("nan"), right=float("nan"))
-        end = timer()
-        print(f"Interpolation took {end - start} s.")
 
         # https://stackoverflow.com/a/33943276/36061
         # https://stackoverflow.com/a/38025451/36061
@@ -1164,6 +1163,13 @@ layout = \
     ]
 
 
+def open_cif_popup(text):
+    layout = [[sg.T(text)]]
+    window = sg.Window("Reading CIF...", layout)
+    window.read(timeout=0)
+    return window
+
+
 #################################################################################################################
 #
 # --- setup the window and all button disable things
@@ -1219,10 +1225,10 @@ def gui():
                 continue  # the file wasn't chosen, so just keep looping
 
             # you've loaded a new file, so I need to scrub all variables
-            empty_globals()
+            reset_globals()
 
             try:
-                popup = sg.popup_no_wait('Now opening your CIF file.\nIt may take a while...')
+                popup = open_cif_popup("Now opening your CIF file.\nPlease wait...")
                 read_cif(files_str)
             except Exception as e:
                 # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
@@ -1233,6 +1239,8 @@ def gui():
             finally:
                 popup.close()
                 pass
+
+            pc.pretty(cif)
 
             window["file_string"].update(value=[])
             window["file_string_name"].update(value=values["file_string"])
