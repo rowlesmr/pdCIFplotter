@@ -8,6 +8,8 @@ Created on Sun Jul  4 20:56:13 2021
 import PySimpleGUI as sg
 import parse_cif_better as pc
 import numpy as np
+from scipy import interpolate
+import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.collections import LineCollection
@@ -47,6 +49,8 @@ surface_fig = None
 surface_ax = None
 surface_figure_agg = None
 surface_z_color = "viridis"
+surface_plot_data = {"x_ordinate": None, "y_ordinate": None, "z_ordinate": None,
+                     "x_data": None, "y_data": None, "z_data": None, "plot_list": None}
 
 cif = {}  # the cif dictionary from my parsing
 single_data_list = []  # a list of all pattern blocknames in the cif
@@ -67,7 +71,7 @@ def empty_globals():
     global cif
     global single_data_list, single_dropdown_lists
     global stack_x_ordinates, stack_y_ordinates
-    global surface_x_ordinates, surface_z_ordinates
+    global surface_x_ordinates, surface_z_ordinates, surface_plot_data
 
     single_fig = None
     single_ax = None
@@ -80,6 +84,8 @@ def empty_globals():
     surface_fig = None
     surface_ax = None
     surface_figure_agg = None
+    surface_plot_data = {"x_ordinate": None, "y_ordinate": None, "z_ordinate": None,
+                         "x_data": None, "y_data": None, "z_data": None, "plot_list": None}
 
     cif = {}  # the cif dictionary from my parsing
     single_data_list = []  # a list of all pattern blocknames in the cif
@@ -222,8 +228,8 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
     # hkl plotting below     single_height_px
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
-    if x_ordinate == "_pd_meas_time_of_flight":
-        plot_hkls = False  # just guarding against things
+    # if x_ordinate == "_pd_meas_time_of_flight":
+    #     plot_hkls = False  # just guarding against things
     if plot_hkls:
         y_range = max_plot - min_plot
         hkl_markersize_pt = 6
@@ -396,6 +402,11 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     line_segments = LineCollection(xy, linestyles='solid', color=mc.TABLEAU_COLORS)
     stack_ax.add_collection(line_segments)
 
+    # # for debugging: show the data points as well as the lines
+    # x = [i[0] for j in xy for i in j]
+    # y = [i[1] for j in xy for i in j]
+    # stack_ax.scatter(x, y)
+
     if "intensity" in y_ordinate:
         y_axis_title = "Intensity (arb. units)"
     else:
@@ -431,7 +442,8 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
 
 
 def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
-    global surface_figure_agg, surface_fig, surface_ax, surface_z_color
+    global surface_figure_agg, surface_fig, surface_ax, surface_z_color, surface_plot_data
+    y_ordinate = "Pattern number"
     # try:
     #     bkr = get_bkgremove_from_displayname(displayname)
     # except ValueError:
@@ -449,31 +461,72 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     surface_fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
     surface_fig.set_tight_layout(True)
     plt.margins(x=0)
-    # need to construct a single array for each x, y, z, by looping through only those patterns which have the
-    # x and z ordinates necessary to make the piccie I want to see.
-    x = np.array([])
-    y = np.array([])
-    z = np.array([])
-    i = 0
-    plot_list = []
-    for pattern in cif.keys():
-        cifpat = cif[pattern]
-        if not (x_ordinate in cif[pattern] and z_ordinate in cif[pattern]):
-            continue
-        print(pattern)
-        # now both x and z are in the pattern
-        cifpat = cif[pattern]
-        plot_list.append(pattern)
-        x = np.append(x, cifpat[x_ordinate])
-        z = np.append(z, cifpat[z_ordinate])
-        y = np.append(y, [i] * len(cifpat[x_ordinate]))
-        i += 1
-    # https://stackoverflow.com/a/33943276/36061
-    # https://stackoverflow.com/a/38025451/36061
-    x = np.unique(x)
-    y = np.unique(y)
-    xx, yy = np.meshgrid(x, y)
-    zz = z.reshape(len(y), len(x))
+
+    # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
+    #  and I can just use what I already have.
+    if surface_plot_data["x_ordinate"] == x_ordinate and \
+       surface_plot_data["y_ordinate"] == y_ordinate and \
+       surface_plot_data["z_ordinate"] == z_ordinate:
+        xx = surface_plot_data["x_data"]
+        yy = surface_plot_data["y_data"]
+        zz = surface_plot_data["z_data"]
+        plot_list = surface_plot_data["plot_list"]
+    else:
+        # need to construct a single array for each x, y, z, by looping through only those patterns which have the
+        # x and z ordinates necessary to make the piccie I want to see.
+
+        xs = []
+        ys = []
+        zs = []
+        i = 1
+        plot_list = []
+        min_x = 9999999999
+        max_x = -min_x
+        x_step = 0
+        # get all of the original data
+        for pattern in cif.keys():
+            cifpat = cif[pattern]
+            if not (x_ordinate in cif[pattern] and z_ordinate in cif[pattern]):
+                continue
+            # we now know that both x and z are in the pattern
+            plot_list.append(pattern)
+
+            x = cifpat[x_ordinate]
+            z = cifpat[z_ordinate]
+
+            min_x = min(min_x, min(x))
+            max_x = max(max_x, max(x))
+            x_step += np.average(np.diff(x))
+
+            xs.append(x)
+            zs.append(z)
+            ys.append(i)
+            i += 1
+        else:
+            x_step /= i
+
+         # create the x interpolation array
+        xi = np.arange(min_x, max_x, math.fabs(x_step))
+        # interpolate each diffraction pattern
+        for j in range(len(xs)):
+            f = interpolate.interp1d(xs[j], zs[j], kind="linear", bounds_error=False, fill_value=float("nan"), assume_sorted=False) #sorted = false as d-spacing data can be backwards
+            zs[j] = f(xi)
+        print(zs)
+        # https://stackoverflow.com/a/33943276/36061
+        # https://stackoverflow.com/a/38025451/36061
+        xx, yy = np.meshgrid(xi, ys)
+        # zz = z.reshape(len(y), len(x))
+        zz = np.array(zs)
+
+        # update the surface_plot_data information, so I don't need to do those recalculations everytime if I don't have to.
+        surface_plot_data["x_ordinate"] = x_ordinate
+        surface_plot_data["y_ordinate"] = y_ordinate
+        surface_plot_data["z_ordinate"] = z_ordinate
+        surface_plot_data["x_data"] = xx
+        surface_plot_data["y_data"] = yy
+        surface_plot_data["z_data"] = zz
+        surface_plot_data["plot_list"] = plot_list
+    # end of if
 
     if axis_scale["x"] == "log":
         xx = np.log10(xx)
@@ -490,11 +543,6 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
 
     plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=surface_z_color)
 
-    # offset for all the mins and maxs
-    # sx = bkgremove_ax_scale * (bkgremove_unzoom[1] - bkgremove_unzoom[0])
-    # sy = bkgremove_ax_scale * (bkgremove_unzoom[3] - bkgremove_unzoom[2])
-    # bkgremove_unzoom = [bkgremove_unzoom[0] - sx, bkgremove_unzoom[1] + sx,
-    #                     bkgremove_unzoom[2] - sy, bkgremove_unzoom[3] + sy, ]
     if x_ordinate in ["d", "_pd_proc_d_spacing"]:
         plt.gca().invert_xaxis()
 
@@ -547,9 +595,9 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     #         hkl_x = hkld[block_id]["hkl"][phase][hkl_x_ordinate]
     #         hkl_y = [min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkld[block_id]["hkl"][phase][hkl_x_ordinate])
     #         plt.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
-
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
+    print("Got to the end of the surface plot")
 
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
@@ -885,8 +933,8 @@ def update_stack_element_disables(values, window):
         window[stack_keys[key]].update(disabled=False)
 
     # disable buttons and dropdowns that need disabling
-        #   If you've chosen an x-ordinate that
-        #   doesn't allow hkl ticks, disable hkl checkbox and radio
+    #   If you've chosen an x-ordinate that
+    #   doesn't allow hkl ticks, disable hkl checkbox and radio
     # also, I need to figure out how to do the hkl ticks the way I want to do them...
     if True or values[stack_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[stack_keys["hkl_checkbox"]].update(disabled=True, value=False)
@@ -961,6 +1009,7 @@ surface_keys_with_buttons = ["z_axis"]
 surface_buttons_keys = {k: surface_keys[k] + "_button" for k in surface_keys_with_buttons}
 surface_buttons_values = {v: (k, i) for i, (k, v) in enumerate(surface_buttons_keys.items())}
 
+
 def update_surface_element_disables(values, window):
     # enable all buttons and dropdowns
     for key in surface_keys.keys():
@@ -969,9 +1018,9 @@ def update_surface_element_disables(values, window):
         window[surface_buttons_keys[key]].update(disabled=False)
 
     # disable buttons and dropdowns that need disabling
-    window[surface_keys["y_axis"]].update(disabled=True)
-        #   If you've chosen an x-ordinate that
-        #   doesn't allow hkl ticks, disable hkl checkbox and radio
+    # window[surface_keys["y_axis"]].update(disabled=True)
+    #   If you've chosen an x-ordinate that
+    #   doesn't allow hkl ticks, disable hkl checkbox and radio
     # also, I need to figure out how to do the hkl ticks the way I want to do them...
     if True or values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[surface_keys["hkl_checkbox"]].update(disabled=True, value=False)
@@ -1275,7 +1324,6 @@ def gui():
             surface_z_color = values["surface_z_color-popup-ok"]['surface_z_color-popup-color']
             replot_surface = True
         # end of window events
-
 
         # at the bottom of the event loop, I pop into the replots for the three plots.
         # as there are multiple reasons to replot, I've put it down here so I only
