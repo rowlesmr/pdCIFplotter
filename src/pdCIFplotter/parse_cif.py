@@ -9,7 +9,7 @@ import CifFile
 def pretty(d, indent=0, print_values=True):
     for key, value in d.items():
         print('|  ' * indent + "|--" + str(key))
-        if isinstance(value, dict):
+        if isinstance(value, dict) or isinstance(value, CifFile.CifFile) or isinstance(value, CifFile.StarFile.StarBlock):
             pretty(value, indent + 1, print_values=print_values)
         else:
             if print_values:
@@ -332,14 +332,11 @@ class ParseCIF:
                 step  = float(cifpat["_pd_meas_2theta_range_inc"])
                 num_points = int((stop - start)/step) + 1
                 th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
-                # chooses the best place to put it based on trying _meas_ first, and then proc
-                for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total", "_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
+                # chooses the best place to put it
+                for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
                     if y not in cifpat:
                         continue
                     cifpat.AddToLoop(y, {"_pd_meas_2theta_scan": th2_scan})
-                    cifpat.RemoveItem("_pd_meas_2theta_range_min")
-                    cifpat.RemoveItem("_pd_meas_2theta_range_max")
-                    cifpat.RemoveItem("_pd_meas_2theta_range_inc")
                     break #only do it to the first that matches
 
             if "_pd_proc_2theta_range_min" in cifpat and "_pd_proc_2theta_corrected" not in cifpat:
@@ -348,16 +345,19 @@ class ParseCIF:
                 step  = float(cifpat["_pd_proc_2theta_range_inc"])
                 num_points = int((stop - start)/step) + 1
                 th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
-                # chooses the best place to put it based on trying _proc_ first, and then _meas_
-                for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net", "_pd_meas_counts_total", "_pd_meas_intensity_total"]:
+                for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
                     if y not in cifpat:
                         continue
                     cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
-                    cifpat.RemoveItem("_pd_proc_2theta_range_min")
-                    cifpat.RemoveItem("_pd_proc_2theta_range_max")
-                    cifpat.RemoveItem("_pd_proc_2theta_range_inc")
-                break
+                    break
 
+            #I don't want them to exist in my data after this. at all. no matter what.
+            cifpat.RemoveItem("_pd_meas_2theta_range_min")
+            cifpat.RemoveItem("_pd_meas_2theta_range_max")
+            cifpat.RemoveItem("_pd_meas_2theta_range_inc")
+            cifpat.RemoveItem("_pd_proc_2theta_range_min")
+            cifpat.RemoveItem("_pd_proc_2theta_range_max")
+            cifpat.RemoveItem("_pd_proc_2theta_range_inc")
 
         # now that I've (potentially) unrolled some 2theta lists, now I can expand the dataloops.
         for pattern in patterns:
@@ -626,7 +626,7 @@ if __name__ == "__main__":
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
-    filename = r"..\..\data\simon\cifs\av5086sup2.rtv.combined.cif"
+    filename = r"..\..\data\simon\cifs\sn5079t250sup13.rtv.combined.cif"
     #
     # _diffrn_wavelength = two values for ka1 ka2
 
@@ -638,7 +638,7 @@ if __name__ == "__main__":
     # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
-    pretty(cifd, print_values=False)
+    # pretty(cifd, print_values=False)
     # print(filename)
     # print(files[18])
     # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif
