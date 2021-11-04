@@ -14,6 +14,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.collections import LineCollection
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
+import mplcursors
 
 # Potential themes that work for me.
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
@@ -216,7 +217,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
             if y_name == "Diff":
                 offset = min_plot - np.nanmax(y)
                 y += offset
-                plt.plot(x, [offset]*len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1) #"loosely dashed"
+                plt.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
 
             plt.plot(x, y, label=" " + y_name,
                      color=y_style[i][0], marker=y_style[i][1],
@@ -343,52 +344,25 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     stack_fig.set_tight_layout(True)
     plt.margins(x=0)
 
-    # given the x and y ordinates, we need to generate a list of patterns that all have those ordinates
-    # this is the list that we will end up plotting
-    # we will also grab the data limits to do the plot set up
-    # assume that the y's are well behaved, and that the minimum of the first pattern
-    # and the max of the last pattern define the limits of the plot
-    x_min = 9999999
-    x_max = -x_min
+    # generate a list of patterns that validly match the chosen x and y ordinates
     plot_list = []
     for pattern in cif.keys():
         cifpat = cif[pattern]
         if x_ordinate in cifpat and y_ordinate in cifpat:
             plot_list.append(pattern)
-            x = cifpat[x_ordinate]
-            if axis_scale["x"] == "log":
-                x = np.log10(x)
-            elif axis_scale["x"] == "sqrt":
-                x = np.sqrt(x)
-            x_min = min(x_min, min(x))
-            x_max = max(x_max, max(x))
 
-    y_min = min(cif[plot_list[0]][y_ordinate])
-    y_max = max(cif[plot_list[-1]][y_ordinate])
+    # compile all of their data
     if axis_scale["y"] == "log":
-        y_min = np.log10(y_min)
-        y_max = np.log10(y_max)
         offset = np.log10(offset)
     elif axis_scale["y"] == "sqrt":
-        y_min = np.sqrt(y_min)
-        y_max = np.sqrt(y_max)
         offset = np.sqrt(offset)
-    y_max += len(plot_list) * offset
-    y_range = y_max - y_min
-    y_buffer = 0.04 * y_range
-    y_max += y_buffer
-    y_min -= y_buffer
-
-    stack_ax.set_xlim(x_min, x_max)
-    stack_ax.set_ylim(y_min, y_max)
-
-    xs = []
-    ys = []
-    # put the data into the correct format
-    for i in range(len(single_data_list) - 1, -1, -1):
+    # need to loop backwards so that the data comes out in the correct order for plotting
+    for i in range(len(plot_list) - 1, -1, -1):
         pattern = plot_list[i]
-        x = cif[pattern][x_ordinate]
-        y = cif[pattern][y_ordinate]
+        cifpat = cif[pattern]
+        x = cifpat[x_ordinate]
+        y = cifpat[y_ordinate]
+        label = pattern
 
         if axis_scale["x"] == "log":
             x = np.log10(x)
@@ -399,17 +373,11 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
         elif axis_scale["y"] == "sqrt":
             y = np.sqrt(y)
 
-        xs.append(x)
-        ys.append(y + i * offset)
+        y += i * offset
+        plt.plot(x, y, label=label)  # do I want to fill white behind each plot?
 
-    xy = [np.column_stack([x, y]) for x, y in zip(xs, ys)]
-    line_segments = LineCollection(xy, linestyles='solid', color=mc.TABLEAU_COLORS)
-    stack_ax.add_collection(line_segments)
-
-    # # for debugging: show the data points as well as the lines
-    # x = [i[0] for j in xy for i in j]
-    # y = [i[1] for j in xy for i in j]
-    # stack_ax.scatter(x, y)
+    # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
+    mplcursors.cursor(hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
 
     if "intensity" in y_ordinate:
         y_axis_title = "Intensity (arb. units)"
