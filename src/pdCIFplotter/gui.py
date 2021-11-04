@@ -159,56 +159,6 @@ def pretty(d, indent=0, print_values=True):
                 print('\t' * (indent + 1) + str(value))
 
 
-def interp(x1, y1, x2, y2, xi):
-    """
-    Given two points in xy coordinate space such that x1<x2, and x1<xi<x2,
-    what is the linear interpolation value of xi from the given y1 and y2?
-    """
-    m = (y2 - y1) / (x2 - x1)
-    c = y1 - m * x1
-    return m * xi + c
-
-
-# assumes x is sorted, either increasing or decreasing, but still monotonic
-def linear_interpolation_single(x, y, xi):
-    """
-    Given an array of x and y values, what is the yi value given an xi value?
-    Do a linear interpolation and find out.
-    """
-    min_x = x[0]
-    max_x = x[-1]
-
-    if min_x > max_x:
-        if xi > min_x or xi < max_x:
-            return float("nan")
-        increasing = False
-    else:
-        if xi < min_x or xi > max_x:
-            return float("nan")
-        increasing = True
-
-    if increasing:
-        idx = np.argmax(x > xi)
-    else:
-        idx = np.argmax(x < xi)
-
-    return interp(x[idx - 1], y[idx - 1], x[idx], y[idx], xi)
-
-
-def linear_interpolation_array(x, y, xis):
-    """
-    Given a list of xi values to interpolate, go and go it.
-    :param x:
-    :param y:
-    :param xis:
-    :return:
-    """
-    r = np.empty(len(xis))
-    for i in range(len(xis)):
-        r[i] = linear_interpolation_single(x, y, xis[i])
-    return r
-
-
 def single_update_plot(pattern, x_ordinate, y_ordinates: list,
                        plot_hkls: bool, plot_diff: bool, plot_cchi2: bool,
                        axis_scale: dict, window):
@@ -264,7 +214,9 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
     for i, (y, y_name) in enumerate(zip(ys, y_ordinates)):
         if y is not None:
             if y_name == "Diff":
-                y -= max(y) - min_plot
+                offset = min_plot - np.nanmax(y)
+                y += offset
+                plt.plot(x, [offset]*len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1) #"loosely dashed"
 
             plt.plot(x, y, label=" " + y_name,
                      color=y_style[i][0], marker=y_style[i][1],
