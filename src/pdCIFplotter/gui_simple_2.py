@@ -8,12 +8,12 @@ Created on Sun Jul  4 20:56:13 2021
 import PySimpleGUI as sg
 import parse_cif_better as pc
 import numpy as np
-from scipy import interpolate
 import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.collections import LineCollection
 import matplotlib.colors as mc  # a lot of colour choices in here to use
+from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
 # import traceback
 # from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
@@ -155,6 +155,56 @@ def pretty(d, indent=0, print_values=True):
         else:
             if print_values:
                 print('\t' * (indent + 1) + str(value))
+
+
+def interp(x1, y1, x2, y2, xi):
+    """
+    Given two points in xy coordinate space such that x1<x2, and x1<xi<x2,
+    what is the linear interpolation value of xi from the given y1 and y2?
+    """
+    m = (y2 - y1) / (x2 - x1)
+    c = y1 - m * x1
+    return m * xi + c
+
+
+# assumes x is sorted, either increasing or decreasing, but still monotonic
+def linear_interpolation_single(x, y, xi):
+    """
+    Given an array of x and y values, what is the yi value given an xi value?
+    Do a linear interpolation and find out.
+    """
+    min_x = x[0]
+    max_x = x[-1]
+
+    if min_x > max_x:
+        if xi > min_x or xi < max_x:
+            return float("nan")
+        increasing = False
+    else:
+        if xi < min_x or xi > max_x:
+            return float("nan")
+        increasing = True
+
+    if increasing:
+        idx = np.argmax(x > xi)
+    else:
+        idx = np.argmax(x < xi)
+
+    return interp(x[idx - 1], y[idx - 1], x[idx], y[idx], xi)
+
+
+def linear_interpolation_array(x, y, xis):
+    """
+    Given a list of xi values to interpolate, go and go it.
+    :param x:
+    :param y:
+    :param xis:
+    :return:
+    """
+    r = np.empty(len(xis))
+    for i in range(len(xis)):
+        r[i] = linear_interpolation_single(x, y, xis[i])
+    return r
 
 
 def single_update_plot(pattern, x_ordinate, y_ordinates: list,
@@ -465,8 +515,8 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
     #  and I can just use what I already have.
     if surface_plot_data["x_ordinate"] == x_ordinate and \
-       surface_plot_data["y_ordinate"] == y_ordinate and \
-       surface_plot_data["z_ordinate"] == z_ordinate:
+            surface_plot_data["y_ordinate"] == y_ordinate and \
+            surface_plot_data["z_ordinate"] == z_ordinate:
         xx = surface_plot_data["x_data"]
         yy = surface_plot_data["y_data"]
         zz = surface_plot_data["z_data"]
@@ -494,6 +544,10 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
             x = cifpat[x_ordinate]
             z = cifpat[z_ordinate]
 
+            if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+                x = np.flip(x)
+                z = np.flip(z)
+
             min_x = min(min_x, min(x))
             max_x = max(max_x, max(x))
             x_step += np.average(np.diff(x))
@@ -505,13 +559,15 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
         else:
             x_step /= i
 
-         # create the x interpolation array
+        # create the x interpolation array
         xi = np.arange(min_x, max_x, math.fabs(x_step))
         # interpolate each diffraction pattern
+        start = timer()
         for j in range(len(xs)):
-            f = interpolate.interp1d(xs[j], zs[j], kind="linear", bounds_error=False, fill_value=float("nan"), assume_sorted=False) #sorted = false as d-spacing data can be backwards
-            zs[j] = f(xi)
-        print(zs)
+            zs[j] = np.interp(xi, xs[j], zs[j], left=float("nan"), right=float("nan"))
+        end = timer()
+        print(f"Interpolation took {end - start} s.")
+
         # https://stackoverflow.com/a/33943276/36061
         # https://stackoverflow.com/a/38025451/36061
         xx, yy = np.meshgrid(xi, ys)
