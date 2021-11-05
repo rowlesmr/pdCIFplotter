@@ -11,9 +11,9 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.collections import LineCollection
+# from matplotlib.collections import LineCollection
 import matplotlib.colors as mc  # a lot of colour choices in here to use
-from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
+# from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 
 # Potential themes that work for me.
@@ -233,8 +233,8 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
     # hkl plotting below     single_height_px
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
-    # if x_ordinate == "_pd_meas_time_of_flight":
-    #     plot_hkls = False  # just guarding against things
+    single_hovertexts=[]
+    single_hkl_artists=[]
     if plot_hkls:
         y_range = max_plot - min_plot
         hkl_markersize_pt = 6
@@ -252,7 +252,18 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
             elif axis_scale["x"] == "sqrt":
                 hkl_x = np.sqrt(hkl_x)
 
-            plt.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
+            hkl_tick, = single_ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
+            single_hkl_artists.append(hkl_tick)
+            if "refln_hovertext" in cifpat["str"][phase]:
+                single_hovertexts.append(cifpat["str"][phase]["refln_hovertext"])
+            else:
+                single_hovertexts.append([phase]*len(hkl_x))
+
+        # https://stackoverflow.com/a/58350037/36061
+        single_hkl_hover_dict = dict(zip(single_hkl_artists, single_hovertexts))
+        mplcursors.cursor(single_hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
+            "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
+    #end hkl if
 
     if plot_cchi2:
         # https://stackoverflow.com/a/10482477/36061
@@ -377,7 +388,8 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
         plt.plot(x, y, label=label)  # do I want to fill white behind each plot?
 
     # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
-    mplcursors.cursor(hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+    stack_artists = stack_ax.get_children()
+    mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
 
     if "intensity" in y_ordinate:
         y_axis_title = "Intensity (arb. units)"
@@ -632,12 +644,13 @@ def z_ordinate_styling_popup(window_title, color_default, key, window):
 #######################################################################################################
 ######################################################################################################
 
-def make_list_for_ordinate_dropdown(complete_list, possible_list):
+def make_list_for_ordinate_dropdown(complete_list, possible_list, add_none=True):
     used_list = []
     for t in complete_list:
         if t in possible_list:
             used_list.append(t)
-    used_list.append("None")
+    if add_none:
+        used_list.append("None")
     return used_list
 
 
@@ -664,8 +677,8 @@ def read_cif(filename):
     cif = pc.ParseCIF(filename).get_processed_cif()
 
 
-def make_xy_dropdown_list(master_list, difpat):
-    return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys())
+def make_xy_dropdown_list(master_list, difpat, add_none=True):
+    return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
 def initialise_pattern_and_dropdown_lists():
@@ -674,7 +687,7 @@ def initialise_pattern_and_dropdown_lists():
     for pattern in single_data_list:
         single_dropdown_lists[pattern] = {}
         # these are the possible values that the ordinate could be
-        single_dropdown_lists[pattern]["x_values"] = make_xy_dropdown_list(COMPLETE_X_LIST, pattern)
+        single_dropdown_lists[pattern]["x_values"] = make_xy_dropdown_list(COMPLETE_X_LIST, pattern, False)
         single_dropdown_lists[pattern]["yobs_values"] = make_xy_dropdown_list(OBSERVED_Y_LIST, pattern)
         single_dropdown_lists[pattern]["ycalc_values"] = make_xy_dropdown_list(CALCULATED_Y_LIST, pattern)
         single_dropdown_lists[pattern]["ybkg_values"] = make_xy_dropdown_list(BACKGROUND_Y_LIST, pattern)
