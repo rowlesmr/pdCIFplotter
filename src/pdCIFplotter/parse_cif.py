@@ -19,6 +19,8 @@ def pretty(d, indent=0, print_values=True):
 def debug(*args):
     if DEBUG:
         print(*args)
+
+
 def convert_cif_to_dict(cif):
     """
     Converts a PyCIFRW CifFile into a normal Python dictionary
@@ -647,11 +649,11 @@ if __name__ == "__main__":
     # # filename = r"..\..\data\forJames_before.cif"
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
-    # filename = r"..\..\data\nisi.cif"
+    filename = r"..\..\data\nisi.cif"
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
-    filename = r"..\..\data\simon\cifs\cu31501sup2.rtv.combined.cif"
+    # filename = r"..\..\data\simon\cifs\cu31501sup2.rtv.combined.cif"
     #
     # _diffrn_wavelength = two values for ka1 ka2
 
