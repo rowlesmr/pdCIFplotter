@@ -869,9 +869,6 @@ def update_single_element_disables(pattern, values, window):
         window[single_buttons_keys[key]].update(disabled=False)
 
     # disable buttons and dropdowns that need disabling
-    #   if x list is length 1 disable x combo
-    if len(single_dropdown_lists[pattern]["x_values"]) == 1:
-        window[single_keys["data"]].update(disabled=True)
     #   if y list is length 1 (ie it says "None") disable ycombo and button
     for yname in ["yobs", "ycalc", "ybkg"]:
         if len(single_dropdown_lists[pattern][yname + "_values"]) == 1:
