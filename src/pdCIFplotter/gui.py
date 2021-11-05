@@ -6,7 +6,7 @@ Created on Sun Jul  4 20:56:13 2021
 """
 
 import PySimpleGUI as sg
-import parse_cif as pc
+from pdCIFplotter import parse_cif as pc
 import numpy as np
 import math
 import matplotlib.pyplot as plt
