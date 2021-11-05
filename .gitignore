@@ -1,16 +1,13 @@
 #other things
 .idea/
 ref/papers
+ref/old
 *.*~
 data/simon/
 data/pam/
 data/ideal/
 PySimpleGUI.py
-src/pdcifplotter/*/
-cycler.py
-*.pth
-pylab.py
-six.py
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
