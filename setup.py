@@ -78,7 +78,7 @@ setup(
         'cycler>=0.11.0',
         'kiwisolver>=1.3.2',
         'matplotlib>=3.4.3',
-        'mplcursors>=0.4.post17+g56845ae',
+        'mplcursors>=0.4',
         'numpy>=1.21.3',
         'Pillow>=8.4.0',
         'PyCifRW>=4.4.3',
