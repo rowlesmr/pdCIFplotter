@@ -64,7 +64,7 @@ setup(
         'Topic :: Scientific/Engineering',
     ],
     project_urls={
-        'Documentation': 'https://pdCIFplotter.readthedocs.io/',
+        'Documentation': 'https://pdcifplotter.readthedocs.io/en/latest/',
         'Changelog': 'https://pdCIFplotter.readthedocs.io/en/latest/changelog.html',
         'Issue Tracker': 'https://github.com/rowlesmr/pdCIFplotter/issues',
     },
