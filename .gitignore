@@ -7,6 +7,8 @@ data/simon/
 data/pam/
 data/ideal/
 PySimpleGUI.py
+data/ideal.cif
+data/sn5079.cif
 
 
 # Byte-compiled / optimized / DLL files
