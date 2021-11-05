@@ -13,6 +13,6 @@ This file is here to make the pyz file work nicely.
 
 """
 
-import gui_simple_2
+import gui
 
-gui_simple_2.gui()
+gui.gui()
