@@ -49,8 +49,8 @@ surface_fig = None
 surface_ax = None
 surface_figure_agg = None
 surface_z_color = "viridis"
-surface_plot_data = {"x_ordinate": None, "y_ordinate": None, "z_ordinate": None,
-                     "x_data": None, "y_data": None, "z_data": None, "plot_list": None}
+surface_plot_data = {"x_ordinate": "", "y_ordinate": "", "z_ordinate": "",
+                     "x_data": None, "y_data": None, "z_data": None, "plot_list": []}
 
 cif = {}  # the cif dictionary from my parsing
 single_data_list = []  # a list of all pattern blocknames in the cif
@@ -66,7 +66,6 @@ surface_z_ordinates = {}
 def debug(*args):
     if DEBUG:
         print(*args)
-
 
 def reset_globals():
     """
@@ -348,6 +347,11 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
 def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scale: dict, window):
     global stack_figure_agg, stack_fig, stack_ax
 
+    debug(f"stack {x_ordinate=}")
+    debug(f"stack {y_ordinate=}")
+    debug(f"stack {offset=}")
+    debug(f"stack {axis_scale=}")
+
     dpi = plt.gcf().get_dpi()
     if stack_fig is not None:
         stack_height_px = stack_fig.get_size_inches()[1] * dpi
@@ -368,9 +372,12 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     for pattern in cif.keys():
         cifpat = cif[pattern]
         if x_ordinate in cifpat and y_ordinate in cifpat:
+            debug(f"I can legally plot {pattern}")
             plot_list.append(pattern)
 
-    # compile all of their data
+    debug("before scale")
+    debug(f"{offset=}")
+    # compile all of the patterns' data
     if axis_scale["y"] == "log":
         offset = np.log10(offset)
     elif axis_scale["y"] == "sqrt":
@@ -378,11 +385,14 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
     # need to loop backwards so that the data comes out in the correct order for plotting
     for i in range(len(plot_list) - 1, -1, -1):
         pattern = plot_list[i]
+        debug(f"Now plotting {pattern}")
         cifpat = cif[pattern]
         x = cifpat[x_ordinate]
         y = cifpat[y_ordinate]
         label = pattern
-
+        debug("before scale")
+        debug(f"{x=}")
+        debug(f"{y=}")
         if axis_scale["x"] == "log":
             x = np.log10(x)
         elif axis_scale["x"] == "sqrt":
@@ -391,9 +401,11 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
             y = np.log10(y)
         elif axis_scale["y"] == "sqrt":
             y = np.sqrt(y)
+        debug("after scale")
+        debug(f"{x=}")
+        debug(f"{y=}")
 
-        y += i * offset
-        plt.plot(x, y, label=label)  # do I want to fill white behind each plot?
+        plt.plot(x, y + i * offset, label=label)  # do I want to fill white behind each plot?
 
     # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
     stack_artists = stack_ax.get_children()
