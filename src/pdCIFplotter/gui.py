@@ -16,6 +16,9 @@ import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 
+
+DEBUG = True
+
 # Potential themes that work for me.
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[2])
@@ -58,6 +61,11 @@ stack_y_ordinates = {}
 
 surface_x_ordinates = []
 surface_z_ordinates = {}
+
+
+def debug(*args):
+    if DEBUG:
+        print(*args)
 
 
 def reset_globals():
@@ -428,14 +436,7 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scal
 def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
     global surface_figure_agg, surface_fig, surface_ax, surface_z_color, surface_plot_data
     y_ordinate = "Pattern number"
-    # try:
-    #     bkr = get_bkgremove_from_displayname(displayname)
-    # except ValueError:
-    #     return None  # stop the execution of this script here
 
-    # if single_figure_agg:
-    #     single_figure_agg.get_tk_widget().forget()
-    #     plt.close('all')
     dpi = plt.gcf().get_dpi()
 
     if surface_fig is not None:
@@ -451,6 +452,7 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     if surface_plot_data["x_ordinate"] == x_ordinate and \
             surface_plot_data["y_ordinate"] == y_ordinate and \
             surface_plot_data["z_ordinate"] == z_ordinate:
+        debug("reusing surface plot data")
         xx = surface_plot_data["x_data"]
         yy = surface_plot_data["y_data"]
         zz = surface_plot_data["z_data"]
@@ -458,7 +460,7 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     else:
         # need to construct a single array for each x, y, z, by looping through only those patterns which have the
         # x and z ordinates necessary to make the piccie I want to see.
-
+        debug("Constructing surface plot data")
         xs = []
         ys = []
         zs = []
@@ -478,13 +480,27 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
             x = cifpat[x_ordinate]
             z = cifpat[z_ordinate]
 
-            if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+            debug("---")
+            debug(pattern)
+            debug("before flip")
+            debug(f"{x=}")
+            debug(f"{z=}")
+
+            if x[0] > x[-1]:  # ie if x is decreasing
                 x = np.flip(x)
                 z = np.flip(z)
+
+            debug("after flip")
+            debug(f"{x=}")
+            debug(f"{z=}")
 
             min_x = min(min_x, min(x))
             max_x = max(max_x, max(x))
             x_step += np.average(np.diff(x))
+
+            debug(f"{min_x=}")
+            debug(f"{max_x=}")
+            debug(f"{x_step/i}")
 
             xs.append(x)
             zs.append(z)
@@ -515,6 +531,7 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
         surface_plot_data["plot_list"] = plot_list
     # end of if
 
+    debug("scaling surface plot data")
     if axis_scale["x"] == "log":
         xx = np.log10(xx)
     elif axis_scale["x"] == "sqrt":
@@ -528,11 +545,68 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     elif axis_scale["z"] == "sqrt":
         zz = np.sqrt(zz)
 
+    debug("plotting surface plot")
+    print(f"{xx=}")
+    print(f"{yy=}")
+    print(f"{zz=}")
     plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=surface_z_color)
 
     if x_ordinate in ["d", "_pd_proc_d_spacing"]:
         plt.gca().invert_xaxis()
 
+
+    # hkl plotting below     single_height_px
+    hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
+                              "_pd_proc_2theta_corrected": "refln_2theta"}
+    surface_hovertexts=[]
+    surface_hkl_artists=[]
+    if plot_hkls:
+        debug("plotting hkls")
+        # y_range = max_plot - min_plot
+        hkl_markersize_pt = 6
+        # hkl_markersize_px = hkl_markersize_pt * 72 / dpi
+        # num_hkl_rows = len(cifpat["str"].keys())
+        # hkl_tick_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
+
+        hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
+        for pattern, ys in zip(plot_list, yy):
+            cifpat = cif[pattern]
+            y = ys[0]
+            for i, phase in enumerate(cifpat["str"].keys()):
+                debug(f"Should be plotting hkls for {phase}, which is number {i}.")
+
+                hkl_x = cifpat["str"][phase][hkl_x_ordinate]
+                hkl_y = [y] * len(hkl_x)
+
+                if axis_scale["x"] == "log":
+                    hkl_x = np.log10(hkl_x)
+                elif axis_scale["x"] == "sqrt":
+                    hkl_x = np.sqrt(hkl_x)
+                if axis_scale["y"] == "log":
+                    hkl_y = np.log10(hkl_y)
+                elif axis_scale["y"] == "sqrt":
+                    hkl_y = np.sqrt(hkl_y)
+
+                colours = mc.TABLEAU_COLORS
+                values = list(colours.values())
+                num_values = len(values)
+                idx = i % num_values
+
+                hkl_tick, = surface_ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt, color=values[idx])
+                surface_hkl_artists.append(hkl_tick)
+                if "refln_hovertext" in cifpat["str"][phase]:
+                    hovertext = [f"{phase}: {hkls}" for hkls in cifpat["str"][phase]["refln_hovertext"]]
+                    surface_hovertexts.append(hovertext)
+                else:
+                    surface_hovertexts.append([phase]*len(hkl_x))
+
+        # https://stackoverflow.com/a/58350037/36061
+        surface_hkl_hover_dict = dict(zip(surface_hkl_artists, surface_hovertexts))
+        mplcursors.cursor(surface_hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
+            "add", lambda sel: sel.annotation.set_text(surface_hkl_hover_dict[sel.artist][sel.index]))
+    #end hkl if
+
+    debug("Setting surface plot axis labels")
     # check that the wavelength for all patterns is the same
     wavelength = pc.get_from_cif(cif[plot_list[0]], "wavelength")
     for pattern in plot_list:
@@ -563,28 +637,10 @@ def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dic
     plt.ylabel(y_axis_title)
     plt.colorbar(label=z_axis_title)
 
-    #
-    # plt.plot(40, 15, marker="|", markersize=6)
-    #
-    # pretty(hkld)
-    # hkl_x_ordinate_mapping = {"d": "d", "q": "q", "_pd_meas_2theta_scan": "2theta"}
-    # hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
-
-    # if plot_hkls:
-    #     y_range = max_plot - min_plot
-    #     hkl_markersize_pt = 6
-    #     hkl_markersize_px = hkl_markersize_pt * 72 / dpi
-    #     num_hkl_rows = len(hkld[block_id]["hkl"]["_pd_phase_id"])
-    #     hkl_tick_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
-    #
-    #
-    #     for i, phase in enumerate(hkld[block_id]["hkl"]["_pd_phase_id"]):
-    #         hkl_x = hkld[block_id]["hkl"][phase][hkl_x_ordinate]
-    #         hkl_y = [min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkld[block_id]["hkl"][phase][hkl_x_ordinate])
-    #         plt.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
+    debug("About to set the agg for the aurface plot")
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
-    print("Got to the end of the surface plot")
+    debug("Got to the end of the surface plot")
 
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
@@ -1010,7 +1066,7 @@ def update_surface_element_disables(values, window):
     #   If you've chosen an x-ordinate that
     #   doesn't allow hkl ticks, disable hkl checkbox and radio
     # also, I need to figure out how to do the hkl ticks the way I want to do them...
-    if True or values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
+    if values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[surface_keys["hkl_checkbox"]].update(disabled=True, value=False)
 
 
@@ -1372,7 +1428,7 @@ def gui():
         if replot_surface:
             x_ordinate = values["surface_x_ordinate"]
             z_ordinate = values["surface_z_ordinate"]
-            plot_hkls = False  # values[stack_keys["hkl_checkbox"]]
+            plot_hkls = values[surface_keys["hkl_checkbox"]]
             # construct axis scale dictionary
             x_axes = [values[surface_keys["x_scale_linear"]], values[surface_keys["x_scale_sqrt"]], values[surface_keys["x_scale_log"]]]
             y_axes = [values[surface_keys["y_scale_linear"]], values[surface_keys["y_scale_sqrt"]], values[surface_keys["y_scale_log"]]]
