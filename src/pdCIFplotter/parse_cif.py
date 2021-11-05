@@ -5,6 +5,7 @@ import copy
 # from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
 import CifFile
 
+DEBUG = True
 
 def pretty(d, indent=0, print_values=True):
     for key, value in d.items():
@@ -15,7 +16,9 @@ def pretty(d, indent=0, print_values=True):
             if print_values:
                 print('|  ' * (indent + 1) + "|--" + str(value))
 
-
+def debug(*args):
+    if DEBUG:
+        print(*args)
 def convert_cif_to_dict(cif):
     """
     Converts a PyCIFRW CifFile into a normal Python dictionary
@@ -430,11 +433,12 @@ class ParseCIF:
         self.cif = convert_cif_to_dict(self.ciffile)
         # update each pattern's information
         for pattern in patterns:
-            # print(f"Now doing {pattern}")
+            debug(f"Now doing {pattern}")
             cifpat = self.cif[pattern]
             structures = []  # assume there are no linked structures unless it gets updated just below
 
             if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
+                debug("there is a _pd_phase_block_id")
                 # check if the x-ordinate is capable of being converted into d-spacing
 
                 # do I need to check that the structure linked to by the pattern also links back to the pattern?
@@ -446,6 +450,7 @@ class ParseCIF:
 
                 # setup the phase_ids in the cif so I can get the correct phaseid for each structure I call
                 if "_pd_phase_id" not in cifpat:
+                    debug("There is no _pd_phase_id, but I'm just about to make one")
                     pd_phase_ids = [str(i) for i in list(range(1, len(phase_block_ids) + 1))]  # keep it as a string, just like pycifrw does
                     # cifpat.AddToLoop("_pd_phase_block_id", {"_pd_phase_id": pd_phase_ids})
                     cifpat["_pd_phase_id"] = pd_phase_ids
@@ -494,6 +499,26 @@ class ParseCIF:
                                 cifpat["str"][phase_id]['_refln_index_l'] = l
                             if d is not None:
                                 cifpat["str"][phase_id]['_refln_d_spacing'] = d
+            else: #there is no "_pd_phase_block_id", and we need to check the pattern for hkls - assuming only one phase
+                debug("there is no _pd_phase_block_id")
+                if "_refln_d_spacing" in cifpat:
+                    # these contain all the hkls from all the phases
+                    hs = get_from_cif(cifpat, '_refln_index_h')
+                    ks = get_from_cif(cifpat, '_refln_index_k')
+                    ls = get_from_cif(cifpat, '_refln_index_l')
+                    ds = get_from_cif(cifpat, '_refln_d_spacing')
+                    cifpat["str"] = {}
+                    cifpat["str"]["1"] = {}
+                    if hs is not None:
+                        cifpat["str"]["1"]['_refln_index_h'] = hs
+                    if ks is not None:
+                        cifpat["str"]["1"]['_refln_index_k'] = ks
+                    if ls is not None:
+                        cifpat["str"]["1"]['_refln_index_l'] = ls
+                    if ds is not None:
+                        cifpat["str"]["1"]['_refln_d_spacing'] = ds
+
+
             # end of if
 
             # look for other datanames that it would be nice to have in the pattern
@@ -626,7 +651,7 @@ if __name__ == "__main__":
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
-    filename = r"..\..\data\simon\cifs\sn5079t250sup13.rtv.combined.cif"
+    filename = r"..\..\data\simon\cifs\cu31501sup2.rtv.combined.cif"
     #
     # _diffrn_wavelength = two values for ka1 ka2
 
@@ -638,7 +663,7 @@ if __name__ == "__main__":
     # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
-    # pretty(cifd, print_values=False)
+    pretty(cifd, print_values=False)
     # print(filename)
     # print(files[18])
     # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif

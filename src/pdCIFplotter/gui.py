@@ -885,7 +885,7 @@ def update_single_element_disables(pattern, values, window):
         window[single_keys["cchi2"]].update(disabled=True, value=False)
     #   If there isn't at least one hkl list, or you've chosen an x-ordinate that
     #   doesn't allow hkl ticks, disable hkl checkbox and radio
-    if "_pd_phase_id" not in cif[pattern] or values[single_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
+    if "str" not in cif[pattern] or values[single_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[single_keys["hkl_checkbox"]].update(disabled=True, value=False)
         window[single_keys["hkl_above"]].update(disabled=True)
         window[single_keys["hkl_below"]].update(disabled=True)
