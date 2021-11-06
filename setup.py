@@ -55,7 +55,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
+        # 'Programming Language :: Python :: Implementation :: PyPy',
         # uncomment if you test on these interpreters:
         # 'Programming Language :: Python :: Implementation :: IronPython',
         # 'Programming Language :: Python :: Implementation :: Jython',
@@ -78,7 +78,7 @@ setup(
         'cycler>=0.11.0',
         'kiwisolver>=1.3.2',
         'matplotlib>=3.4.3',
-        'mplcursors>=0.4',
+        'mplcursors @ git+https://github.com/anntzer/mplcursors',
         'numpy>=1.21.3',
         'Pillow>=8.4.0',
         'PyCifRW>=4.4.3',

@@ -954,7 +954,7 @@ layout_single = \
     [
         [
             sg.Column(layout_single_left, pad=(0, 0), expand_x=True, expand_y=True),
-            sg.VerticalSeparator(),
+            # sg.VerticalSeparator(),
             sg.Column(layout_single_right, key="single_right_column", pad=(0, 0), vertical_alignment="top")
         ]
     ]
@@ -1034,7 +1034,7 @@ layout_stack = \
     [
         [
             sg.Column(layout_stack_left, pad=(0, 0), expand_x=True, expand_y=True),
-            sg.VerticalSeparator(),
+            # sg.VerticalSeparator(),
             sg.Column(layout_stack_right, key="stack_right_column", pad=(0, 0), vertical_alignment="top")
         ]
     ]
@@ -1118,7 +1118,7 @@ layout_surface = \
     [
         [
             sg.Column(layout_surface_left, pad=(0, 0), expand_x=True, expand_y=True),
-            sg.VerticalSeparator(),
+            # sg.VerticalSeparator(),
             sg.Column(layout_surface_right, key="surface_right_column", pad=(0, 0), vertical_alignment="top")
         ]
     ]
