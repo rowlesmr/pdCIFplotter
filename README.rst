@@ -67,11 +67,13 @@ Documentation
 =============
 
 
-https://pdCIFplotter.readthedocs.io/
+https://pdCIFplotter.readthedocs.io/en/latest/
 
 
 Development
 ===========
+
+This isn't fully implemented yet.
 
 To run all the tests run::
 
