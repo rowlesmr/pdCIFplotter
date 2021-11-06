@@ -18,6 +18,34 @@ import mplcursors
 
 DEBUG = True
 
+def check_packages():
+    psg = sg.__version__.split(".")
+    mpl = mplcursors.__version__.split(".")
+    msg = ""
+    mplupgrade = "I think your mplcursors is out of date.\nPlease run\n > pip install git+https://github.com/anntzer/mplcursors\nto install the latest version from github.\n\n"
+    psgupgrade = "I think your PySimpleGUI is out of date.\nPlease run\n > python -m PySimpleGUI.PySimpleGUI upgrade\nto install the latest version from github."
+
+    print(f"{psg=}")
+    print(f"{mpl=}")
+
+    if int(mpl[1]) <= 3:
+        msg += mplupgrade
+    if len(mpl) == 2:
+        msg += mplupgrade
+
+    if int(psg[0]) <= 3:
+        msg += psgupgrade
+    if int(psg[1]) <= 52:
+        msg += psgupgrade
+    if int(psg[2]) <= 0 and len(psg) != 4:
+        msg += psgupgrade
+
+    if msg != "":
+        msg += "\n\nI don't think it will break anything. You just won't get the full feature set."
+
+    return msg
+
+
 # Potential themes that work for me.
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[2])
@@ -1176,6 +1204,10 @@ def gui():
     global single_figure_agg, stack_figure_agg, surface_figure_agg, surface_z_color
 
     window = sg.Window("pdCIFplotter", layout, finalize=True, use_ttk_buttons=True, resizable=True)
+
+    check_msg = check_packages()
+    if check_msg != "":
+        sg.Print(check_msg)
 
     # set all the dropdowns and buttons to disabled before I have data to do things to.
     for key in single_keys.keys():
