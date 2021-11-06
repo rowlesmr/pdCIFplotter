@@ -49,6 +49,10 @@ Overview
 
 A program for the visualisation of diffraction data in pdCIF format.
 
+Crystallographic Information Framework (CIF; https://www.iucr.org/resources/cif) files are a way of storing 
+crystallographic information in a standard human- and machine-readable format. This particular program is focussed
+on visualising powder diffraction data stored in CIF format, and, in particular, serial or in situ/operando data.
+
 * Free software: Apache Software License 2.0
 
 Installation
@@ -58,7 +62,7 @@ Installation
 
     pip install pdCIFplotter
 
-You can also install the in-development version with::
+You can also install the in-development version from GitHub with::
 
     pip install https://github.com/rowlesmr/pdCIFplotter/archive/master.zip
 
