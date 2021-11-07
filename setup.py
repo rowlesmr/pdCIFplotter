@@ -83,7 +83,7 @@ setup(
         'Pillow>=8.4',
         'PyCifRW>=4.4.3',
         'pyparsing>=3.0',
-        'PySimpleGUI>=4.53.0',
+        'PySimpleGUI>=4.54.0',
         'python-dateutil>=2.8',
         'six>=1.16',
     ],
