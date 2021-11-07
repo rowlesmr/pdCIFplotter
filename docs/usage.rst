@@ -10,10 +10,8 @@ It is possible to use pdCIFplotter in a project::
 However, it is more likely you'll want to run pdCIFplotter as a standalone program::
 
 	python -m pdCIFplotter
-
-pdCIFplotter currently requires development versions of ``mplcursors`` and ``PySimpleGUI``. The program
-doesn't break if they don't exist, but there will be a lack in functionality. There is a prompt on running
-the program on how to update to the latest versions.
+or::
+	pdcifplotter
 
 A single CIF file can be loaded at a time using the LOAD button, and then various visualisations are available.
 

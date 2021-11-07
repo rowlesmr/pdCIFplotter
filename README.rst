@@ -67,6 +67,16 @@ You can also install the in-development version from GitHub with::
     pip install https://github.com/rowlesmr/pdCIFplotter/archive/master.zip
 
 
+Quick usage
+===========
+
+To run pdCIFplotter as a standalone program::
+
+	python -m pdCIFplotter
+or::
+	pdcifplotter
+
+
 Documentation
 =============
 
