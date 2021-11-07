@@ -78,7 +78,7 @@ setup(
         'cycler>=0.11',
         'kiwisolver>=1.3',
         'matplotlib>=3.4',
-        'mplcursors>=0.4',
+        'mplcursors>=0.5',
         'numpy>=1.21',
         'Pillow>=8.4',
         'PyCifRW>=4.4.3',
@@ -92,4 +92,9 @@ setup(
         #   'rst': ['docutils>=0.11'],
         #   ':python_version=="2.6"': ['argparse'],
     #},
+	entry_points={
+		'console_scripts': [
+			'pdcifplotter = pdCIFplotter.gui:gui',
+		]
+	},
 )

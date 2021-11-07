@@ -2,6 +2,12 @@
 Changelog
 =========
 
+0.0.2 (2021-11-07)
+------------------
+
+* Update install requirements - mplcursors 0.5 is now available, rather than installing from git.
+* Can now launch from command line with just ``> pdcifplotter``
+
 0.0.1 (2021-11-06)
 ------------------
 

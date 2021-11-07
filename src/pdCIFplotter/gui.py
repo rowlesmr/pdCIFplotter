@@ -20,18 +20,10 @@ DEBUG = True
 
 def check_packages():
     psg = sg.__version__.split(".")
-    mpl = mplcursors.__version__.split(".")
     msg = ""
-    mplupgrade = "I think your mplcursors is out of date.\nPlease run\n > pip install git+https://github.com/anntzer/mplcursors\nto install the latest version from github.\n\n"
     psgupgrade = "I think your PySimpleGUI is out of date.\nPlease run\n > python -m PySimpleGUI.PySimpleGUI upgrade\nto install the latest version from github."
 
     print(f"{psg=}")
-    print(f"{mpl=}")
-
-    if int(mpl[1]) <= 3:
-        msg += mplupgrade
-    if len(mpl) == 2:
-        msg += mplupgrade
 
     if int(psg[0]) <= 3:
         msg += psgupgrade
