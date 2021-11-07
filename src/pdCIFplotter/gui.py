@@ -18,6 +18,7 @@ import mplcursors
 
 DEBUG = True
 
+
 def check_packages():
     psg = sg.__version__.split(".")
     msg = ""
@@ -1197,9 +1198,9 @@ def gui():
 
     window = sg.Window("pdCIFplotter", layout, finalize=True, use_ttk_buttons=True, resizable=True)
 
-    check_msg = check_packages()
-    if check_msg != "":
-        sg.Print(check_msg)
+    # check_msg = check_packages()
+    # if check_msg != "":
+    #     sg.Print(check_msg)
 
     # set all the dropdowns and buttons to disabled before I have data to do things to.
     for key in single_keys.keys():
