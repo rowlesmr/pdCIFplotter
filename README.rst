@@ -73,7 +73,7 @@ Using ``pip`` version 19.2 or newer, install your downloaded wheel file as::
 	pip install c:\path\to\file\name_of_file.whl
 
 This should install ``PyCifRW``, and you can move on to the next step. If you encounter any issues in the installation, 
-please lodge an issue.
+please lodge an `issue <https://github.com/rowlesmr/pdCIFplotter/issues>`_.
 
 
 
