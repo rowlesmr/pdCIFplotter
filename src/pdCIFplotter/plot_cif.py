@@ -14,9 +14,6 @@ def debug(*args):
         print(*args)
 
 
-canvas_x = 600
-canvas_y = 300
-
 # LINE_MARKER_COLORS = list(mc.CSS4_COLORS.keys())
 # from here: https://matplotlib.org/stable/gallery/color/named_colors.html
 _by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
@@ -86,8 +83,11 @@ def _scale_xyz_ordinates(x, y, z, axis_scale: dict):
 
 class PlotCIF:
 
-    def __init__(self, cif: dict):
+    def __init__(self, cif: dict, canvas_x, canvas_y):
         # put things in here like the cif, the colours/styles, memoised data
+        self.canvas_x = canvas_x
+        self.canvas_y = canvas_y
+
         self.single_y_style = {"yobs": {"color": "mediumblue", "marker": "+", "linestyle": "none", "linewidth": "2"},
                                "ycalc": {"color": "red", "marker": None, "linestyle": "solid", "linewidth": "1"},
                                "ybkg": {"color": "gray", "marker": None, "linestyle": "solid", "linewidth": "2"},
@@ -116,7 +116,7 @@ class PlotCIF:
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
         fig = plt.gcf()
-        fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
+        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
         fig.set_tight_layout(True)
         plt.margins(x=0)
 
@@ -281,7 +281,7 @@ class PlotCIF:
         fig, ax = plt.subplots(1, 1)
         fig = plt.gcf()
         dpi = fig.get_dpi()
-        fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
+        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
         fig.set_tight_layout(True)
         plt.margins(x=0)
 
@@ -373,7 +373,7 @@ class PlotCIF:
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
         fig = plt.gcf()
-        fig.set_size_inches(canvas_x / float(dpi), canvas_y / float(dpi))
+        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
         fig.set_tight_layout(True)
         plt.margins(x=0)
 

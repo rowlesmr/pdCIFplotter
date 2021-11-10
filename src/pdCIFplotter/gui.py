@@ -21,8 +21,9 @@ sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30
-canvas_x = plot_cif.canvas_x
-canvas_y = plot_cif.canvas_y
+canvas_x = 600
+canvas_y = 300
+
 
 single_fig = None
 single_figure_agg = None
@@ -743,7 +744,7 @@ def gui():
             try:
                 popup = open_cif_popup("Now opening your CIF file.\nPlease wait...")
                 read_cif(files_str)
-                plotcif = plot_cif.PlotCIF(cif)
+                plotcif = plot_cif.PlotCIF(cif, canvas_x, canvas_y)
             except Exception as e:
                 # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
                 msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. Some information may be apparant from the text below:\n\n{e}"
