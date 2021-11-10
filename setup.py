@@ -47,7 +47,7 @@ setup(
         'Operating System :: Unix',
         'Operating System :: POSIX',
         'Operating System :: Microsoft :: Windows',
-        #'Programming Language :: Python',
+        # 'Programming Language :: Python',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -86,14 +86,14 @@ setup(
         'python-dateutil>=2.8',
         'six>=1.16',
     ],
-    #extras_require={
-        # eg:
-        #   'rst': ['docutils>=0.11'],
-        #   ':python_version=="2.6"': ['argparse'],
-    #},
-	entry_points={
-		'console_scripts': [
-			'pdcifplotter = pdCIFplotter.gui:gui',
-		]
-	},
+    # extras_require={
+    # eg:
+    #   'rst': ['docutils>=0.11'],
+    #   ':python_version=="2.6"': ['argparse'],
+    # },
+    entry_points={
+        'console_scripts': [
+            'pdcifplotter = pdCIFplotter.gui:gui',
+        ]
+    },
 )

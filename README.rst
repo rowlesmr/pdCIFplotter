@@ -56,7 +56,7 @@ on visualising powder diffraction data stored in CIF format, and, in particular,
 * Free software: Apache Software License 2.0
 
 Pre-installation
-============
+================
 
 If you are on Windows, you must read this step. If you are on Linuz, you can continue.
 
