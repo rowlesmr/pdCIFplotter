@@ -2,6 +2,13 @@
 Changelog
 =========
 
+0.0.3 (2021-11-10)
+------------------
+
+* Separated GUI and plotting code
+* Fixed crash on changing to surface tab before opening CIF
+
+
 0.0.2 (2021-11-07)
 ------------------
 
