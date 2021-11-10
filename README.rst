@@ -49,7 +49,7 @@ Overview
 
 A program for the visualisation of diffraction data in pdCIF format.
 
-Crystallographic Information Framework (CIF; https://www.iucr.org/resources/cif) files are a way of storing 
+Crystallographic Information Framework (CIF; https://www.iucr.org/resources/cif) files are a way of storing
 crystallographic information in a standard human- and machine-readable format. This particular program is focussed
 on visualising powder diffraction data stored in CIF format, and, in particular, serial or in situ/operando data.
 
@@ -72,9 +72,8 @@ Using ``pip`` version 19.2 or newer, install your downloaded wheel file as::
 
 	pip install c:\path\to\file\name_of_file.whl
 
-This should install ``PyCifRW``, and you can move on to the next step. If you encounter any issues in the installation, 
+This should install ``PyCifRW``, and you can move on to the next step. If you encounter any issues in the installation,
 please lodge an `issue <https://github.com/rowlesmr/pdCIFplotter/issues>`_.
-
 
 
 Installation
@@ -88,23 +87,21 @@ You can also install the in-development version from GitHub with::
 
     pip install https://github.com/rowlesmr/pdCIFplotter/archive/master.zip
 
-
 Quick usage
 ===========
 
 To run pdCIFplotter as a standalone program::
 
-	python -m pdCIFplotter
-or::
-	pdcifplotter
+    python -m pdCIFplotter
 
+or::
+
+	pdcifplotter
 
 Documentation
 =============
 
-
 https://pdCIFplotter.readthedocs.io/en/latest/
-
 
 Development
 ===========
