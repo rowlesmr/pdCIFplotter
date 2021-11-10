@@ -84,7 +84,6 @@ def _scale_xyz_ordinates(x, y, z, axis_scale: dict):
 class PlotCIF:
 
     def __init__(self, cif: dict, canvas_x, canvas_y):
-        # put things in here like the cif, the colours/styles, memoised data
         self.canvas_x = canvas_x
         self.canvas_y = canvas_y
 
@@ -295,11 +294,8 @@ class PlotCIF:
 
         debug("before scale")
         debug(f"{offset=}")
+        offset = _scale_y_ordinate(offset, axis_scale)
         # compile all of the patterns' data
-        if axis_scale["y"] == "log":
-            offset = np.log10(offset)
-        elif axis_scale["y"] == "sqrt":
-            offset = np.sqrt(offset)
         # need to loop backwards so that the data comes out in the correct order for plotting
         for i in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[i]
@@ -307,23 +303,16 @@ class PlotCIF:
             cifpat = self.cif[pattern]
             x = cifpat[x_ordinate]
             y = cifpat[y_ordinate]
-            label = pattern
             debug("before scale")
             debug(f"{x=}")
             debug(f"{y=}")
-            if axis_scale["x"] == "log":
-                x = np.log10(x)
-            elif axis_scale["x"] == "sqrt":
-                x = np.sqrt(x)
-            if axis_scale["y"] == "log":
-                y = np.log10(y)
-            elif axis_scale["y"] == "sqrt":
-                y = np.sqrt(y)
+
+            x, y = _scale_xy_ordinates(x, y, axis_scale)
             debug("after scale")
             debug(f"{x=}")
             debug(f"{y=}")
 
-            plt.plot(x, y + i * offset, label=label)  # do I want to fill white behind each plot?
+            plt.plot(x, y + i * offset, label=pattern)  # do I want to fill white behind each plot?
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
