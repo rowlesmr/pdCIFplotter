@@ -81,6 +81,34 @@ def _scale_xyz_ordinates(x, y, z, axis_scale: dict):
     return _scale_x_ordinate(x, axis_scale), _scale_y_ordinate(y, axis_scale), _scale_z_ordinate(z, axis_scale)
 
 
+def _scale_title(axis_scale: dict, title, ordinate):
+    if axis_scale[ordinate] == "log":
+        title = f"Log10[{title}]"
+    elif axis_scale[ordinate] == "sqrt":
+        title = f"Sqrt[{title}]"
+    return title
+
+
+def _scale_x_title(title, axis_scale):
+    return _scale_title(axis_scale, title, "x")
+
+
+def _scale_y_title(title, axis_scale):
+    return _scale_title(axis_scale, title, "y")
+
+
+def _scale_z_title(title, axis_scale):
+    return _scale_title(axis_scale, title, "z")
+
+
+def _scale_xy_title(xtitle, ytitle, axis_scale: dict):
+    return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale)
+
+
+def _scale_xyz_title(xtitle, ytitle, ztitle, axis_scale: dict):
+    return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale), _scale_z_title(ztitle, axis_scale)
+
+
 class PlotCIF:
 
     def __init__(self, cif: dict, canvas_x, canvas_y):
@@ -99,9 +127,88 @@ class PlotCIF:
 
         self.cif = cif
 
+    def get_all_xy_data(self, x_ordinate, y_ordinate):
+        # generate a list of patterns that validly match the chosen x and y ordinates
+        plot_list = []
+        xs = []
+        ys = []
+        for pattern in self.cif.keys():
+            cifpat = self.cif[pattern]
+            if not (x_ordinate in cifpat and y_ordinate in cifpat):
+                continue
+            # now the cif pat has both x and y
+            plot_list.append(pattern)
+            xs.append(cifpat[x_ordinate])
+            ys.append(cifpat[y_ordinate])
+        return xs, ys, plot_list
+
+    def get_all_xyz_data(self, x_ordinate, y_ordinate, z_ordinate):
+        # need to construct a single array for each x, y, z, by looping through only those patterns which have the
+        # x and z ordinates necessary to make the piccie I want to see.
+        # todo: add the ability to get other yaxis data - like temperature, pressure, time...
+        debug("Constructing surface plot data")
+        xs = []
+        ys = []
+        zs = []
+        i = 1
+        plot_list = []
+        min_x = 9999999999
+        max_x = -min_x
+        x_step = 0
+        # get all of the original data
+        for pattern in self.cif.keys():
+            cifpat = self.cif[pattern]
+            if not (x_ordinate in cifpat and z_ordinate in cifpat):
+                continue
+            # we now know that both x and z are in the pattern
+            plot_list.append(pattern)
+
+            x = cifpat[x_ordinate]
+            z = cifpat[z_ordinate]
+
+            debug("---")
+            debug(pattern)
+            debug("before flip")
+            debug(f"{x=}")
+            debug(f"{z=}")
+
+            if x[0] > x[-1]:  # ie if x is decreasing
+                x = np.flip(x)
+                z = np.flip(z)
+
+            debug("after flip")
+            debug(f"{x=}")
+            debug(f"{z=}")
+
+            min_x = min(min_x, min(x))
+            max_x = max(max_x, max(x))
+            x_step += np.average(np.diff(x))
+
+            debug(f"{min_x=}")
+            debug(f"{max_x=}")
+            debug(f"{x_step / i}")
+
+            xs.append(x)
+            zs.append(z)
+            ys.append(i)
+            i += 1
+        else:
+            x_step /= i
+
+        # create the x interpolation array and interpolate each diffraction pattern
+        xi = np.arange(min_x, max_x, math.fabs(x_step))
+        for j in range(len(xs)):
+            zs[j] = np.interp(xi, xs[j], zs[j], left=float("nan"), right=float("nan"))
+
+        # https://stackoverflow.com/a/33943276/36061
+        # https://stackoverflow.com/a/38025451/36061
+        xx, yy = np.meshgrid(xi, ys)
+        zz = np.array(zs)
+        return xx, yy, zz, plot_list
+
     def single_update_plot(self, pattern: str,
                            x_ordinate: str, y_ordinates: list,
-                           plot_hkls: bool, plot_diff: bool, plot_cchi2: bool,
+                           plot_hkls: dict, plot_diff: bool, plot_cchi2: bool,
                            axis_scale: dict,
                            fig):
         dpi = plt.gcf().get_dpi()
@@ -165,7 +272,7 @@ class PlotCIF:
                                   "_pd_proc_2theta_corrected": "refln_2theta"}
         single_hovertexts = []
         single_hkl_artists = []
-        if plot_hkls:
+        if plot_hkls["above"] or plot_hkls["below"]:
             y_range = max_plot - min_plot
             hkl_markersize_pt = 6
             hkl_markersize_px = hkl_markersize_pt * 72 / dpi
@@ -175,9 +282,25 @@ class PlotCIF:
             hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
             for i, phase in enumerate(cifpat["str"].keys()):
                 hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
-                hkl_y = [min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkl_x)
+                if plot_hkls["below"]:
+                    hkl_y = np.array([min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkl_x))
+                    markerstyle = "|"
+                    scalar = 1.0
+                else:  #plot above
+                    yobs = ys[0]
+                    ycalc = ys[1]
+                    markerstyle = 7
+                    scalar = 1.04
+                    if yobs is None:
+                        hkl_y = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
+                    elif ycalc is None:
+                        hkl_y = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
+                    else: # both are not none
+                        hkl_y1 = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
+                        hkl_y2 = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
+                        hkl_y = np.maximum(hkl_y1, hkl_y2)
 
-                hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt)
+                hkl_tick, = ax.plot(hkl_x, hkl_y*scalar, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
                 single_hkl_artists.append(hkl_tick)
                 if "refln_hovertext" in cifpat["str"][phase]:
                     single_hovertexts.append(cifpat["str"][phase]["refln_hovertext"])
@@ -234,22 +357,12 @@ class PlotCIF:
             y_axis_title = "Counts"
 
         wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
-        if axis_scale["x"] == "log":
-            x_axis_label = f"Log10[{_x_axis_title(x_ordinate, wavelength)}]"
-        elif axis_scale["x"] == "sqrt":
-            x_axis_label = f"Sqrt[{_x_axis_title(x_ordinate, wavelength)}]"
-        else:
-            x_axis_label = f"{_x_axis_title(x_ordinate, wavelength)}"
-
-        if axis_scale["y"] == "log":
-            y_axis_title = f"Log10[{y_axis_title}]"
-        elif axis_scale["y"] == "sqrt":
-            y_axis_title = f"Sqrt[{y_axis_title}]"
+        x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
         if x_ordinate in ["d", "_pd_proc_d_spacing"]:
             plt.gca().invert_xaxis()
 
-        ax.set_xlabel(x_axis_label)
+        ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
         plt.title(pattern, loc="left")
 
@@ -284,39 +397,25 @@ class PlotCIF:
         fig.set_tight_layout(True)
         plt.margins(x=0)
 
-        # generate a list of patterns that validly match the chosen x and y ordinates
-        plot_list = []
-        for pattern in self.cif.keys():
-            cifpat = self.cif[pattern]
-            if x_ordinate in cifpat and y_ordinate in cifpat:
-                debug(f"I can legally plot {pattern}")
-                plot_list.append(pattern)
-
-        debug("before scale")
-        debug(f"{offset=}")
+        xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
         # compile all of the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
         for i in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[i]
             debug(f"Now plotting {pattern}")
-            cifpat = self.cif[pattern]
-            x = cifpat[x_ordinate]
-            y = cifpat[y_ordinate]
-            debug("before scale")
-            debug(f"{x=}")
-            debug(f"{y=}")
-
-            x, y = _scale_xy_ordinates(x, y, axis_scale)
+            x, y = _scale_xy_ordinates(xs[i], ys[i], axis_scale)
             debug("after scale")
             debug(f"{x=}")
             debug(f"{y=}")
-
             plt.plot(x, y + i * offset, label=pattern)  # do I want to fill white behind each plot?
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
         mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+
+        if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+            plt.gca().invert_xaxis()
 
         if "intensity" in y_ordinate:
             y_axis_title = "Intensity (arb. units)"
@@ -330,22 +429,8 @@ class PlotCIF:
                 wavelength = None
                 break
 
-        if axis_scale["x"] == "log":
-            x_axis_label = f"Log10[{_x_axis_title(x_ordinate, wavelength)}]"
-        elif axis_scale["x"] == "sqrt":
-            x_axis_label = f"Sqrt[{_x_axis_title(x_ordinate, wavelength)}]"
-        else:
-            x_axis_label = f"{_x_axis_title(x_ordinate, wavelength)}"
-
-        if axis_scale["y"] == "log":
-            y_axis_title = f"Log10[{y_axis_title}]"
-        elif axis_scale["y"] == "sqrt":
-            y_axis_title = f"Sqrt[{y_axis_title}]"
-
-        if x_ordinate in ["d", "_pd_proc_d_spacing"]:
-            plt.gca().invert_xaxis()
-
-        ax.set_xlabel(x_axis_label)
+        x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
+        ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
 
         return fig
@@ -377,69 +462,7 @@ class PlotCIF:
             zz = self.surface_plot_data["z_data"]
             plot_list = self.surface_plot_data["plot_list"]
         else:
-            # need to construct a single array for each x, y, z, by looping through only those patterns which have the
-            # x and z ordinates necessary to make the piccie I want to see.
-            debug("Constructing surface plot data")
-            xs = []
-            ys = []
-            zs = []
-            i = 1
-            plot_list = []
-            min_x = 9999999999
-            max_x = -min_x
-            x_step = 0
-            # get all of the original data
-            for pattern in self.cif.keys():
-                cifpat = self.cif[pattern]
-                if not (x_ordinate in cifpat and z_ordinate in cifpat):
-                    continue
-                # we now know that both x and z are in the pattern
-                plot_list.append(pattern)
-
-                x = cifpat[x_ordinate]
-                z = cifpat[z_ordinate]
-
-                debug("---")
-                debug(pattern)
-                debug("before flip")
-                debug(f"{x=}")
-                debug(f"{z=}")
-
-                if x[0] > x[-1]:  # ie if x is decreasing
-                    x = np.flip(x)
-                    z = np.flip(z)
-
-                debug("after flip")
-                debug(f"{x=}")
-                debug(f"{z=}")
-
-                min_x = min(min_x, min(x))
-                max_x = max(max_x, max(x))
-                x_step += np.average(np.diff(x))
-
-                debug(f"{min_x=}")
-                debug(f"{max_x=}")
-                debug(f"{x_step / i}")
-
-                xs.append(x)
-                zs.append(z)
-                ys.append(i)
-                i += 1
-            else:
-                x_step /= i
-
-            # create the x interpolation array
-            xi = np.arange(min_x, max_x, math.fabs(x_step))
-            # interpolate each diffraction pattern
-            for j in range(len(xs)):
-                zs[j] = np.interp(xi, xs[j], zs[j], left=float("nan"), right=float("nan"))
-
-            # https://stackoverflow.com/a/33943276/36061
-            # https://stackoverflow.com/a/38025451/36061
-            xx, yy = np.meshgrid(xi, ys)
-            # zz = z.reshape(len(y), len(x))
-            zz = np.array(zs)
-
+            xx,yy,zz, plot_list = self.get_all_xyz_data(x_ordinate, "Pattern number", z_ordinate)
             # update the surface_plot_data information, so I don't need to do those recalculations everytime if I don't have to.
             self.surface_plot_data["x_ordinate"] = x_ordinate
             self.surface_plot_data["y_ordinate"] = y_ordinate
@@ -506,27 +529,9 @@ class PlotCIF:
             if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
                 wavelength = None
                 break
+        x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_ordinate, axis_scale)
 
-        y_axis_title = "Pattern number"
-        z_axis_title = z_ordinate
-        if axis_scale["x"] == "log":
-            x_axis_label = f"Log10[{_x_axis_title(x_ordinate, wavelength)}]"
-        elif axis_scale["x"] == "sqrt":
-            x_axis_label = f"Sqrt[{_x_axis_title(x_ordinate, wavelength)}]"
-        else:
-            x_axis_label = f"{_x_axis_title(x_ordinate, wavelength)}"
-
-        if axis_scale["y"] == "log":
-            y_axis_title = f"Log10[{y_axis_title}]"
-        elif axis_scale["y"] == "sqrt":
-            y_axis_title = f"Sqrt[{y_axis_title}]"
-
-        if axis_scale["z"] == "log":
-            z_axis_title = f"Log10[{z_axis_title}]"
-        elif axis_scale["z"] == "sqrt":
-            z_axis_title = f"Sqrt[{z_axis_title}]"
-
-        plt.xlabel(x_axis_label)
+        plt.xlabel(x_axis_title)
         plt.ylabel(y_axis_title)
         plt.colorbar(label=z_axis_title)
 

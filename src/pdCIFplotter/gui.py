@@ -922,11 +922,14 @@ def gui():
             single_axis_scale = {}
             single_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             single_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            #construct hkl checkbox dictionary
+            plot_hkls = {"above": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_above"]],
+                         "below": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_below"]]}
             try:
                 single_update_plot(pattern,
                                    x_ordinate,
                                    [yobs, ycalc, ybkg],
-                                   values[single_keys["hkl_checkbox"]],
+                                   plot_hkls,
                                    values[single_keys["ydiff"]],
                                    values[single_keys["cchi2"]],
                                    single_axis_scale,
