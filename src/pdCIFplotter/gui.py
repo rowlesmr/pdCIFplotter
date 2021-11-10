@@ -937,7 +937,7 @@ def gui():
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
-        if replot_stack:
+        if replot_stack and cif != {}:
             x_ordinate = values[stack_keys["x_axis"]]
             y_ordinate = values[stack_keys["y_axis"]]
             offset = float(values[stack_keys["offset_input"]])
@@ -954,7 +954,7 @@ def gui():
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
-        if replot_surface:
+        if replot_surface and cif != {}:
             x_ordinate = values["surface_x_ordinate"]
             z_ordinate = values["surface_z_ordinate"]
             plot_hkls = values[surface_keys["hkl_checkbox"]]
