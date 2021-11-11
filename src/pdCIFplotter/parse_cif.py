@@ -7,6 +7,7 @@ import CifFile
 
 DEBUG = True
 
+
 def pretty(d, indent=0, print_values=True):
     for key, value in d.items():
         print('|  ' * indent + "|--" + str(key))
@@ -15,6 +16,7 @@ def pretty(d, indent=0, print_values=True):
         else:
             if print_values:
                 print('|  ' * (indent + 1) + "|--" + str(value))
+
 
 def debug(*args):
     if DEBUG:
@@ -252,7 +254,7 @@ class ParseCIF:
     COMPLETE_X_LIST = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_meas_time_of_flight",
                        "_pd_meas_position", "_pd_proc_energy_incident",
                        "_pd_proc_d_spacing", "_pd_proc_recip_len_Q",
-                       "_pd_meas_2theta_range_inc", "_pd_proc_2theta_range_inc", #these are here to capture blocks with start step stop values
+                       "_pd_meas_2theta_range_inc", "_pd_proc_2theta_range_inc",  # these are here to capture blocks with start step stop values
                        "d", "q"]  # "_pd_proc_wavelength",
 
     # These are datanames that fit correspond to the data you are modelling
@@ -333,22 +335,22 @@ class ParseCIF:
             cifpat = self.ciffile[pattern]
             if "_pd_meas_2theta_range_min" in cifpat and "_pd_meas_2theta_scan" not in cifpat:
                 start = float(cifpat["_pd_meas_2theta_range_min"])
-                stop  = float(cifpat["_pd_meas_2theta_range_max"])
-                step  = float(cifpat["_pd_meas_2theta_range_inc"])
-                num_points = int((stop - start)/step) + 1
+                stop = float(cifpat["_pd_meas_2theta_range_max"])
+                step = float(cifpat["_pd_meas_2theta_range_inc"])
+                num_points = int((stop - start) / step) + 1
                 th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
                 # chooses the best place to put it
                 for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
                     if y not in cifpat:
                         continue
                     cifpat.AddToLoop(y, {"_pd_meas_2theta_scan": th2_scan})
-                    break #only do it to the first that matches
+                    break  # only do it to the first that matches
 
             if "_pd_proc_2theta_range_min" in cifpat and "_pd_proc_2theta_corrected" not in cifpat:
                 start = float(cifpat["_pd_proc_2theta_range_min"])
-                stop  = float(cifpat["_pd_proc_2theta_range_max"])
-                step  = float(cifpat["_pd_proc_2theta_range_inc"])
-                num_points = int((stop - start)/step) + 1
+                stop = float(cifpat["_pd_proc_2theta_range_max"])
+                step = float(cifpat["_pd_proc_2theta_range_inc"])
+                num_points = int((stop - start) / step) + 1
                 th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
                 for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
                     if y not in cifpat:
@@ -356,7 +358,7 @@ class ParseCIF:
                     cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
                     break
 
-            #I don't want them to exist in my data after this. at all. no matter what.
+            # I don't want them to exist in my data after this. at all. no matter what.
             cifpat.RemoveItem("_pd_meas_2theta_range_min")
             cifpat.RemoveItem("_pd_meas_2theta_range_max")
             cifpat.RemoveItem("_pd_meas_2theta_range_inc")
@@ -501,7 +503,7 @@ class ParseCIF:
                                 cifpat["str"][phase_id]['_refln_index_l'] = l
                             if d is not None:
                                 cifpat["str"][phase_id]['_refln_d_spacing'] = d
-            else: #there is no "_pd_phase_block_id", and we need to check the pattern for hkls - assuming only one phase
+            else:  # there is no "_pd_phase_block_id", and we need to check the pattern for hkls - assuming only one phase
                 debug("there is no _pd_phase_block_id")
                 if "_refln_d_spacing" in cifpat:
                     # these contain all the hkls from all the phases
@@ -519,7 +521,6 @@ class ParseCIF:
                         cifpat["str"]["1"]['_refln_index_l'] = ls
                     if ds is not None:
                         cifpat["str"]["1"]['_refln_d_spacing'] = ds
-
 
             # end of if
 
@@ -644,8 +645,6 @@ class ParseCIF:
 
 
 if __name__ == "__main__":
-
-
     # # filename = r"..\..\data\forJames_before.cif"
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
