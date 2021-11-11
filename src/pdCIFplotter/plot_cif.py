@@ -286,7 +286,7 @@ class PlotCIF:
                     hkl_y = np.array([min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkl_x))
                     markerstyle = "|"
                     scalar = 1.0
-                else:  #plot above
+                else:  # plot above
                     yobs = ys[0]
                     ycalc = ys[1]
                     markerstyle = 7
@@ -295,12 +295,12 @@ class PlotCIF:
                         hkl_y = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
                     elif ycalc is None:
                         hkl_y = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
-                    else: # both are not none
+                    else:  # both are not none
                         hkl_y1 = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
                         hkl_y2 = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
                         hkl_y = np.maximum(hkl_y1, hkl_y2)
 
-                hkl_tick, = ax.plot(hkl_x, hkl_y*scalar, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
+                hkl_tick, = ax.plot(hkl_x, hkl_y * scalar, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
                 single_hkl_artists.append(hkl_tick)
                 if "refln_hovertext" in cifpat["str"][phase]:
                     single_hovertexts.append(cifpat["str"][phase]["refln_hovertext"])
@@ -375,7 +375,7 @@ class PlotCIF:
 
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
-                          plot_hkls: bool, axis_scale: dict,
+                          plot_hkls: dict, axis_scale: dict,
                           fig):
         debug(f"stack {x_ordinate=}")
         debug(f"stack {y_ordinate=}")
@@ -413,6 +413,50 @@ class PlotCIF:
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
         mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+
+        hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
+                                  "_pd_proc_2theta_corrected": "refln_2theta"}
+        stack_hovertexts = []
+        stack_hkl_artists = []
+        if plot_hkls["above"] or plot_hkls["below"]:
+            hkl_markersize_pt = 6
+            hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
+            for i in range(len(plot_list) - 1, -1, -1):
+                pattern = plot_list[i]
+                cifpat = self.cif[pattern]
+                debug(f"Now plotting hkls for {pattern}")
+                for j, phase in enumerate(cifpat["str"].keys()):
+                    hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
+                    if plot_hkls["below"]:
+                        hkl_y = np.array([min(ys[i])] * len(hkl_x))
+                        markerstyle = 3
+                        scalar = 1.0
+                    else:  # plot above
+                        markerstyle = 7
+                        scalar = 1.04
+                        hkl_y = np.interp(hkl_x, _scale_x_ordinate(xs[i], axis_scale), ys[i], left=float("nan"), right=float("nan"))
+
+                    hkl_y = _scale_y_ordinate(hkl_y, axis_scale) * scalar
+
+                    debug(f"{phase=}")
+                    debug(f"{hkl_x=}")
+                    debug(f"{hkl_y=}")
+
+                    idx = j % len(TABLEAU_COLOR_VALUES)
+                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+                                        color=TABLEAU_COLOR_VALUES[idx])
+                    stack_hkl_artists.append(hkl_tick)
+                    if "refln_hovertext" in cifpat["str"][phase]:
+                        hovertext = [f"{phase}: {hkls}" for hkls in cifpat["str"][phase]["refln_hovertext"]]
+                        stack_hovertexts.append(hovertext)
+                    else:
+                        stack_hovertexts.append([phase] * len(hkl_x))
+
+            # https://stackoverflow.com/a/58350037/36061
+            single_hkl_hover_dict = dict(zip(stack_hkl_artists, stack_hovertexts))
+            mplcursors.cursor(stack_hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
+                "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
+        # end hkl if
 
         if x_ordinate in ["d", "_pd_proc_d_spacing"]:
             plt.gca().invert_xaxis()
@@ -462,7 +506,7 @@ class PlotCIF:
             zz = self.surface_plot_data["z_data"]
             plot_list = self.surface_plot_data["plot_list"]
         else:
-            xx,yy,zz, plot_list = self.get_all_xyz_data(x_ordinate, "Pattern number", z_ordinate)
+            xx, yy, zz, plot_list = self.get_all_xyz_data(x_ordinate, "Pattern number", z_ordinate)
             # update the surface_plot_data information, so I don't need to do those recalculations everytime if I don't have to.
             self.surface_plot_data["x_ordinate"] = x_ordinate
             self.surface_plot_data["y_ordinate"] = y_ordinate

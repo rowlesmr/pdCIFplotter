@@ -149,7 +149,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
                                               window["single_matplotlib_controls"].TKCanvas)
 
 
-def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: bool, axis_scale: dict, window):
+def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: dict, axis_scale: dict, window):
     global stack_figure_agg, stack_fig
 
     stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, axis_scale, stack_fig)
@@ -501,7 +501,7 @@ def update_stack_element_disables(values, window):
     #   If you've chosen an x-ordinate that
     #   doesn't allow hkl ticks, disable hkl checkbox and radio
     # also, I need to figure out how to do the hkl ticks the way I want to do them...
-    if True or values[stack_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
+    if values[stack_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[stack_keys["hkl_checkbox"]].update(disabled=True, value=False)
         window[stack_keys["hkl_above"]].update(disabled=True)
         window[stack_keys["hkl_below"]].update(disabled=True)
@@ -949,6 +949,9 @@ def gui():
             stack_axis_scale = {}
             stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            #construct hkl checkbox dictionary
+            plot_hkls = {"above": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_above"]],
+                         "below": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_below"]]}
             try:
                 stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_axis_scale, window)
             except (IndexError, ValueError) as e:
