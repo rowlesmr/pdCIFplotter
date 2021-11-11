@@ -110,6 +110,8 @@ def _scale_xyz_title(xtitle, ytitle, ztitle, axis_scale: dict):
 
 
 class PlotCIF:
+    hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
+                              "_pd_proc_2theta_corrected": "refln_2theta"}
 
     def __init__(self, cif: dict, canvas_x, canvas_y):
         self.canvas_x = canvas_x
@@ -128,25 +130,30 @@ class PlotCIF:
         self.cif = cif
 
     def get_all_xy_data(self, x_ordinate, y_ordinate):
-        # generate a list of patterns that validly match the chosen x and y ordinates
-        plot_list = []
+        """
+        Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
+        that have both of those ordinates. Also return a list of the pattern names which where included
+        in the arrays
+        :param x_ordinate: str representing the x_ordinate eg _pd_proc_d_spacing
+        :param y_ordinate: str representing the y_ordinate eg _pd_meas_intensity_total
+        :return: tuple of xs, ys, list of pattern names
+        """
         xs = []
         ys = []
+        plot_list = []
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
             if not (x_ordinate in cifpat and y_ordinate in cifpat):
                 continue
             # now the cif pat has both x and y
-            plot_list.append(pattern)
             xs.append(cifpat[x_ordinate])
             ys.append(cifpat[y_ordinate])
+            plot_list.append(pattern)
         return xs, ys, plot_list
 
     def get_all_xyz_data(self, x_ordinate, y_ordinate, z_ordinate):
-        # need to construct a single array for each x, y, z, by looping through only those patterns which have the
-        # x and z ordinates necessary to make the piccie I want to see.
-        # todo: add the ability to get other yaxis data - like temperature, pressure, time...
-        debug("Constructing surface plot data")
+        # need to construct a single array for each x, y, z, by looping through only those
+        # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
         ys = []
         zs = []
@@ -158,39 +165,36 @@ class PlotCIF:
         # get all of the original data
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
-            if not (x_ordinate in cifpat and z_ordinate in cifpat):
+            if not (x_ordinate in cifpat and
+                    (y_ordinate in cifpat or y_ordinate == "Pattern number") and
+                    z_ordinate in cifpat):
                 continue
             # we now know that both x and z are in the pattern
-            plot_list.append(pattern)
-
             x = cifpat[x_ordinate]
             z = cifpat[z_ordinate]
+            if y_ordinate == "Pattern number":
+                y = i
+            else:
+                y = cifpat[y_ordinate]
 
-            debug("---")
-            debug(pattern)
-            debug("before flip")
-            debug(f"{x=}")
-            debug(f"{z=}")
-
-            if x[0] > x[-1]:  # ie if x is decreasing
+            # interpolation only works if the x-ordinate is increasing.
+            # if it doesn't, I need to flip all the ordinates to maintain
+            # the relative ordering.
+            if x[0] > x[-1]:
                 x = np.flip(x)
+                y = np.flip(y)
                 z = np.flip(z)
 
-            debug("after flip")
-            debug(f"{x=}")
-            debug(f"{z=}")
-
+            # keep track of min, max, and average step size so
+            # I can do a naive linear interpolation to grid the data
             min_x = min(min_x, min(x))
             max_x = max(max_x, max(x))
             x_step += np.average(np.diff(x))
 
-            debug(f"{min_x=}")
-            debug(f"{max_x=}")
-            debug(f"{x_step / i}")
-
             xs.append(x)
+            ys.append(y)
             zs.append(z)
-            ys.append(i)
+            plot_list.append(pattern)
             i += 1
         else:
             x_step /= i
@@ -213,6 +217,7 @@ class PlotCIF:
                            fig):
         dpi = plt.gcf().get_dpi()
         if fig is not None:
+            # this is needed for the hkl position calculations
             single_height_px = fig.get_size_inches()[1] * dpi
         else:
             single_height_px = 382
@@ -268,8 +273,6 @@ class PlotCIF:
                     cchi2_zero = min_plot
 
         # hkl plotting below     single_height_px
-        hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
-                                  "_pd_proc_2theta_corrected": "refln_2theta"}
         single_hovertexts = []
         single_hkl_artists = []
         if plot_hkls["above"] or plot_hkls["below"]:
@@ -279,7 +282,7 @@ class PlotCIF:
             num_hkl_rows = len(cifpat["str"].keys())
             hkl_tick_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
 
-            hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
+            hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
             for i, phase in enumerate(cifpat["str"].keys()):
                 hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
                 if plot_hkls["below"]:
@@ -289,7 +292,7 @@ class PlotCIF:
                 else:  # plot above
                     yobs = ys[0]
                     ycalc = ys[1]
-                    markerstyle = 7
+                    markerstyle = 7  # a pointing-down triangle with the down tip being the point described by th x,y coordinate
                     scalar = 1.04
                     if yobs is None:
                         hkl_y = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
@@ -324,11 +327,8 @@ class PlotCIF:
                 miny2 = (f / (f - 1)) * maxy2
                 ax_2.set_ylim(miny2, maxy2)
 
-            cchi2 = parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1])
-            if axis_scale["y"] == "log":
-                cchi2 = np.log10(cchi2)
-            elif axis_scale["y"] == "sqrt":
-                cchi2 = np.sqrt(cchi2)
+            cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
+
             ax2 = ax.twinx()
             ax2.plot(x, cchi2, label=" c\u03C7\u00b2",
                      color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
@@ -384,46 +384,38 @@ class PlotCIF:
 
         dpi = plt.gcf().get_dpi()
         if fig is not None:
-            stack_height_px = fig.get_size_inches()[1] * dpi
-        else:
-            stack_height_px = 382
-
-        if fig is not None:
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
         fig = plt.gcf()
-        dpi = fig.get_dpi()
         fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
         fig.set_tight_layout(True)
         plt.margins(x=0)
 
+        # xs and ys hold unscaled values
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
         # compile all of the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
         for i in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[i]
-            debug(f"Now plotting {pattern}")
             x, y = _scale_xy_ordinates(xs[i], ys[i], axis_scale)
-            debug("after scale")
-            debug(f"{x=}")
-            debug(f"{y=}")
             plt.plot(x, y + i * offset, label=pattern)  # do I want to fill white behind each plot?
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
         mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
 
-        hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
-                                  "_pd_proc_2theta_corrected": "refln_2theta"}
         stack_hovertexts = []
         stack_hkl_artists = []
         if plot_hkls["above"] or plot_hkls["below"]:
             hkl_markersize_pt = 6
-            hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
+            hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
             for i in range(len(plot_list) - 1, -1, -1):
                 pattern = plot_list[i]
                 cifpat = self.cif[pattern]
+                if "str" not in cifpat:
+                    continue
+
                 debug(f"Now plotting hkls for {pattern}")
                 for j, phase in enumerate(cifpat["str"].keys()):
                     hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
@@ -480,11 +472,9 @@ class PlotCIF:
         return fig
 
     def surface_update_plot(self,
-                            x_ordinate: str, z_ordinate: str,
+                            x_ordinate: str, y_ordinate: str, z_ordinate: str,
                             plot_hkls: bool, axis_scale: dict,
                             fig):
-        y_ordinate = "Pattern number"
-
         dpi = plt.gcf().get_dpi()
 
         if fig is not None:
@@ -506,7 +496,7 @@ class PlotCIF:
             zz = self.surface_plot_data["z_data"]
             plot_list = self.surface_plot_data["plot_list"]
         else:
-            xx, yy, zz, plot_list = self.get_all_xyz_data(x_ordinate, "Pattern number", z_ordinate)
+            xx, yy, zz, plot_list = self.get_all_xyz_data(x_ordinate, y_ordinate, z_ordinate)
             # update the surface_plot_data information, so I don't need to do those recalculations everytime if I don't have to.
             self.surface_plot_data["x_ordinate"] = x_ordinate
             self.surface_plot_data["y_ordinate"] = y_ordinate
@@ -530,22 +520,19 @@ class PlotCIF:
             plt.gca().invert_xaxis()
 
         # hkl plotting below     single_height_px
-        hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
-                                  "_pd_proc_2theta_corrected": "refln_2theta"}
         surface_hovertexts = []
         surface_hkl_artists = []
         if plot_hkls:
             debug("plotting hkls")
-            # y_range = max_plot - min_plot
             hkl_markersize_pt = 6
-            # hkl_markersize_px = hkl_markersize_pt * 72 / dpi
-            # num_hkl_rows = len(cifpat["str"].keys())
-            # hkl_tick_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
 
-            hkl_x_ordinate = hkl_x_ordinate_mapping[x_ordinate]
+            hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
             for pattern, ys in zip(plot_list, yy):
                 cifpat = self.cif[pattern]
                 y = ys[0]
+                if "str" not in cifpat:
+                    continue
+
                 for i, phase in enumerate(cifpat["str"].keys()):
                     debug(f"Should be plotting hkls for {phase}, which is number {i}.")
 

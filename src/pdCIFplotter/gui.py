@@ -158,10 +158,10 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: dict, axis_scal
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
+def surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, z_ordinate, plot_hkls, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, axis_scale, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -971,7 +971,7 @@ def gui():
             surface_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
             surface_axis_scale["z"] = [word for word, scale in zip(axis_words, z_axes) if scale][0]
             try:
-                surface_update_plot(x_ordinate, z_ordinate, plot_hkls, surface_axis_scale, window)
+                surface_update_plot(x_ordinate, "Pattern number", z_ordinate, plot_hkls, surface_axis_scale, window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 

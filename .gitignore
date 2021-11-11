@@ -6,6 +6,7 @@ ref/old
 data/simon/
 data/pam/
 data/ideal/
+data/ian/
 PySimpleGUI.py
 data/ideal.cif
 data/sn5079.cif
@@ -126,3 +127,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
