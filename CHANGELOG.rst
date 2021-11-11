@@ -2,6 +2,13 @@
 Changelog
 =========
 
+0.0.4 (2021-11-11)
+------------------
+
+* Added hkl ticks to stack plot
+* Enabled hkl ticks to be plotted above the diffraction patterns
+
+
 0.0.3 (2021-11-10)
 ------------------
 
