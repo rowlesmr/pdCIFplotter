@@ -15,15 +15,15 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 DEBUG = True
 
 # Potential themes that work for me.
+THEME_NUMBER = 2
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
-sg.theme(MY_THEMES[2])
+sg.theme(MY_THEMES[THEME_NUMBER])
 sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30
 canvas_x = 600
 canvas_y = 300
-
 
 single_fig = None
 single_figure_agg = None
@@ -255,15 +255,22 @@ def x_axis_title(x_ordinate, wavelength=None):
 def read_cif(filename):
     global cif
     cif = parse_cif.ParseCIF(filename).get_processed_cif()
+    if len(cif) == 0:
+        raise ValueError("No diffraction pattern found in CIF.")
 
 
 def make_xy_dropdown_list(master_list, difpat, add_none=True):
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
+def cif_get_this_else_that(cif, dataname, that):
+    if dataname in cif:
+        return cif[dataname]
+    else:
+        return that
 
 def initialise_pattern_and_dropdown_lists():
     global single_data_list, single_dropdown_lists
-    single_data_list = [pattern for pattern in cif.keys()]
+    single_data_list = [pattern for pattern in cif]
     for pattern in single_data_list:
         single_dropdown_lists[pattern] = {}
         # these are the possible values that the ordinate could be
@@ -410,6 +417,17 @@ def update_single_element_disables(pattern, values, window):
         window[single_keys["hkl_checkbox"]].update(disabled=True, value=False)
         window[single_keys["hkl_above"]].update(disabled=True)
         window[single_keys["hkl_below"]].update(disabled=True)
+    # if there is at least one str
+    elif "str" in cif[pattern]:
+        x_ordinate = values[single_keys["x_axis"]]  # get the x-ordinate currently being display
+        # if all phases don't have hkls, then disable the box, otherwise enable it, and rely on the plot_cif
+        # routines to catch the non-existence of the hkls and the handle them gracefully
+        if all(not ((x_ordinate in ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected"] and "refln_2theta" in cif[pattern]["str"][phase]) or
+                    (x_ordinate in ["_pd_proc_d_spacing", "_pd_proc_recip_len_Q", "d", "q"] and "_refln_d_spacing" in cif[pattern]["str"][phase])) for phase in
+               cif[pattern]["str"]):
+            window[single_keys["hkl_checkbox"]].update(disabled=True, value=False)
+            window[single_keys["hkl_above"]].update(disabled=True)
+            window[single_keys["hkl_below"]].update(disabled=True)
 
 
 layout_single_left = \
@@ -422,7 +440,7 @@ layout_single_data_chooser = \
     [[
         sg.Combo(values=["Load some files to start!"],
                  default_value="Load some files to start!",
-                 # size=(action_column_width, 10),
+                 size=45,
                  enable_events=True,
                  key=single_keys["data"],
                  readonly=True),
@@ -922,7 +940,7 @@ def gui():
             single_axis_scale = {}
             single_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             single_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
-            #construct hkl checkbox dictionary
+            # construct hkl checkbox dictionary
             plot_hkls = {"above": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_above"]],
                          "below": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_below"]]}
             try:
@@ -949,7 +967,7 @@ def gui():
             stack_axis_scale = {}
             stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
             stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
-            #construct hkl checkbox dictionary
+            # construct hkl checkbox dictionary
             plot_hkls = {"above": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_above"]],
                          "below": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_below"]]}
             try:
