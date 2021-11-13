@@ -267,8 +267,8 @@ class PlotCIF:
                          markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
                          )
                 # keep track of min and max to plot hkl ticks and diff correctly
-                min_plot = min(min_plot, min(y))
-                max_plot = max(max_plot, max(y))
+                min_plot = min(min_plot, np.nanmin(y))
+                max_plot = max(max_plot, np.nanmax(y))
                 if y_name != "Diff":
                     cchi2_zero = min_plot
 
