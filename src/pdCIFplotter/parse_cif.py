@@ -248,6 +248,11 @@ def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, 
     return np.nancumsum(yweight * (yobs - ycalc) ** 2)  # treats nan as 0
 
 
+def theta2_from_min_max_inc(start, step, stop):
+    num_points = int(round((stop - start) / step, 5)) + 1
+    return [str(v) for v in np.linspace(start, stop, num_points)]
+
+
 class ParseCIF:
     # these are all the values that could be an x-ordinate. I added the last two to be place-holders
     # for d and/or q calculated from Th2, q, or d, where it is possible from the data in the pattern.
@@ -295,6 +300,7 @@ class ParseCIF:
         self._remove_empty_items()
         self._expand_multiple_dataloops()
         self._process()
+        self._rename_datablock_from_blockid()
 
     def _remove_empty_items(self):
         """
@@ -334,11 +340,9 @@ class ParseCIF:
         for pattern in patterns:
             cifpat = self.ciffile[pattern]
             if "_pd_meas_2theta_range_min" in cifpat and "_pd_meas_2theta_scan" not in cifpat:
-                start = float(cifpat["_pd_meas_2theta_range_min"])
-                stop = float(cifpat["_pd_meas_2theta_range_max"])
-                step = float(cifpat["_pd_meas_2theta_range_inc"])
-                num_points = int((stop - start) / step) + 1
-                th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
+                th2_scan = theta2_from_min_max_inc(float(cifpat["_pd_meas_2theta_range_min"]),
+                                                   float(cifpat["_pd_meas_2theta_range_inc"]),
+                                                   float(cifpat["_pd_meas_2theta_range_max"]))
                 # chooses the best place to put it
                 for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
                     if y not in cifpat:
@@ -347,16 +351,20 @@ class ParseCIF:
                     break  # only do it to the first that matches
 
             if "_pd_proc_2theta_range_min" in cifpat and "_pd_proc_2theta_corrected" not in cifpat:
-                start = float(cifpat["_pd_proc_2theta_range_min"])
-                stop = float(cifpat["_pd_proc_2theta_range_max"])
-                step = float(cifpat["_pd_proc_2theta_range_inc"])
-                num_points = int((stop - start) / step) + 1
-                th2_scan = [str(v) for v in np.linspace(start, stop, num_points)]
+                th2_scan = theta2_from_min_max_inc(float(cifpat["_pd_proc_2theta_range_min"]),
+                                                   float(cifpat["_pd_proc_2theta_range_inc"]),
+                                                   float(cifpat["_pd_proc_2theta_range_max"]))
                 for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
                     if y not in cifpat:
                         continue
                     cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
                     break
+                else: # if you don't find the proc ints, try the meas ints.
+                    for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
+                        if y not in cifpat:
+                            continue
+                        cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
+                        break  # only do it to the first that matches
 
             # I don't want them to exist in my data after this. at all. no matter what.
             cifpat.RemoveItem("_pd_meas_2theta_range_min")
@@ -389,7 +397,11 @@ class ParseCIF:
                 remove_these = loops[key]
                 for dataname in remove_these:
                     cifpat.RemoveItem(dataname)
-            self.ciffile.rename(pattern, pattern + "_loop0")
+            if "_pd_block_id" in self.ciffile[pattern]:
+                self.ciffile[pattern]["_pd_block_id"] = "L0_|" + self.ciffile[pattern]["_pd_block_id"]
+            else:
+                self.ciffile[pattern]["_pd_block_id"] = "L0_|" + pattern
+            #self.ciffile.rename(pattern, pattern + "_loop0")
 
             # add a deepcopy of dcopy into the ciffile and remove the required dataloops. Will
             #  need to alter ciffile.block_input_order in order to keep things aligned?
@@ -403,7 +415,13 @@ class ParseCIF:
                     remove_these = loops[key]
                     for dataname in remove_these:
                         insert_me.RemoveItem(dataname)
-                self.ciffile.NewBlock(pattern + "_loop" + str(i), insert_me)
+                new_block_prefix = f"L{str(i)}_|"
+                new_pattern_name = new_block_prefix + pattern
+                self.ciffile.NewBlock(new_pattern_name, insert_me)
+                if "_pd_block_id" in self.ciffile[new_pattern_name]:
+                    self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + self.ciffile[new_pattern_name]["_pd_block_id"]
+                else:
+                    self.ciffile[new_pattern_name["_pd_block_id"]] = new_pattern_name
 
         patterns = grouped_blocknames(self.ciffile)["patterns"]
         for pattern in patterns:
@@ -605,8 +623,19 @@ class ParseCIF:
                             cifsubstr["refln_2theta"] = 2. * np.arcsin(lam / (2. * cifsubstr["_refln_d_spacing"])) * 180. / np.pi
                         cifsubstr["refln_hovertext"] = [h + " " + k + " " + l for h, k, l in
                                                         zip(cifsubstr['_refln_index_h'], cifsubstr['_refln_index_k'], cifsubstr["_refln_index_l"])]
-
         # end of pattern loop
+
+    def _rename_datablock_from_blockid(self):
+        """
+        A lot of the pdCIF revolves around block_id, and not the dataname.
+        This renames the dataname as the block_id to enable easier lookups.
+        :return:
+        """
+        for pattern in self.ncif:
+            cifpat = self.ncif[pattern]
+            if "_pd_block_id" not in cifpat:
+                cifpat["_pd_block_id"] = pattern
+        self.ncif = {self.ncif[k]["_pd_block_id"]:v for k,v in self.ncif.items()}
 
     def get_processed_cif(self):
         return self.ncif
@@ -648,7 +677,8 @@ if __name__ == "__main__":
     # # filename = r"..\..\data\forJames_before.cif"
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
-    filename = r"..\..\data\nisi.cif"
+    filename = r"..\..\data\ALUMINA.cif"
+    # filename = r"..\..\data\NISI.cif"
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
     # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
@@ -664,7 +694,7 @@ if __name__ == "__main__":
     # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
-    pretty(cifd, print_values=False)
+    # pretty(cifd, print_values=False)
     # print(filename)
     # print(files[18])
     # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif
