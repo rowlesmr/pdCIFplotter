@@ -13,9 +13,8 @@ def pretty(d, indent=0, print_values=True):
         print('|  ' * indent + "|--" + str(key))
         if isinstance(value, dict) or isinstance(value, CifFile.CifFile) or isinstance(value, CifFile.StarFile.StarBlock):
             pretty(value, indent + 1, print_values=print_values)
-        else:
-            if print_values:
-                print('|  ' * (indent + 1) + "|--" + str(value))
+        elif print_values:
+            print('|  ' * (indent + 1) + "|--" + str(value))
 
 
 def debug(*args):
@@ -157,11 +156,7 @@ def get_hkld_from_matching_id(hklds, phase_id, phase_ids):
     if hklds is None:
         return None
     else:
-        hkld = []
-        for hkldval, idval in zip(hklds, phase_ids):
-            if idval == phase_id:
-                hkld += [hkldval]
-        return hkld
+        return [hkldval for hkldval, idval in zip(hklds, phase_ids) if idval == phase_id]
 
 
 def split_val_err(ve, default_error="zero"):
@@ -181,7 +176,7 @@ def split_val_err(ve, default_error="zero"):
     :return: a tuple of floats (val, err)
     """
     if "(" not in ve:  # then there is no error
-        if ve == "." or ve == "?":
+        if ve in [".", "?"]:
             val = float("nan")
             err = float("nan")
             return (val, err)
@@ -235,21 +230,23 @@ def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, 
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return [-1] * len(yobs)
-    if yobs_dataname_err is None:
-        if "_pd_proc_ls_weight" in cifpat:
-            yweight = cifpat["_pd_proc_ls_weight"]
-        else:
-            yobs_dataname_err = yobs_dataname + "_err"
-            yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+    if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
+        yweight = cifpat["_pd_proc_ls_weight"]
     else:
         yobs_dataname_err = yobs_dataname + "_err"
         yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
-
     return np.nancumsum(yweight * (yobs - ycalc) ** 2)  # treats nan as 0
 
 
 def theta2_from_min_max_inc(start, step, stop):
+    debug(f"{start=}")
+    debug(f"{stop=}")
+    debug(f"{step=}")
+    debug(f"{(stop - start) / step=}")
+    debug(f"{int(round((stop - start) / step, 5))=}")
+
     num_points = int(round((stop - start) / step, 5)) + 1
+    debug(f"{num_points=}")
     return [str(v) for v in np.linspace(start, stop, num_points)]
 
 
@@ -321,7 +318,7 @@ class ParseCIF:
                         cifblk.RemoveItem(item)
                 elif isinstance(value, str):
                     value = value.strip()
-                    if value == "." or value == "?":
+                    if value in [".", "?"]:
                         cifblk.RemoveItem(item)
                 else:
                     print("How did we even get here?")
@@ -335,9 +332,10 @@ class ParseCIF:
         """
         patterns = grouped_blocknames(self.ciffile)["patterns"]
 
-        ## need to unroll _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan
+        # need to unroll _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan
         #  and _pd_proc_2theta_range_min/max/inc into _pd_proc_2theta_corrected
         for pattern in patterns:
+            print(f"Now doing {pattern}")
             cifpat = self.ciffile[pattern]
             if "_pd_meas_2theta_range_min" in cifpat and "_pd_meas_2theta_scan" not in cifpat:
                 th2_scan = theta2_from_min_max_inc(float(cifpat["_pd_meas_2theta_range_min"]),
@@ -359,7 +357,7 @@ class ParseCIF:
                         continue
                     cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
                     break
-                else: # if you don't find the proc ints, try the meas ints.
+                else:  # if you don't find the proc ints, try the meas ints.
                     for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
                         if y not in cifpat:
                             continue
@@ -401,7 +399,6 @@ class ParseCIF:
                 self.ciffile[pattern]["_pd_block_id"] = "L0_|" + self.ciffile[pattern]["_pd_block_id"]
             else:
                 self.ciffile[pattern]["_pd_block_id"] = "L0_|" + pattern
-            #self.ciffile.rename(pattern, pattern + "_loop0")
 
             # add a deepcopy of dcopy into the ciffile and remove the required dataloops. Will
             #  need to alter ciffile.block_input_order in order to keep things aligned?
@@ -415,21 +412,21 @@ class ParseCIF:
                     remove_these = loops[key]
                     for dataname in remove_these:
                         insert_me.RemoveItem(dataname)
-                new_block_prefix = f"L{str(i)}_|"
+                new_block_prefix = f"L{i}_|"
                 new_pattern_name = new_block_prefix + pattern
                 self.ciffile.NewBlock(new_pattern_name, insert_me)
                 if "_pd_block_id" in self.ciffile[new_pattern_name]:
                     self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + self.ciffile[new_pattern_name]["_pd_block_id"]
                 else:
-                    self.ciffile[new_pattern_name["_pd_block_id"]] = new_pattern_name
+                    self.ciffile[new_pattern_name]["_pd_block_id"] = new_pattern_name
 
         patterns = grouped_blocknames(self.ciffile)["patterns"]
+        can_no_do_d = ["_pd_meas_time_of_flight", "_pd_meas_position", ]  # "_pd_proc_wavelength",
+        can_do_d = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_proc_energy_incident",
+                    "_pd_proc_d_spacing", "_pd_proc_recip_len_Q"]
         for pattern in patterns:
             cifpat = self.ciffile[pattern]
             # this bit looks at the x ordinate and if they are part of this list, I remove any link to structures
-            can_no_do_d = ["_pd_meas_time_of_flight", "_pd_meas_position", ]  # "_pd_proc_wavelength",
-            can_do_d = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_proc_energy_incident",
-                        "_pd_proc_d_spacing", "_pd_proc_recip_len_Q"]
             if any(x in cifpat for x in can_no_do_d) and not any(x in cifpat for x in can_do_d):
                 cifpat.RemoveItem("_pd_phase_id")
                 cifpat.RemoveItem("_pd_phase_block_id")
@@ -470,6 +467,10 @@ class ParseCIF:
                     phase_block_ids = [phase_block_ids]
                 structures = [lookup_blockid[block_id] for block_id in phase_block_ids if block_id in lookup_blockid.keys()]
 
+                debug(f"In {pattern} there are {structures=}")
+                debug(f"In {pattern} there are {phase_block_ids=}")
+                debug(f"{lookup_blockid=}")
+
                 # setup the phase_ids in the cif so I can get the correct phaseid for each structure I call
                 if "_pd_phase_id" not in cifpat:
                     debug("There is no _pd_phase_id, but I'm just about to make one")
@@ -483,6 +484,14 @@ class ParseCIF:
                     cifpat["str"] = {}
                 for pd_phase_id in cifpat["_pd_phase_id"]:
                     cifpat["str"][pd_phase_id] = {}
+                debug(f'{cifpat["str"]=}')
+                #look for phase names
+                for i, structure in enumerate(structures):
+                    cifstr = self.cif[structure]
+                    pd_phase_id = cifpat["_pd_phase_id"][i]
+                    phase_name = cifstr["_pd_phase_name"] if "_pd_phase_name" in cifstr else pd_phase_id
+                    cifpat["str"][pd_phase_id]["_pd_phase_name"] = phase_name
+                debug(f'{cifpat["str"]=}')
 
                 # look for hkld values
                 if '_refln_d_spacing' not in cifpat:  # then it is OK to look for them in other places
@@ -529,8 +538,7 @@ class ParseCIF:
                     ks = get_from_cif(cifpat, '_refln_index_k')
                     ls = get_from_cif(cifpat, '_refln_index_l')
                     ds = get_from_cif(cifpat, '_refln_d_spacing')
-                    cifpat["str"] = {}
-                    cifpat["str"]["1"] = {}
+                    cifpat["str"] = {"1": {}}
                     if hs is not None:
                         cifpat["str"]["1"]['_refln_index_h'] = hs
                     if ks is not None:
@@ -586,12 +594,10 @@ class ParseCIF:
 
             # now that I've gotten floats, I can do the additional data conversions to give me more
             #  x-axis values and other nice things
-            if "_pd_proc_d_spacing" not in cifpat:
-                if "_pd_proc_recip_len_Q" in cifpat:
-                    cifpat["d"] = 2. * np.pi / cifpat["_pd_proc_recip_len_Q"]
-            if "_pd_proc_recip_len_Q" not in cifpat:
-                if "_pd_proc_d_spacing" in cifpat:
-                    cifpat["q"] = 2. * np.pi / cifpat["_pd_proc_d_spacing"]
+            if "_pd_proc_d_spacing" not in cifpat and "_pd_proc_recip_len_Q" in cifpat:
+                cifpat["d"] = 2. * np.pi / cifpat["_pd_proc_recip_len_Q"]
+            if "_pd_proc_recip_len_Q" not in cifpat and "_pd_proc_d_spacing" in cifpat:
+                cifpat["q"] = 2. * np.pi / cifpat["_pd_proc_d_spacing"]
 
             lam = None
             if '_diffrn_radiation_wavelength' in cifpat or "_cell_measurement_wavelength" in cifpat:
@@ -623,7 +629,6 @@ class ParseCIF:
                             cifsubstr["refln_2theta"] = 2. * np.arcsin(lam / (2. * cifsubstr["_refln_d_spacing"])) * 180. / np.pi
                         cifsubstr["refln_hovertext"] = [h + " " + k + " " + l for h, k, l in
                                                         zip(cifsubstr['_refln_index_h'], cifsubstr['_refln_index_k'], cifsubstr["_refln_index_l"])]
-        # end of pattern loop
 
     def _rename_datablock_from_blockid(self):
         """
@@ -635,7 +640,7 @@ class ParseCIF:
             cifpat = self.ncif[pattern]
             if "_pd_block_id" not in cifpat:
                 cifpat["_pd_block_id"] = pattern
-        self.ncif = {self.ncif[k]["_pd_block_id"]:v for k,v in self.ncif.items()}
+        self.ncif = {self.ncif[k]["_pd_block_id"]: v for k, v in self.ncif.items()}
 
     def get_processed_cif(self):
         return self.ncif
@@ -666,8 +671,10 @@ class ParseCIF:
             yweight = self.ncif[pattern][yobs_dataname_err]
         else:
             yweight = 1 / (self.ncif[pattern][yobs_dataname_err] ** 2)
-        rwp = np.sqrt(np.cumsum(yweight * (yobs - ycalc) ** 2) / np.cumsum(yweight * yobs ** 2))
-        return rwp
+        return np.sqrt(
+            np.cumsum(yweight * (yobs - ycalc) ** 2)
+            / np.cumsum(yweight * yobs ** 2)
+        )
 
 
 # end of class
@@ -677,7 +684,9 @@ if __name__ == "__main__":
     # # filename = r"..\..\data\forJames_before.cif"
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
-    filename = r"..\..\data\ALUMINA.cif"
+    # filename = r"..\..\data\ALUMINA.cif"
+    # filename = r"c:\data\yh5011sup1.cif"
+    filename = r"c:\data\Nd2Ti2O7-x-1456C-mono.cif"
     # filename = r"..\..\data\NISI.cif"
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
@@ -694,7 +703,7 @@ if __name__ == "__main__":
     # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
-    # pretty(cifd, print_values=False)
+    pretty(cifd, print_values=True)
     # print(filename)
     # print(files[18])
     # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif
