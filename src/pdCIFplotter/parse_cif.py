@@ -77,7 +77,7 @@ def grouped_blocknames(cif):
     return {"patterns": pattern_datanames, "structures": structure_datanames, "others": other_datanames}
 
 
-def get_from_cif(cif, itemname):
+def get_from_cif(cif, itemname, default=None):
     """
     Given a cif and a itemname, return the value associated with that blockname if it exists.
     If not, return None.
@@ -85,10 +85,8 @@ def get_from_cif(cif, itemname):
     :param itemname: string representing blockname
     :return: whatever is in the blockname, or None if it doesn't exist.
     """
-    if itemname in cif:
-        return cif[itemname]
-    else:
-        return None
+    return cif[itemname] if itemname in cif else default
+
 
 
 def get_hklds(structure):
@@ -548,6 +546,9 @@ class ParseCIF:
                     if ds is not None:
                         cifpat["str"]["1"]['_refln_d_spacing'] = ds
 
+                # add the phase name
+                cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
+
             # end of if
 
             # look for other datanames that it would be nice to have in the pattern
@@ -556,7 +557,7 @@ class ParseCIF:
                     get_dataname_into_pattern(self.cif, pattern, dataname, structures, others)
 
                 # if it does exist, and it is single-valued, and is not known, then look for it as well
-                if dataname in cifpat and (cifpat[dataname] == "." or cifpat[dataname] == "?"):
+                if dataname in cifpat and cifpat[dataname] in [".", "?"]:
                     get_dataname_into_pattern(self.cif, pattern, dataname, structures, others)
 
             self.ncif[pattern] = self.cif[pattern]

@@ -436,7 +436,8 @@ class PlotCIF:
                     debug(f"{hkl_y=}")
 
                     idx = j % len(TABLEAU_COLOR_VALUES)
-                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + cifpat["str"][phase]["_pd_phase_name"], marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+                    phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
                                         color=TABLEAU_COLOR_VALUES[idx])
                     stack_hkl_artists.append(hkl_tick)
                     if "refln_hovertext" in cifpat["str"][phase]:
