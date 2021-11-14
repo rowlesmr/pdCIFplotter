@@ -165,18 +165,17 @@ class PlotCIF:
         # get all of the original data
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
-            if not (x_ordinate in cifpat and
-                    (y_ordinate in cifpat or y_ordinate == "Pattern number") and
-                    z_ordinate in cifpat):
+            if (
+                x_ordinate not in cifpat
+                or y_ordinate not in cifpat
+                and y_ordinate != "Pattern number"
+                or z_ordinate not in cifpat
+            ):
                 continue
             # we now know that both x and z are in the pattern
             x = cifpat[x_ordinate]
             z = cifpat[z_ordinate]
-            if y_ordinate == "Pattern number":
-                y = i
-            else:
-                y = cifpat[y_ordinate]
-
+            y = i if y_ordinate == "Pattern number" else cifpat[y_ordinate]
             # interpolation only works if the x-ordinate is increasing.
             # if it doesn't, I need to flip all the ordinates to maintain
             # the relative ordering.
@@ -215,6 +214,7 @@ class PlotCIF:
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool,
                            axis_scale: dict,
                            fig):
+        #todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         dpi = plt.gcf().get_dpi()
         if fig is not None:
             # this is needed for the hkl position calculations
@@ -303,7 +303,8 @@ class PlotCIF:
                         hkl_y2 = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
                         hkl_y = np.maximum(hkl_y1, hkl_y2)
 
-                hkl_tick, = ax.plot(hkl_x, hkl_y * scalar, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
+                phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                hkl_tick, = ax.plot(hkl_x, hkl_y * scalar, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
                 single_hkl_artists.append(hkl_tick)
                 if "refln_hovertext" in cifpat["str"][phase]:
                     single_hovertexts.append(cifpat["str"][phase]["refln_hovertext"])
@@ -435,11 +436,12 @@ class PlotCIF:
                     debug(f"{hkl_y=}")
 
                     idx = j % len(TABLEAU_COLOR_VALUES)
-                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + phase, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + cifpat["str"][phase]["_pd_phase_name"], marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
                                         color=TABLEAU_COLOR_VALUES[idx])
                     stack_hkl_artists.append(hkl_tick)
                     if "refln_hovertext" in cifpat["str"][phase]:
-                        hovertext = [f"{phase}: {hkls}" for hkls in cifpat["str"][phase]["refln_hovertext"]]
+                        phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                        hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                         stack_hovertexts.append(hovertext)
                     else:
                         stack_hovertexts.append([phase] * len(hkl_x))
@@ -450,7 +452,7 @@ class PlotCIF:
                 "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
         # end hkl if
 
-        if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+        if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             plt.gca().invert_xaxis()
 
         if "intensity" in y_ordinate:
@@ -516,7 +518,7 @@ class PlotCIF:
         print(f"{zz=}")
         plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
-        if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+        if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             plt.gca().invert_xaxis()
 
         # hkl plotting below     single_height_px
