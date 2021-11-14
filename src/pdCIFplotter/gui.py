@@ -133,9 +133,8 @@ def pretty(d, indent=0, print_values=True):
         print('\t' * indent + str(key))
         if isinstance(value, dict):
             pretty(value, indent + 1, print_values=print_values)
-        else:
-            if print_values:
-                print('\t' * (indent + 1) + str(value))
+        elif print_values:
+            print('\t' * (indent + 1) + str(value))
 
 
 def single_update_plot(pattern, x_ordinate, y_ordinates: list,
@@ -179,6 +178,11 @@ def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
     figure_canvas_agg = FigureCanvasTkAgg(figure, master=canvas)
     figure_canvas_agg.draw()
     toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
+    toolbar.config(background=sg.theme_background_color())
+    toolbar._message_label.config(background=sg.theme_background_color())  # this is to do with the XY text that comes up when the cursor is over the plot
+    toolbar.winfo_children()[-2].config(background=sg.theme_background_color())  # https://stackoverflow.com/a/69955540/36061
+    debug(f"{toolbar._message_label.config().keys()=}")
+    debug(f"{toolbar.config().keys()=}")
     toolbar.update()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
     return figure_canvas_agg
@@ -225,10 +229,7 @@ def z_ordinate_styling_popup(window_title, color_default, key, window):
 ######################################################################################################
 
 def make_list_for_ordinate_dropdown(complete_list, possible_list, add_none=True):
-    used_list = []
-    for t in complete_list:
-        if t in possible_list:
-            used_list.append(t)
+    used_list = [t for t in complete_list if t in possible_list]
     if add_none:
         used_list.append("None")
     return used_list
@@ -262,11 +263,13 @@ def read_cif(filename):
 def make_xy_dropdown_list(master_list, difpat, add_none=True):
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
+
 def cif_get_this_else_that(cif, dataname, that):
     if dataname in cif:
         return cif[dataname]
     else:
         return that
+
 
 def initialise_pattern_and_dropdown_lists():
     global single_data_list, single_dropdown_lists
@@ -608,6 +611,9 @@ def update_surface_element_disables(values, window):
     if values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[surface_keys["hkl_checkbox"]].update(disabled=True, value=False)
 
+    # always disable the y-ordinate chooser. Will need a large upgrade to change that ont
+    window[surface_keys["y_axis"]].update(disabled=True)
+
 
 layout_surface_left = \
     [
@@ -692,8 +698,8 @@ layout = \
 
 
 def open_cif_popup(text):
-    layout = [[sg.T(text)]]
-    window = sg.Window("Reading CIF...", layout)
+    m_layout = [[sg.T(text)]]
+    window = sg.Window("Reading CIF...", m_layout)
     window.read(timeout=0)
     return window
 
@@ -771,7 +777,6 @@ def gui():
                 continue
             finally:
                 popup.close()
-                pass
 
             parse_cif.pretty(cif)
 
