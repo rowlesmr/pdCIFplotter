@@ -6,8 +6,9 @@ Created on Sun Jul  4 20:56:13 2021
 """
 
 import PySimpleGUI as sg
-from pdCIFplotter import parse_cif
-from pdCIFplotter import plot_cif
+
+import pdCIFplotter as pcp
+from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
@@ -676,7 +677,9 @@ layout_file_chooser = \
                                    ('ALL Files', '*.*')),
                        enable_events=True),  # may need to implement OneLineProgressMeter on loading and parsing CIF
         sg.In(key='file_string', visible=False, enable_events=True),
-        sg.T(key="file_string_name")
+        sg.T(key="file_string_name"),
+        sg.Stretch(),
+        sg.T(pcp.__version__)
     ]]
 
 layout = \
