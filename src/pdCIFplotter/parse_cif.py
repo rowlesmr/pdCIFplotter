@@ -174,7 +174,7 @@ def get_hkld_from_matching_id(hkld_ids):
             for idv in unique_ids}
 
 
-def split_val_err(ve, default_error="zero"):
+def _split_val_err(ve, default_error="zero"):
     """
     Takes a string representing a number with an error in brackets
     such as 12.34(4), and splits off the value and error terms,
@@ -197,14 +197,14 @@ def split_val_err(ve, default_error="zero"):
             return (val, err)
         else:
             val = float(ve)
-
         if default_error == "sqrt":
             err = math.sqrt(math.fabs(val))
         elif default_error == "zero":
             err = 0.0
         else:
-            err = -1
+            err = None
         return (val, err)
+
     val, err = re.search("([0-9.]+)\(([0-9]*)\)", ve).groups()
     if "." not in val:  # it makes it much easier if there is a decimal place to count
         val += "."
@@ -212,21 +212,31 @@ def split_val_err(ve, default_error="zero"):
     return (float(val), float(err) / 10 ** pow10)
 
 
-def split_val_err_list(inlist, default_error="zero"):
+def split_val_err(value, default_error="none"):
     """
     Takes a list of strings representing values with/without errors and gives back a tuple
     of two lists of floats. The first is the values, the second is the errors
     :param default_error: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
-    :param inlist: list of strings representing floats
+    :param value: string or list of strings representing floats
     :return: tuple of lists of floats containing valus and errors.
     """
+    isList = True
+    if isinstance(value, str):
+        value = [value]
+        isList = False
+
     vals = []
     errs = []
-    for entry in inlist:
-        v, e = split_val_err(entry, default_error=default_error)
+    for entry in value:
+        v, e = _split_val_err(entry, default_error=default_error)
         vals.append(v)
         errs.append(e)
-    return (vals, errs)
+
+    if isList:
+        return (vals, errs)
+    else:
+        return (vals[0], errs[0])
+
 
 
 def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
@@ -331,10 +341,28 @@ def add_hklds_to_cifpatstr(cifpatstr, hkld_dict):
 
 
 def calc_dataname_and_err(cifpat, dataname, default_error="zero"):
-    val, err = split_val_err_list(cifpat[dataname], default_error=default_error)
-    cifpat[dataname] = np.asarray(val, dtype=float)
-    cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
+    """
+    gets a single value-as-string or list of values-as-strings and correctly turns them in to a float or lists of floats
+    with an error term, if applicable
+    :param cifpat: the pattern from which you are getting the data
+    :param dataname: the name of the dataitem you want to obtain
+    :param default_error: how to treat the presence (or otherwiase) of errors. "sqrt" - if no error, use the sqrt. "zero" - if no error, return 0.0. "none" - if no error, then don't do anything about it.
+    :return:
+    """
+    val, err = split_val_err(cifpat[dataname], default_error=default_error)
 
+    do_errors = True
+    if isinstance(err, list):
+        if all(e is None for e in err):
+            do_errors = False
+    elif err is None:
+        do_errors = False
+
+    if default_error in ["sqrt", "zero"] or do_errors:
+        cifpat[dataname] = np.asarray(val, dtype=float)
+        cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
+    else:
+        cifpat[dataname] = np.asarray(val, dtype=float)
 
 class ParseCIF:
     # these are all the values that could be an x-ordinate. I added the last two to be place-holders
@@ -574,27 +602,10 @@ class ParseCIF:
             for dataname in ParseCIF.DATANAMES_THAT_SHOULD_BE_NUMERIC:
                 if dataname not in cifpat:
                     continue
-                if isinstance(cifpat[dataname], list):
-                    # should the dataname have an associated uncertainty?
-                    # the observed_Y ones should (must?) have. If one isn't explicitiy
-                    # given, I take the sqrt of the value
-                    if dataname in self.OBSERVED_Y_LIST:
-                        calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
-                    else:
-                        try:
-                            cifpat[dataname] = np.asarray(cifpat[dataname], dtype=float)
-                        except ValueError:  # probably because numpy got given a thing with an error
-                            calc_dataname_and_err(cifpat, dataname)
-                elif isinstance(cifpat[dataname], str):
-                    if cifpat[dataname] not in [".", "?"]:
-                        try:
-                            cifpat[dataname] = float(cifpat[dataname])
-                        except ValueError:
-                            val, err = split_val_err(cifpat[dataname])
-                            cifpat[dataname] = val
-                            cifpat[dataname + "_err"] = err
-                    else:
-                        cifpat[dataname] = float("nan")
+                if dataname in self.OBSERVED_Y_LIST:
+                    calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
+                else:
+                    calc_dataname_and_err(cifpat, dataname, default_error="none")
 
     def _calc_extra_data(self):
         for pattern in self.ncif:
@@ -652,7 +663,7 @@ class ParseCIF:
 
 
 if __name__ == "__main__":
-    # # filename = r"..\..\data\forJames_before.cif"
+    # filename = r"..\..\data\forJames_before.cif"
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
     # filename = r"..\..\data\ALUMINA.cif"
