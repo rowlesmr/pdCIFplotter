@@ -744,7 +744,7 @@ def gui():
         except (KeyError, TypeError):
             the_value = "__none__"
 
-        print("-----------------\n", event, ":", the_value, " --- ", values, "\n-----------------")
+        debug(f"-----------------\n{event}: {the_value} --- {values}\n-----------------")
 
         replot_single = False
         replot_stack = False
