@@ -2,6 +2,17 @@
 Changelog
 =========
 
+0.0.5 (2021-11-16)
+------------------
+
+* Better hkl checkbox checking
+* Doesn't crash if CIF with no diffraction pattern is loaded
+* Gracefully handles NANs in data when calculating hkl tick offsets
+* Datablock names replaced with block_id values on single plot title and dropdown data box
+* hkl ticks labelled by phase name, if present, else, phase id.
+* Large refactoring of parse_cif
+
+
 0.0.4 (2021-11-11)
 ------------------
 
