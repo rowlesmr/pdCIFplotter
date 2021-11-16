@@ -3,7 +3,7 @@ import re
 import math
 import copy
 # from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
-import CifFile
+from CifFile import CifFile, ReadCif, StarFile
 
 DEBUG = True
 
@@ -11,7 +11,7 @@ DEBUG = True
 def pretty(d, indent=0, print_values=True):
     for key, value in d.items():
         print('|  ' * indent + "|--" + str(key))
-        if isinstance(value, dict) or isinstance(value, CifFile.CifFile) or isinstance(value, CifFile.StarFile.StarBlock):
+        if isinstance(value, dict) or isinstance(value, CifFile) or isinstance(value, StarFile.StarBlock):
             pretty(value, indent + 1, print_values=print_values)
         elif print_values:
             print('|  ' * (indent + 1) + "|--" + str(value))
@@ -48,12 +48,23 @@ def blockname_lookupdict_from_blockid(cif):
     :param cif:
     :return: dictionary with blockids as keys and blocknames as values.
     """
-    # lookup_dict = {}
-    # for blockname in cif.block_input_order:
-    #     if "_pd_block_id" in cif[blockname]:
-    #         lookup_dict[cif[blockname]["_pd_block_id"]] = blockname
-    # return lookup_dict
-    return {cif[blockname]["_pd_block_id"]: blockname for blockname in cif.block_input_order if "_pd_block_id" in cif[blockname]}
+    keys = cif.keys() if isinstance(cif, dict) else cif.block_input_order
+    return {cif[blockname]["_pd_block_id"]: blockname for blockname in keys if "_pd_block_id" in cif[blockname]}
+
+
+def get_blockname_from_block_id(lookup_dict, block_id):
+    """
+    Pycifrw makes datablock names all lower case. When I make up a pd+block_id from a dataname, sometimes the user has a
+    case-dependent reference somewhere in their CIF, and so I can't find the datablock. This looks in my lookup dictionary
+    two ways to see if it can be found.
+    :param lookup_dict: the dictionary mapping block_id to datablock
+    :param block_id: the block id I want to match
+    :return: the matching datablock name
+    """
+    try:
+        return lookup_dict[block_id]
+    except KeyError:
+        return lookup_dict[block_id.lower()]
 
 
 def grouped_blocknames(cif):
@@ -67,7 +78,9 @@ def grouped_blocknames(cif):
     structure_datanames = []
     other_datanames = []
 
-    for datablock in cif.block_input_order:
+    keys = cif.keys() if isinstance(cif, dict) else cif.block_input_order
+
+    for datablock in keys:
         if any(x in cif[datablock] for x in ParseCIF.COMPLETE_X_LIST):
             pattern_datanames.append(datablock)  # this can include datablocks that have both pattern and structure info
         elif "_cell_length_a" in cif[datablock]:
@@ -88,8 +101,7 @@ def get_from_cif(cif, itemname, default=None):
     return cif[itemname] if itemname in cif else default
 
 
-
-def get_hklds(structure):
+def get_hkld_ids(structure):
     """
     Given a cif block representing aa structure, get the h,k,l, and d values of the reflections
     and return them in a dictionary. or returns None if '_refln_d_spacing' doesn't exist
@@ -101,6 +113,7 @@ def get_hklds(structure):
     k_local = get_from_cif(structure, '_refln_index_k')
     l_local = get_from_cif(structure, '_refln_index_l')
     d_local = get_from_cif(structure, '_refln_d_spacing')
+    id_local = get_from_cif(structure, '_pd_refln_phase_id')
 
     if d_local is None:
         return None
@@ -112,8 +125,10 @@ def get_hklds(structure):
         k_local = ["."] * d_len
     if l_local is None or len(l_local) != d_len:
         l_local = ["."] * d_len
+    if id_local is None or len(id_local) != d_len:
+        id_local = ["."] * d_len
 
-    return {"h": h_local, "k": k_local, "l": l_local, "d": d_local}
+    return {"h": h_local, "k": k_local, "l": l_local, "d": d_local, "id": id_local}
 
 
 def get_dataname_into_pattern(cif, pattern, dataname, structures, others):
@@ -142,19 +157,21 @@ def get_dataname_into_pattern(cif, pattern, dataname, structures, others):
                 break  # only want to get one value
 
 
-def get_hkld_from_matching_id(hklds, phase_id, phase_ids):
+def get_hkld_from_matching_id(hkld_ids):
     """
     given a list of h,k,l, or d values from a place where the list contains values from multiple phases,
     return only those values corresponding to the given phase id
-    :param hklds: a list containing h,k,l, or d values from multiple phases
-    :param phase_id: the _pd_phase_id value you want to match
-    :param phase_ids: the _pd_refln_phase_id values of each hkld value.
+    :param hkld_ids: dictionary of h,k,l,d,id values
     :return: a list containing the corresponding hkld values, or None, if none match.
     """
-    if hklds is None:
+    if hkld_ids is None:
         return None
-    else:
-        return [hkldval for hkldval, idval in zip(hklds, phase_ids) if idval == phase_id]
+    unique_ids = set(hkld_ids["id"])
+    return {idv: {"h": [h for h, idval in zip(hkld_ids["h"], hkld_ids["id"]) if idval == idv],
+                  "k": [k for k, idval in zip(hkld_ids["k"], hkld_ids["id"]) if idval == idv],
+                  "l": [l for l, idval in zip(hkld_ids["l"], hkld_ids["id"]) if idval == idv],
+                  "d": [d for d, idval in zip(hkld_ids["d"], hkld_ids["id"]) if idval == idv]}
+            for idv in unique_ids}
 
 
 def split_val_err(ve, default_error="zero"):
@@ -185,6 +202,8 @@ def split_val_err(ve, default_error="zero"):
             err = math.sqrt(math.fabs(val))
         elif default_error == "zero":
             err = 0.0
+        else:
+            err = -1
         return (val, err)
     val, err = re.search("([0-9.]+)\(([0-9]*)\)", ve).groups()
     if "." not in val:  # it makes it much easier if there is a decimal place to count
@@ -212,7 +231,7 @@ def split_val_err_list(inlist, default_error="zero"):
 
 def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
     """
-    Calculate the cumulative Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
+    Calculate the cumulative chi-squared statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     This is the value of Rwp taking into account only the data with the x-ordinate <= the current
     x-ordinate. It shows where there are large deviations contributing to the overall Rwp
     see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23. https://doi.org/10.6028/jres.008.
@@ -237,15 +256,84 @@ def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, 
 
 
 def theta2_from_min_max_inc(start, step, stop):
-    debug(f"{start=}")
-    debug(f"{stop=}")
-    debug(f"{step=}")
-    debug(f"{(stop - start) / step=}")
-    debug(f"{int(round((stop - start) / step, 5))=}")
-
     num_points = int(round((stop - start) / step, 5)) + 1
-    debug(f"{num_points=}")
     return [str(v) for v in np.linspace(start, stop, num_points)]
+
+
+def theta2_min_max_inc_expand(cifpat, val="meas"):
+    MEAS_COL = ["_pd_meas_counts_total", "_pd_meas_intensity_total"]
+    PROC_COL = ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]
+    MEAS_VALS = ["_pd_meas_2theta_range_min", "_pd_meas_2theta_scan", "_pd_meas_2theta_range_min", "_pd_meas_2theta_range_inc", "_pd_meas_2theta_range_max"]
+    PROC_VALS = ["_pd_proc_2theta_range_min", "_pd_proc_2theta_corrected", "_pd_proc_2theta_range_min", "_pd_proc_2theta_range_inc", "_pd_proc_2theta_range_max"]
+
+    if val == "meas":
+        mincheck, x_ordinate, minval, incval, maxval = MEAS_VALS
+        test_cols = MEAS_COL + PROC_COL
+    else:  # if val == "proc":
+        mincheck, x_ordinate, minval, incval, maxval = PROC_VALS
+        test_cols = PROC_COL + MEAS_COL
+
+    if mincheck in cifpat and x_ordinate not in cifpat:
+        th2_scan = theta2_from_min_max_inc(float(cifpat[minval]),
+                                           float(cifpat[incval]),
+                                           float(cifpat[maxval]))
+        # chooses the best place to put it. The list I'm checking against
+        #  is in order of preference
+        for y in test_cols:
+            if y not in cifpat:
+                continue
+            cifpat.AddToLoop(y, {x_ordinate: th2_scan})
+            break  # only do it to the first that matches
+    cifpat.RemoveItem(minval)
+    cifpat.RemoveItem(incval)
+    cifpat.RemoveItem(maxval)
+
+
+def get_linked_structures_and_phase_ids(cifpat, blockname_dict):
+    pd_phase_ids = []
+    structures = []
+    if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
+        phase_block_ids = cifpat["_pd_phase_block_id"] if not isinstance(cifpat["_pd_phase_block_id"], str) else [cifpat["_pd_phase_block_id"]]
+        structures = [get_blockname_from_block_id(blockname_dict, phase_id) for phase_id in phase_block_ids]
+        if "_pd_phase_id" not in cifpat:
+            pd_phase_ids = [str(i) for i in list(range(1, len(structures) + 1))]  # keep it as a string, just like pycifrw does
+            cifpat["_pd_phase_id"] = pd_phase_ids
+        else:
+            pd_phase_ids = cifpat["_pd_phase_id"]
+    return structures, pd_phase_ids
+
+
+def calc_dq_from_qd(dq):
+    return 2. * np.pi / dq
+
+
+def calc_d_from_2theta(lam, th2):
+    return lam / (2. * np.sin(th2 * np.pi / 360.))
+
+
+def calc_q_from_2theta(lam, th2):
+    return 4. * np.pi * np.sin(th2 * np.pi / 360.) / lam
+
+
+def calc_2theta_from_d(lam, d):
+    return 2. * np.arcsin(lam / (2. * d)) * 180. / np.pi
+
+
+def add_hklds_to_cifpatstr(cifpatstr, hkld_dict):
+    """
+    adds hkld information to a phase in the "str" section of a cif dictionary
+    :param cifpatstr:  a dictionary of the form: cifpat["str"][phase_id]
+    :param hkl_dict: an hkl dictionary of the form hkld_dict or hklds[phase_id]
+    :return: None - changes in-place
+    """
+    for refln, idx in zip(['_refln_index_h', '_refln_index_k', '_refln_index_l', '_refln_d_spacing'], ["h", "k", "l", "d"]):
+        cifpatstr[refln] = hkld_dict[idx]
+
+
+def calc_dataname_and_err(cifpat, dataname, default_error="zero"):
+    val, err = split_val_err_list(cifpat[dataname], default_error=default_error)
+    cifpat[dataname] = np.asarray(val, dtype=float)
+    cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
 
 
 class ParseCIF:
@@ -288,19 +376,25 @@ class ParseCIF:
 
     def __init__(self, ciffilename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
         print(f"Now reading {ciffilename}. This may take a while.")
-        self.ciffile = CifFile.ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
+        self.ciffile = ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
         self.ncif = {}  # this will be the cif file with pattern information only
         self.cif = {}
 
         self._remove_empty_items()
+        self._make_up_block_id()
+        self._expand_2theta_min_max_inc()
         self._expand_multiple_dataloops()
-        self._process()
+        self._get_hkl_ticks()
+        self._get_nice_to_have_information()
+        self._make_just_patterns_cif()
+        self._make_cif_numeric()
+        self._calc_extra_data()
         self._rename_datablock_from_blockid()
 
     def _remove_empty_items(self):
         """
         Checks every item in each block and if all the values are '?' or '.', it removes them from the cif
-        :return: nother. alters in place
+        :return: none. alters in place
         """
         for block in self.ciffile.block_input_order:
             cifblk = self.ciffile[block]
@@ -321,6 +415,29 @@ class ParseCIF:
                 else:
                     print("How did we even get here?")
 
+    def _make_up_block_id(self):
+        """
+        Some people confuse the _pd_block_id and the data_ blockname.
+        This goes and adds a _pd_block_id to every block that doesn't have an id such that _pd_block_id == blockname
+        :return: none. alters in place
+        """
+        for block in self.ciffile.block_input_order:
+            cifblk = self.ciffile[block]
+            cifblk["_pd_block_id"] = block if "_pd_block_id" not in cifblk else cifblk["_pd_block_id"]
+
+    def _expand_2theta_min_max_inc(self):
+        """
+        Expand _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan, and
+        _pd_proc_2theta_range_min/max/inc into _pd_proc_2theta_corrected. The min/max/inc dataitems are
+        then deleted from the CIF.
+        :return: None. do it in-place
+        """
+        patterns = grouped_blocknames(self.ciffile)["patterns"]
+        for pattern in patterns:
+            cifpat = self.ciffile[pattern]
+            theta2_min_max_inc_expand(cifpat, "meas")
+            theta2_min_max_inc_expand(cifpat, "proc")
+
     def _expand_multiple_dataloops(self):
         """
         This looks for patterns which have multiple loops containing diffraction data
@@ -330,77 +447,31 @@ class ParseCIF:
         """
         patterns = grouped_blocknames(self.ciffile)["patterns"]
 
-        # need to unroll _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan
-        #  and _pd_proc_2theta_range_min/max/inc into _pd_proc_2theta_corrected
-        for pattern in patterns:
-            print(f"Now doing {pattern}")
-            cifpat = self.ciffile[pattern]
-            if "_pd_meas_2theta_range_min" in cifpat and "_pd_meas_2theta_scan" not in cifpat:
-                th2_scan = theta2_from_min_max_inc(float(cifpat["_pd_meas_2theta_range_min"]),
-                                                   float(cifpat["_pd_meas_2theta_range_inc"]),
-                                                   float(cifpat["_pd_meas_2theta_range_max"]))
-                # chooses the best place to put it
-                for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
-                    if y not in cifpat:
-                        continue
-                    cifpat.AddToLoop(y, {"_pd_meas_2theta_scan": th2_scan})
-                    break  # only do it to the first that matches
-
-            if "_pd_proc_2theta_range_min" in cifpat and "_pd_proc_2theta_corrected" not in cifpat:
-                th2_scan = theta2_from_min_max_inc(float(cifpat["_pd_proc_2theta_range_min"]),
-                                                   float(cifpat["_pd_proc_2theta_range_inc"]),
-                                                   float(cifpat["_pd_proc_2theta_range_max"]))
-                for y in ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]:
-                    if y not in cifpat:
-                        continue
-                    cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
-                    break
-                else:  # if you don't find the proc ints, try the meas ints.
-                    for y in ["_pd_meas_counts_total", "_pd_meas_intensity_total"]:
-                        if y not in cifpat:
-                            continue
-                        cifpat.AddToLoop(y, {"_pd_proc_2theta_corrected": th2_scan})
-                        break  # only do it to the first that matches
-
-            # I don't want them to exist in my data after this. at all. no matter what.
-            cifpat.RemoveItem("_pd_meas_2theta_range_min")
-            cifpat.RemoveItem("_pd_meas_2theta_range_max")
-            cifpat.RemoveItem("_pd_meas_2theta_range_inc")
-            cifpat.RemoveItem("_pd_proc_2theta_range_min")
-            cifpat.RemoveItem("_pd_proc_2theta_range_max")
-            cifpat.RemoveItem("_pd_proc_2theta_range_inc")
-
-        # now that I've (potentially) unrolled some 2theta lists, now I can expand the dataloops.
         for pattern in patterns:
             cifpat = self.ciffile[pattern]
+            # get all loops in this data block
             loops = copy.deepcopy(cifpat.loops)  # this needs to be a deepcopy or it updates itself on RemoveItem !
             keys_of_loops = []
             for key in loops.keys():
                 looped_datanames = loops[key]
                 if any(x in looped_datanames for x in ParseCIF.COMPLETE_X_LIST):
                     keys_of_loops.append(key)
-
             if len(keys_of_loops) == 1:
                 continue  # because there is only one data loop in this pattern
+            # we only get to here if there are many data loops in the cif. We need to unroll them
 
-            # we only get to here if there are many data loops in the cif
             # deepcopy the pattern so I can clone it
             dcopy = copy.deepcopy(self.ciffile[pattern])
             # rename the current pattern and remove the required dataloops.
             for i, key in enumerate(keys_of_loops):
                 if i == 0:
-                    continue
+                    continue  # don't delete the first one
                 remove_these = loops[key]
                 for dataname in remove_these:
                     cifpat.RemoveItem(dataname)
-            if "_pd_block_id" in self.ciffile[pattern]:
-                self.ciffile[pattern]["_pd_block_id"] = "L0_|" + self.ciffile[pattern]["_pd_block_id"]
-            else:
-                self.ciffile[pattern]["_pd_block_id"] = "L0_|" + pattern
+            # update the block_id so you know it's been unrolled
+            cifpat["_pd_block_id"] = "L0_|" + get_from_cif(cifpat, "_pd_block_id", pattern)
 
-            # add a deepcopy of dcopy into the ciffile and remove the required dataloops. Will
-            #  need to alter ciffile.block_input_order in order to keep things aligned?
-            # ciffile.NewBlock(self, blockname, blockcontents=None, fix=True, parent=None)
             # repeat the previous step as needed to copy in all the dataloops
             for i in range(1, len(keys_of_loops)):
                 insert_me = copy.deepcopy(dcopy)
@@ -413,158 +484,92 @@ class ParseCIF:
                 new_block_prefix = f"L{i}_|"
                 new_pattern_name = new_block_prefix + pattern
                 self.ciffile.NewBlock(new_pattern_name, insert_me)
-                if "_pd_block_id" in self.ciffile[new_pattern_name]:
-                    self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + self.ciffile[new_pattern_name]["_pd_block_id"]
-                else:
-                    self.ciffile[new_pattern_name]["_pd_block_id"] = new_pattern_name
+                self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + get_from_cif(self.ciffile[new_pattern_name], "_pd_block_id", new_pattern_name)
 
-        patterns = grouped_blocknames(self.ciffile)["patterns"]
-        can_no_do_d = ["_pd_meas_time_of_flight", "_pd_meas_position", ]  # "_pd_proc_wavelength",
-        can_do_d = ["_pd_meas_2theta_scan", "_pd_proc_2theta_corrected", "_pd_proc_energy_incident",
-                    "_pd_proc_d_spacing", "_pd_proc_recip_len_Q"]
-        for pattern in patterns:
-            cifpat = self.ciffile[pattern]
-            # this bit looks at the x ordinate and if they are part of this list, I remove any link to structures
-            if any(x in cifpat for x in can_no_do_d) and not any(x in cifpat for x in can_do_d):
-                cifpat.RemoveItem("_pd_phase_id")
-                cifpat.RemoveItem("_pd_phase_block_id")
-
-            # This bit removes the wavelength if the x-ordinate is "_pd_meas_time_of_flight"
-            if "_pd_meas_time_of_flight" in cifpat:
-                cifpat.RemoveItem("_diffrn_radiation_wavelength")
-                cifpat.RemoveItem("_cell_measurement_wavelength")
-
-    def _process(self):
+    def _get_hkl_ticks(self):
         """
-        only run this on cifs that have been unrolled so that they contain only one
-        dataloop of diffraction information.
+        Go through a pattern and look for linked structures. Get hkld information from either the linked structures
+        or from the in reflection listing in the pattern block if there is a _pd_refln_phase_id data name
         :return:
         """
-        lookup_blockid = blockname_lookupdict_from_blockid(self.ciffile)  # a dictionary with block_id keys and dataname values
-        blocknames = grouped_blocknames(self.ciffile)  # blocknames corresponding to patterns, structures, and others.
+        blocknames = grouped_blocknames(self.ciffile)
+        patterns = blocknames["patterns"]
+        blockname_of = blockname_lookupdict_from_blockid(self.ciffile)
+        self.cif = convert_cif_to_dict(self.ciffile)
 
-        # get all patterns and others. Don't get structures here, as I only want to get structures linked to each pattern.
+        # update each pattern's information
+        for pattern in patterns:
+            cifpat = self.cif[pattern]
+            if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
+                structures, pd_phase_ids = get_linked_structures_and_phase_ids(cifpat, blockname_of)
+                # now we know there are linked structures, and a phase id block, I can
+                # make places to put pertinant information in the cif
+                if "str" not in cifpat:
+                    cifpat["str"] = {}
+                for pd_phase_id in pd_phase_ids:
+                    cifpat["str"][pd_phase_id] = {}
+                # look for phase names
+                for phase_id, structure in zip(pd_phase_ids, structures):
+                    cifstr = self.cif[structure]
+                    phase_name = cifstr["_pd_phase_name"] if "_pd_phase_name" in cifstr else phase_id
+                    cifpat["str"][phase_id]["_pd_phase_name"] = phase_name
+                # look for hkld values
+                if '_refln_d_spacing' not in cifpat:  # then it is OK to look for them in other places
+                    for phase_id, structure in zip(pd_phase_ids, structures):
+                        cifstr = self.cif[structure]
+                        hkld_dict = get_hkld_ids(cifstr)
+                        if hkld_dict is None:
+                            continue
+                        add_hklds_to_cifpatstr(cifpat["str"][phase_id], hkld_dict)
+                elif "_pd_refln_phase_id" in cifpat:
+                    # these contain all the hkls from all the phases
+                    hklds = get_hkld_from_matching_id(get_hkld_ids(cifpat))
+                    for phase_id in pd_phase_ids:
+                        try:
+                            add_hklds_to_cifpatstr(cifpat["str"][phase_id], hklds[phase_id])
+                        except KeyError as e:
+                            print(e)
+                            print(f"No hkls found for phase {phase_id}.")
+            elif "_refln_d_spacing" in cifpat:  # there is no phase_block_id and so only a single phase's worth of tick marks
+                hkld_dict = get_hkld_ids(cifpat)
+                if hkld_dict is None:
+                    continue
+                cifpat["str"] = {"1": {}}
+                add_hklds_to_cifpatstr(cifpat["str"]["1"], hkld_dict)
+                cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
+
+    def _get_nice_to_have_information(self):
+        """
+        This traverses the linked structures, and then the "other" blocks, to look for information that is nice to have with
+        the pattern
+        :return:
+        """
+        blocknames = grouped_blocknames(self.cif)
+        blockname_of = blockname_lookupdict_from_blockid(self.cif)
         patterns = blocknames["patterns"]
         others = blocknames["others"]
 
-        self.cif = convert_cif_to_dict(self.ciffile)
-        # update each pattern's information
         for pattern in patterns:
-            debug(f"Now doing {pattern}")
             cifpat = self.cif[pattern]
-            structures = []  # assume there are no linked structures unless it gets updated just below
-
-            if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
-                debug("there is a _pd_phase_block_id")
-                # check if the x-ordinate is capable of being converted into d-spacing
-
-                # do I need to check that the structure linked to by the pattern also links back to the pattern?
-                # get the block_ids and the structures linked to this particular pattern
-                phase_block_ids = cifpat["_pd_phase_block_id"]
-                if isinstance(phase_block_ids, str):  # it needs to be as a list for later
-                    phase_block_ids = [phase_block_ids]
-                structures = [lookup_blockid[block_id] for block_id in phase_block_ids if block_id in lookup_blockid.keys()]
-
-                debug(f"In {pattern} there are {structures=}")
-                debug(f"In {pattern} there are {phase_block_ids=}")
-                debug(f"{lookup_blockid=}")
-
-                # setup the phase_ids in the cif so I can get the correct phaseid for each structure I call
-                if "_pd_phase_id" not in cifpat:
-                    debug("There is no _pd_phase_id, but I'm just about to make one")
-                    pd_phase_ids = [str(i) for i in list(range(1, len(phase_block_ids) + 1))]  # keep it as a string, just like pycifrw does
-                    # cifpat.AddToLoop("_pd_phase_block_id", {"_pd_phase_id": pd_phase_ids})
-                    cifpat["_pd_phase_id"] = pd_phase_ids
-
-                # now we know there are linked structures, and a phase id block, I can
-                # make places to put all of the structural information in the cif
-                if "str" not in cifpat:
-                    cifpat["str"] = {}
-                for pd_phase_id in cifpat["_pd_phase_id"]:
-                    cifpat["str"][pd_phase_id] = {}
-                debug(f'{cifpat["str"]=}')
-                #look for phase names
-                for i, structure in enumerate(structures):
-                    cifstr = self.cif[structure]
-                    pd_phase_id = cifpat["_pd_phase_id"][i]
-                    phase_name = cifstr["_pd_phase_name"] if "_pd_phase_name" in cifstr else pd_phase_id
-                    cifpat["str"][pd_phase_id]["_pd_phase_name"] = phase_name
-                debug(f'{cifpat["str"]=}')
-
-                # look for hkld values
-                if '_refln_d_spacing' not in cifpat:  # then it is OK to look for them in other places
-                    for i, structure in enumerate(structures):
-                        cifstr = self.cif[structure]
-                        pd_phase_id = cifpat["_pd_phase_id"][i]
-                        hkld_dict = get_hklds(cifstr)
-                        if hkld_dict is None:
-                            continue
-
-                        # add the data to the pattern datablock and make a loop of it
-                        cifpat["str"][pd_phase_id]['_refln_index_h'] = hkld_dict["h"]
-                        cifpat["str"][pd_phase_id]['_refln_index_k'] = hkld_dict["k"]
-                        cifpat["str"][pd_phase_id]['_refln_index_l'] = hkld_dict["l"]
-                        cifpat["str"][pd_phase_id]['_refln_d_spacing'] = hkld_dict["d"]
-                else:  # refl_d_spacing is in the cifpat, and I need to check for multiple phases and
-                    #  disperse the results accordingly
-                    if "_pd_refln_phase_id" in cifpat:
-                        # these contain all the hkls from all the phases
-                        hs = get_from_cif(cifpat, '_refln_index_h')
-                        ks = get_from_cif(cifpat, '_refln_index_k')
-                        ls = get_from_cif(cifpat, '_refln_index_l')
-                        ds = get_from_cif(cifpat, '_refln_d_spacing')
-                        ids = get_from_cif(cifpat, '_pd_refln_phase_id')
-
-                        for phase_id in cifpat["_pd_phase_id"]:  # this used to be _pd_refln_phase_id
-                            h = get_hkld_from_matching_id(hs, phase_id, ids)
-                            k = get_hkld_from_matching_id(ks, phase_id, ids)
-                            l = get_hkld_from_matching_id(ls, phase_id, ids)
-                            d = get_hkld_from_matching_id(ds, phase_id, ids)
-                            if h is not None:
-                                cifpat["str"][phase_id]['_refln_index_h'] = h
-                            if k is not None:
-                                cifpat["str"][phase_id]['_refln_index_k'] = k
-                            if l is not None:
-                                cifpat["str"][phase_id]['_refln_index_l'] = l
-                            if d is not None:
-                                cifpat["str"][phase_id]['_refln_d_spacing'] = d
-            else:  # there is no "_pd_phase_block_id", and we need to check the pattern for hkls - assuming only one phase
-                debug("there is no _pd_phase_block_id")
-                if "_refln_d_spacing" in cifpat:
-                    # these contain all the hkls from all the phases
-                    hs = get_from_cif(cifpat, '_refln_index_h')
-                    ks = get_from_cif(cifpat, '_refln_index_k')
-                    ls = get_from_cif(cifpat, '_refln_index_l')
-                    ds = get_from_cif(cifpat, '_refln_d_spacing')
-                    cifpat["str"] = {"1": {}}
-                    if hs is not None:
-                        cifpat["str"]["1"]['_refln_index_h'] = hs
-                    if ks is not None:
-                        cifpat["str"]["1"]['_refln_index_k'] = ks
-                    if ls is not None:
-                        cifpat["str"]["1"]['_refln_index_l'] = ls
-                    if ds is not None:
-                        cifpat["str"]["1"]['_refln_d_spacing'] = ds
-
-                # add the phase name
-                cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
-
-            # end of if
-
+            structures, _ = get_linked_structures_and_phase_ids(cifpat, blockname_of)
             # look for other datanames that it would be nice to have in the pattern
             for dataname in ParseCIF.NICE_TO_HAVE_DATANAMES:
-                if dataname not in cifpat:  # then need to look for it in different places
+                if dataname not in cifpat or cifpat[dataname] in [".", "?"]:  # then need to look for it in different places
                     get_dataname_into_pattern(self.cif, pattern, dataname, structures, others)
 
-                # if it does exist, and it is single-valued, and is not known, then look for it as well
-                if dataname in cifpat and cifpat[dataname] in [".", "?"]:
-                    get_dataname_into_pattern(self.cif, pattern, dataname, structures, others)
-
+    def _make_just_patterns_cif(self):
+        """
+        Goes through all of the blocks in the cif dictionary and only copies out the onces which contain diffraction patterns.
+        All the other necessary information should already be in the "str" entry.
+        :return:
+        """
+        blocknames = grouped_blocknames(self.cif)
+        patterns = blocknames["patterns"]
+        for pattern in patterns:
             self.ncif[pattern] = self.cif[pattern]
-        # end of for loop
 
-        # convert everything that should be a float into a float.
-        for pattern in self.ncif.keys():
+    def _make_cif_numeric(self):
+        for pattern in self.ncif:
             cifpat = self.ncif[pattern]
             for dataname in ParseCIF.DATANAMES_THAT_SHOULD_BE_NUMERIC:
                 if dataname not in cifpat:
@@ -574,67 +579,63 @@ class ParseCIF:
                     # the observed_Y ones should (must?) have. If one isn't explicitiy
                     # given, I take the sqrt of the value
                     if dataname in self.OBSERVED_Y_LIST:
-                        val, err = split_val_err_list(cifpat[dataname], default_error="sqrt")
-                        cifpat[dataname] = np.asarray(val, dtype=float)
-                        cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
+                        calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
                     else:
                         try:
                             cifpat[dataname] = np.asarray(cifpat[dataname], dtype=float)
                         except ValueError:  # probably because numpy got given a thing with an error
-                            val, err = split_val_err_list(cifpat[dataname])
-                            cifpat[dataname] = np.asarray(val, dtype=float)
-                            cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
+                            calc_dataname_and_err(cifpat, dataname)
                 elif isinstance(cifpat[dataname], str):
-                    if not (cifpat[dataname] == "." or cifpat[dataname] == "?"):
+                    if cifpat[dataname] not in [".", "?"]:
                         try:
                             cifpat[dataname] = float(cifpat[dataname])
                         except ValueError:
                             val, err = split_val_err(cifpat[dataname])
                             cifpat[dataname] = val
                             cifpat[dataname + "_err"] = err
+                    else:
+                        cifpat[dataname] = float("nan")
 
-            # now that I've gotten floats, I can do the additional data conversions to give me more
-            #  x-axis values and other nice things
+    def _calc_extra_data(self):
+        for pattern in self.ncif:
+            cifpat = self.ncif[pattern]
             if "_pd_proc_d_spacing" not in cifpat and "_pd_proc_recip_len_Q" in cifpat:
-                cifpat["d"] = 2. * np.pi / cifpat["_pd_proc_recip_len_Q"]
+                cifpat["d"] = calc_dq_from_qd(cifpat["_pd_proc_recip_len_Q"])
             if "_pd_proc_recip_len_Q" not in cifpat and "_pd_proc_d_spacing" in cifpat:
-                cifpat["q"] = 2. * np.pi / cifpat["_pd_proc_d_spacing"]
+                cifpat["q"] = calc_dq_from_qd(cifpat["_pd_proc_d_spacing"])
 
             lam = None
             if '_diffrn_radiation_wavelength' in cifpat or "_cell_measurement_wavelength" in cifpat:
-                if '_diffrn_radiation_wavelength' in cifpat:
-                    lam = cifpat["_diffrn_radiation_wavelength"]
-                else:
-                    lam = cifpat["_cell_measurement_wavelength"]
+                lam = cifpat["_diffrn_radiation_wavelength"] if '_diffrn_radiation_wavelength' in cifpat else cifpat["_cell_measurement_wavelength"]
                 cifpat["wavelength"] = lam
-
-                if "_pd_proc_d_spacing" not in cifpat and "__d" not in cifpat:
-                    if "_pd_meas_2theta_scan" in cifpat:
-                        cifpat["d"] = lam / (2. * np.sin(cifpat["_pd_meas_2theta_scan"] * np.pi / 360.))
-                    elif "_pd_proc_2theta_corrected" in cifpat:
-                        cifpat["d"] = lam / (2. * np.sin(cifpat["_pd_proc_2theta_corrected"] * np.pi / 360.))
-
-                if "_pd_proc_recip_len_Q" not in cifpat and "__q" not in cifpat:
-                    if "_pd_meas_2theta_scan" in cifpat:
-                        cifpat["q"] = 4. * np.pi * np.sin(cifpat["_pd_meas_2theta_scan"] * np.pi / 360.) / lam
-                    elif "_pd_proc_2theta_corrected" in cifpat:
-                        cifpat["q"] = 4. * np.pi * np.sin(cifpat["_pd_proc_2theta_corrected"] * np.pi / 360.) / lam
+                if "_pd_proc_d_spacing" not in cifpat and "d" not in cifpat:
+                    for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
+                        if th2 in cifpat:
+                            cifpat["d"] = calc_d_from_2theta(lam, cifpat[th2])
+                            break  # only want to do a single d-from-2th calculation
+                if "_pd_proc_recip_len_Q" not in cifpat and "q" not in cifpat:
+                    for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
+                        if th2 in cifpat:
+                            cifpat["q"] = calc_q_from_2theta(lam, cifpat[th2])
+                            break  # only want to do a single q-from-2th calculation
 
             if "str" in cifpat:
-                for structure in cifpat["str"].keys():
-                    if "_refln_d_spacing" in cifpat["str"][structure]:
-                        cifsubstr = cifpat["str"][structure]
-                        cifsubstr["_refln_d_spacing"] = np.asarray(cifsubstr["_refln_d_spacing"], dtype=float)
-                        cifsubstr["refln_q"] = 2. * np.pi / cifsubstr["_refln_d_spacing"]
-                        if lam is not None:
-                            cifsubstr["refln_2theta"] = 2. * np.arcsin(lam / (2. * cifsubstr["_refln_d_spacing"])) * 180. / np.pi
-                        cifsubstr["refln_hovertext"] = [h + " " + k + " " + l for h, k, l in
-                                                        zip(cifsubstr['_refln_index_h'], cifsubstr['_refln_index_k'], cifsubstr["_refln_index_l"])]
+                for phase in cifpat["str"]:
+                    if "_refln_d_spacing" in cifpat["str"][phase]:
+                        cifstr = cifpat["str"][phase]
+                        cifstr["_refln_d_spacing"] = np.asarray(cifstr["_refln_d_spacing"], dtype=float)
+                        cifstr["refln_q"] = calc_dq_from_qd(cifstr["_refln_d_spacing"])
+                        if lam:
+                            cifstr["refln_2theta"] = calc_2theta_from_d(lam, cifstr["_refln_d_spacing"])
+                        cifstr["refln_hovertext"] = [f"{h} {k} {l}" for h, k, l in
+                                                     zip(cifstr['_refln_index_h'], cifstr['_refln_index_k'], cifstr["_refln_index_l"])]
 
     def _rename_datablock_from_blockid(self):
         """
         A lot of the pdCIF revolves around block_id, and not the dataname.
         This renames the dataname as the block_id to enable easier lookups.
+        This needs to be done as a ductionary, and not a PyCifRW, as PyCIFRW
+        forces datablock names to be lowercase.
         :return:
         """
         for pattern in self.ncif:
@@ -646,37 +647,6 @@ class ParseCIF:
     def get_processed_cif(self):
         return self.ncif
 
-    def get_raw_cif(self):
-        return self.ciffile
-
-    def cumrwp(self, pattern, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
-        """
-        Calculate the cumulative Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
-        This is the value of Rwp taking into account only the data with the x-ordinate <= the current
-        x-ordinate. It shows where there are large deviations contributing to the overall Rwp
-        :param pattern: blockname of the pattern you want
-        :param yobs_dataname: dataname of the yobs value
-        :param ycalc_dataname: dataname of the ycalc value
-        :param yobs_dataname_err: defaults to the "_err" column o the yobs name. If you want '_pd_proc_ls_weight', you need to say so
-        :param ymod_dataname: this currently does nothing.
-        :return: a numpy array with values of Rwp. It has the same length as yobs
-        """
-        yobs = self.ncif[pattern][yobs_dataname]
-        ycalc = self.ncif[pattern][ycalc_dataname]
-
-        if ymod_dataname is not None:  # I don't know what this means yet...
-            return [-1] * len(yobs)
-        if yobs_dataname_err is None:
-            yobs_dataname_err = yobs_dataname + "_err"
-        if yobs_dataname_err == "_pd_proc_ls_weight":
-            yweight = self.ncif[pattern][yobs_dataname_err]
-        else:
-            yweight = 1 / (self.ncif[pattern][yobs_dataname_err] ** 2)
-        return np.sqrt(
-            np.cumsum(yweight * (yobs - ycalc) ** 2)
-            / np.cumsum(yweight * yobs ** 2)
-        )
-
 
 # end of class
 
@@ -686,8 +656,9 @@ if __name__ == "__main__":
     # filename = r"..\..\data\ideal_condensed.cif"
     # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
     # filename = r"..\..\data\ALUMINA.cif"
+    filename = r"c:\data\La2Ti2O7-n-883C-mono.cif"
     # filename = r"c:\data\yh5011sup1.cif"
-    filename = r"c:\data\Nd2Ti2O7-x-1456C-mono.cif"
+    # filename = r"c:\data\Nd2Ti2O7-x-1456C-mono_fixed.cif"
     # filename = r"..\..\data\NISI.cif"
     # filename = r"..\..\data\ideal_5patterns.cif"
     # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
@@ -704,6 +675,7 @@ if __name__ == "__main__":
     # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
+    print("This is the end of the file:")
     pretty(cifd, print_values=True)
     # print(filename)
     # print(files[18])
