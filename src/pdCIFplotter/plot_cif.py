@@ -329,9 +329,9 @@ class PlotCIF:
                 ax_2.set_ylim(miny2, maxy2)
 
             cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
-
+            rwp = parse_cif.calc_rwp(cifpat, y_ordinates[0], y_ordinates[1])
             ax2 = ax.twinx()
-            ax2.plot(x, cchi2, label=" c\u03C7\u00b2",
+            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp:.4f})",
                      color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
                      linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
                      markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3

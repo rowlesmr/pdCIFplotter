@@ -238,13 +238,36 @@ def split_val_err(value, default_error="none"):
         return (vals[0], errs[0])
 
 
-
 def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
     """
     Calculate the cumulative chi-squared statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
-    This is the value of Rwp taking into account only the data with the x-ordinate <= the current
-    x-ordinate. It shows where there are large deviations contributing to the overall Rwp
+    This is an indication of the value of chi2 taking into account only the data with the x-ordinate <= the current
+    x-ordinate. It shows where there are large deviations contributing to the overall chi2
     see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23. https://doi.org/10.6028/jres.008.
+    :param cifpat: dictionary representation of the cif pattern you want
+    :param yobs_dataname: dataname of the yobs value
+    :param ycalc_dataname: dataname of the ycalc value
+    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param ymod_dataname: this currently does nothing.
+    :return: a numpy array with values of cumchi2. It has the same length as yobs
+    """
+    yobs = cifpat[yobs_dataname]
+    ycalc = cifpat[ycalc_dataname]
+
+    if ymod_dataname is not None:  # I don't know what ymod means yet...
+        return [-1] * len(yobs)
+    if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
+        yweight = cifpat["_pd_proc_ls_weight"]
+    else:
+        yobs_dataname_err = yobs_dataname + "_err"
+        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+    return np.nancumsum(yweight * ((yobs - ycalc) ** 2))  # treats nan as 0
+
+
+def calc_rwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, ymod_dataname=None):
+    """
+    Calculate the Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
+    See Table 1.3 in "The Rietveld Method" by RA Young
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
@@ -262,7 +285,10 @@ def calc_cumchi2(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err=None, 
     else:
         yobs_dataname_err = yobs_dataname + "_err"
         yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
-    return np.nancumsum(yweight * (yobs - ycalc) ** 2)  # treats nan as 0
+
+    top = np.nansum(yweight * ((yobs - ycalc) ** 2))
+    bottom = np.nansum(yweight * (yobs ** 2))
+    return np.sqrt(top/bottom)
 
 
 def theta2_from_min_max_inc(start, step, stop):
@@ -333,7 +359,7 @@ def add_hklds_to_cifpatstr(cifpatstr, hkld_dict):
     """
     adds hkld information to a phase in the "str" section of a cif dictionary
     :param cifpatstr:  a dictionary of the form: cifpat["str"][phase_id]
-    :param hkl_dict: an hkl dictionary of the form hkld_dict or hklds[phase_id]
+    :param hkld_dict: an hkl dictionary of the form hkld_dict or hklds[phase_id]
     :return: None - changes in-place
     """
     for refln, idx in zip(['_refln_index_h', '_refln_index_k', '_refln_index_l', '_refln_d_spacing'], ["h", "k", "l", "d"]):
@@ -363,6 +389,7 @@ def calc_dataname_and_err(cifpat, dataname, default_error="zero"):
         cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
     else:
         cifpat[dataname] = np.asarray(val, dtype=float)
+
 
 class ParseCIF:
     # these are all the values that could be an x-ordinate. I added the last two to be place-holders
