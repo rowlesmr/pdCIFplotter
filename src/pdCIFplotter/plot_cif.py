@@ -121,7 +121,8 @@ class PlotCIF:
                                "ycalc": {"color": "red", "marker": None, "linestyle": "solid", "linewidth": "1"},
                                "ybkg": {"color": "gray", "marker": None, "linestyle": "solid", "linewidth": "2"},
                                "ydiff": {"color": "lightgrey", "marker": None, "linestyle": "solid", "linewidth": "2"},
-                               "cchi2": {"color": "lightgrey", "marker": None, "linestyle": "solid", "linewidth": "1"}}
+                               "cchi2": {"color": "lightgrey", "marker": None, "linestyle": "solid", "linewidth": "1"},
+                               "norm_int": {"color": "lightgrey", "marker": None, "linestyle": "solid", "linewidth": "1"}}
 
         self.surface_z_color = "viridis"
         self.surface_plot_data = {"x_ordinate": "", "y_ordinate": "", "z_ordinate": "",
@@ -143,7 +144,7 @@ class PlotCIF:
         plot_list = []
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
-            if not (x_ordinate in cifpat and y_ordinate in cifpat):
+            if x_ordinate not in cifpat or y_ordinate not in cifpat:
                 continue
             # now the cif pat has both x and y
             xs.append(cifpat[x_ordinate])
@@ -211,7 +212,7 @@ class PlotCIF:
 
     def single_update_plot(self, pattern: str,
                            x_ordinate: str, y_ordinates: list,
-                           plot_hkls: dict, plot_diff: bool, plot_cchi2: bool,
+                           plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                            axis_scale: dict,
                            fig):
         #todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
@@ -317,6 +318,20 @@ class PlotCIF:
                 "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
         # end hkl if
 
+        if plot_norm_int:
+            y = cifpat[y_ordinates[0]]
+            if "_pd_proc_ls_weight" in cifpat:
+                y_norm = y**2 * cifpat["_pd_proc_ls_weight"]
+            else:
+                y_norm = (y/cifpat[y_ordinates[0]+"_err"])**2
+            y_norm = _scale_y_ordinate(y_norm, axis_scale)
+
+            plt.plot(x, y_norm, label=" Normalised intensity",
+                     color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
+                     linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
+                     markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
+                     )
+
         if plot_cchi2:
             # https://stackoverflow.com/a/10482477/36061
             def align_cchi2(ax_1, v1, ax_2):
@@ -331,7 +346,7 @@ class PlotCIF:
             cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
             rwp = parse_cif.calc_rwp(cifpat, y_ordinates[0], y_ordinates[1])
             ax2 = ax.twinx()
-            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp:.4f})",
+            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp*100:.2f}%)",
                      color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
                      linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
                      markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
