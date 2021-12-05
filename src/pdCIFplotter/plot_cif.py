@@ -1,10 +1,12 @@
 from pdCIFplotter import parse_cif
 import numpy as np
 import math
+import matplotlib.figure as mf
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
+from typing import List, Tuple
 
 DEBUG = True
 
@@ -18,11 +20,11 @@ def debug(*args):
 # from here: https://matplotlib.org/stable/gallery/color/named_colors.html
 _by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
 LINE_MARKER_COLORS = [name for hsv, name in _by_hsv]
-MARKER_STYLES = [None, ".", "o", "s", "*", "+", "x", "D"]
-LINE_STYLES = ["solid", "None", "dashed", "dashdot", "dotted"]
-LINE_MARKER_SIZE = [str(s) for s in range(1, 10)]
+MARKER_STYLES: List[str] = [None, ".", "o", "s", "*", "+", "x", "D"]
+LINE_STYLES: List[str] = ["solid", "None", "dashed", "dashdot", "dotted"]
+LINE_MARKER_SIZE: List[str] = [str(s) for s in range(1, 10)]
 
-SURFACE_COLOR_MAPS_SOURCE = [
+SURFACE_COLOR_MAPS_SOURCE: List[str] = [
     'viridis', 'plasma', 'inferno', 'magma', 'cividis', 'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
     'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
 
@@ -32,10 +34,10 @@ for c in SURFACE_COLOR_MAPS_SOURCE:
     SURFACE_COLOR_MAPS.append(c + "_r")
 
 TABLEAU_COLORS = mc.TABLEAU_COLORS
-TABLEAU_COLOR_VALUES = list(TABLEAU_COLORS.values())
+TABLEAU_COLOR_VALUES: List[str] = list(TABLEAU_COLORS.values())
 
 
-def _x_axis_title(x_ordinate, wavelength=None):
+def _x_axis_title(x_ordinate: str, wavelength: float = None) -> str:
     if wavelength is None:
         wavelength = "(Wavelength unknown)"
     else:
@@ -53,7 +55,7 @@ def _x_axis_title(x_ordinate, wavelength=None):
     return X_AXIS_TITLES[x_ordinate]
 
 
-def _scale_ordinate(axis_scale: dict, val, ordinate):
+def _scale_ordinate(axis_scale: dict, val, ordinate: str):
     if axis_scale[ordinate] == "log":
         val = np.log10(val)
     elif axis_scale[ordinate] == "sqrt":
@@ -61,15 +63,15 @@ def _scale_ordinate(axis_scale: dict, val, ordinate):
     return val
 
 
-def _scale_x_ordinate(x, axis_scale):
+def _scale_x_ordinate(x, axis_scale: dict):
     return _scale_ordinate(axis_scale, x, "x")
 
 
-def _scale_y_ordinate(y, axis_scale):
+def _scale_y_ordinate(y, axis_scale: dict):
     return _scale_ordinate(axis_scale, y, "y")
 
 
-def _scale_z_ordinate(z, axis_scale):
+def _scale_z_ordinate(z, axis_scale: dict):
     return _scale_ordinate(axis_scale, z, "z")
 
 
@@ -81,7 +83,7 @@ def _scale_xyz_ordinates(x, y, z, axis_scale: dict):
     return _scale_x_ordinate(x, axis_scale), _scale_y_ordinate(y, axis_scale), _scale_z_ordinate(z, axis_scale)
 
 
-def _scale_title(axis_scale: dict, title, ordinate):
+def _scale_title(axis_scale: dict, title: str, ordinate: str) -> str:
     if axis_scale[ordinate] == "log":
         title = f"Log10[{title}]"
     elif axis_scale[ordinate] == "sqrt":
@@ -89,23 +91,23 @@ def _scale_title(axis_scale: dict, title, ordinate):
     return title
 
 
-def _scale_x_title(title, axis_scale):
+def _scale_x_title(title: str, axis_scale: dict) -> str:
     return _scale_title(axis_scale, title, "x")
 
 
-def _scale_y_title(title, axis_scale):
+def _scale_y_title(title: str, axis_scale: dict) -> str:
     return _scale_title(axis_scale, title, "y")
 
 
-def _scale_z_title(title, axis_scale):
+def _scale_z_title(title: str, axis_scale: dict) -> str:
     return _scale_title(axis_scale, title, "z")
 
 
-def _scale_xy_title(xtitle, ytitle, axis_scale: dict):
+def _scale_xy_title(xtitle: str, ytitle: str, axis_scale: dict) -> Tuple[str, str]:
     return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale)
 
 
-def _scale_xyz_title(xtitle, ytitle, ztitle, axis_scale: dict):
+def _scale_xyz_title(xtitle: str, ytitle: str, ztitle: str, axis_scale: dict) -> Tuple[str, str, str]:
     return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale), _scale_z_title(ztitle, axis_scale)
 
 
@@ -113,7 +115,7 @@ class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
 
-    def __init__(self, cif: dict, canvas_x, canvas_y):
+    def __init__(self, cif: dict, canvas_x: int, canvas_y: int):
         self.canvas_x = canvas_x
         self.canvas_y = canvas_y
 
@@ -128,9 +130,9 @@ class PlotCIF:
         self.surface_plot_data = {"x_ordinate": "", "y_ordinate": "", "z_ordinate": "",
                                   "x_data": None, "y_data": None, "z_data": None, "plot_list": []}
 
-        self.cif = cif
+        self.cif: dict = cif
 
-    def get_all_xy_data(self, x_ordinate, y_ordinate):
+    def get_all_xy_data(self, x_ordinate: str, y_ordinate: str) -> Tuple[List, List, List[str]]:
         """
         Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
         that have both of those ordinates. Also return a list of the pattern names which where included
@@ -152,7 +154,7 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
-    def get_all_xyz_data(self, x_ordinate, y_ordinate, z_ordinate):
+    def get_all_xyz_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str) -> Tuple[List, List, List, List[str]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
@@ -163,7 +165,7 @@ class PlotCIF:
         min_x = 9999999999
         max_x = -min_x
         x_step = 0
-        # get all of the original data
+        # get all the original data
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
             if (
@@ -214,8 +216,8 @@ class PlotCIF:
                            x_ordinate: str, y_ordinates: list,
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                            axis_scale: dict,
-                           fig):
-        #todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
+                           fig: mf.Figure) -> mf.Figure:
+        # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         dpi = plt.gcf().get_dpi()
         if fig is not None:
             # this is needed for the hkl position calculations
@@ -324,9 +326,9 @@ class PlotCIF:
         if plot_norm_int:
             y = cifpat[y_ordinates[0]]
             if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y**2 * cifpat["_pd_proc_ls_weight"]
+                y_norm = y ** 2 * cifpat["_pd_proc_ls_weight"]
             else:
-                y_norm = (y/cifpat[y_ordinates[0]+"_err"])**2
+                y_norm = (y / cifpat[y_ordinates[0] + "_err"]) ** 2
             y_norm = _scale_y_ordinate(y_norm, axis_scale)
 
             plt.plot(x, y_norm, label=" Norm. int. to errors",
@@ -349,7 +351,7 @@ class PlotCIF:
             cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
             rwp = parse_cif.calc_rwp(cifpat, y_ordinates[0], y_ordinates[1])
             ax2 = ax.twinx()
-            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp*100:.2f}%)",
+            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
                      color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
                      linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
                      markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
@@ -395,12 +397,7 @@ class PlotCIF:
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
                           plot_hkls: dict, axis_scale: dict,
-                          fig):
-        debug(f"stack {x_ordinate=}")
-        debug(f"stack {y_ordinate=}")
-        debug(f"stack {offset=}")
-        debug(f"stack {axis_scale=}")
-
+                          fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
         if fig is not None:
             plt.close(fig)
@@ -413,7 +410,7 @@ class PlotCIF:
         # xs and ys hold unscaled values
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
-        # compile all of the patterns' data
+        # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
         for i in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[i]
@@ -434,8 +431,6 @@ class PlotCIF:
                 cifpat = self.cif[pattern]
                 if "str" not in cifpat:
                     continue
-
-                debug(f"Now plotting hkls for {pattern}")
                 for j, phase in enumerate(cifpat["str"].keys()):
                     hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
                     if plot_hkls["below"]:
@@ -448,10 +443,6 @@ class PlotCIF:
                         hkl_y = np.interp(hkl_x, _scale_x_ordinate(xs[i], axis_scale), ys[i], left=float("nan"), right=float("nan"))
 
                     hkl_y = _scale_y_ordinate(hkl_y, axis_scale) * scalar
-
-                    debug(f"{phase=}")
-                    debug(f"{hkl_x=}")
-                    debug(f"{hkl_y=}")
 
                     idx = j % len(TABLEAU_COLOR_VALUES)
                     phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
@@ -495,7 +486,7 @@ class PlotCIF:
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
                             plot_hkls: bool, axis_scale: dict,
-                            fig):
+                            fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
 
         if fig is not None:
@@ -528,13 +519,7 @@ class PlotCIF:
             self.surface_plot_data["plot_list"] = plot_list
         # end of if
 
-        debug("scaling surface plot data")
         xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
-
-        debug("plotting surface plot")
-        print(f"{xx=}")
-        print(f"{yy=}")
-        print(f"{zz=}")
         plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
@@ -555,7 +540,8 @@ class PlotCIF:
                     continue
 
                 for i, phase in enumerate(cifpat["str"].keys()):
-                    debug(f"Should be plotting hkls for {phase}, which is number {i}.")
+                    if hkl_x_ordinate not in cifpat["str"][phase]:
+                        continue
 
                     hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
                     hkl_y = _scale_y_ordinate([y] * len(hkl_x), axis_scale)
@@ -574,7 +560,6 @@ class PlotCIF:
                 "add", lambda sel: sel.annotation.set_text(surface_hkl_hover_dict[sel.artist][sel.index]))
         # end hkl if
 
-        debug("Setting surface plot axis labels")
         # check that the wavelength for all patterns is the same
         wavelength = parse_cif.get_from_cif(self.cif[plot_list[0]], "wavelength")
         for pattern in plot_list:
