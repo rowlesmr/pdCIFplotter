@@ -39,7 +39,7 @@ surface_figure_agg = None
 cif = {}  # the cif dictionary from my parsing
 plotcif = None
 single_data_list = []  # a list of all pattern blocknames in the cif
-single_dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
+single_dropdown_lists = {}  # all the appropriate x and y ordinates for each pattern
 
 stack_x_ordinates = []
 stack_y_ordinates = {}
@@ -82,7 +82,7 @@ def reset_globals():
     cif = {}  # the cif dictionary from my parsing
     plotcif = None
     single_data_list = []  # a list of all pattern blocknames in the cif
-    single_dropdown_lists = {}  # all of the appropriate x and y ordinates for each pattern
+    single_dropdown_lists = {}  # all the appropriate x and y ordinates for each pattern
 
     stack_x_ordinates = []
     stack_y_ordinates = {}
@@ -139,11 +139,13 @@ def pretty(d, indent=0, print_values=True):
 
 
 def single_update_plot(pattern, x_ordinate, y_ordinates: list,
-                       plot_hkls: bool, plot_diff: bool, plot_cchi2: bool,
+                       plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int:bool,
                        axis_scale: dict, window):
     global single_figure_agg, single_fig
 
-    single_fig = plotcif.single_update_plot(pattern, x_ordinate, y_ordinates, plot_hkls, plot_diff, plot_cchi2, axis_scale, single_fig)
+    single_fig = plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
+                                            plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
+                                            axis_scale, single_fig)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
                                               window["single_matplotlib_controls"].TKCanvas)
@@ -198,7 +200,7 @@ class Toolbar(NavigationToolbar2Tk):
 def y_ordinate_styling_popup(window_title, color_default, marker_styles_default, line_style_default, size_default, key, window):
     layout_def = \
         [
-            [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
+            [sg.Text("What line/marker colour, marker style, line style, and line/marker size do you want?")],
             [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
              sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
              sg.Combo(LINE_STYLES, default_value=line_style_default, key=key + "-popup-linestyle"),
@@ -381,6 +383,7 @@ single_keys = {"data": "single_data_chooser",  # this entry must remain at the b
                "hkl_above": "single_hkl_checkbox_above",
                "hkl_below": "single_hkl_checkbox_below",
                "cchi2": "single_cchi2_checkbox",
+               "norm_int": "single_norm_int_checkbox",
                "x_scale_linear": "single_x_scale_linear",
                "x_scale_sqrt": "single_x_scale_sqrt",
                "x_scale_log": "single_x_scale_log",
@@ -388,7 +391,7 @@ single_keys = {"data": "single_data_chooser",  # this entry must remain at the b
                "y_scale_sqrt": "single_y_scale_sqrt",
                "y_scale_log": "single_y_scale_log"}
 
-single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cchi2"]
+single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cchi2", "norm_int"]
 single_buttons_keys = {k: single_keys[k] + "_button" for k in single_keys_with_buttons}
 single_buttons_values = {v: k for k, v in single_buttons_keys.items()}
 
@@ -465,6 +468,7 @@ layout_single_plot_control = \
          sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
          sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
         checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
+        checkbox_button_row("Normalise intensity to errors", "Options", False, single_keys["norm_int"]),
         # [sg.Checkbox("Normalise intensity", enable_events=True, key="single_normalise_intensity_checkbox")],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
@@ -673,7 +677,7 @@ layout_file_chooser = \
                        target='file_string',
                        key="load_files",
                        file_types=(('CIF Files', '*.cif'),
-                                   ('State Files', '*.state'),
+                                   # ('State Files', '*.state'),
                                    ('ALL Files', '*.*')),
                        enable_events=True),  # may need to implement OneLineProgressMeter on loading and parsing CIF
         sg.In(key='file_string', visible=False, enable_events=True),
@@ -945,9 +949,11 @@ def gui():
             x_axes = [values[single_keys["x_scale_linear"]], values[single_keys["x_scale_sqrt"]], values[single_keys["x_scale_log"]]]
             y_axes = [values[single_keys["y_scale_linear"]], values[single_keys["y_scale_sqrt"]], values[single_keys["y_scale_log"]]]
             axis_words = ["linear", "sqrt", "log"]
-            single_axis_scale = {}
-            single_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
-            single_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            single_axis_scale = {
+                'x': [word for word, scale in zip(axis_words, x_axes) if scale][0],
+                'y': [word for word, scale in zip(axis_words, y_axes) if scale][0],
+            }
+
             # construct hkl checkbox dictionary
             plot_hkls = {"above": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_above"]],
                          "below": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_below"]]}
@@ -958,6 +964,7 @@ def gui():
                                    plot_hkls,
                                    values[single_keys["ydiff"]],
                                    values[single_keys["cchi2"]],
+                                   values[single_keys["norm_int"]],
                                    single_axis_scale,
                                    window)
             except (IndexError, ValueError) as e:
@@ -972,9 +979,10 @@ def gui():
             x_axes = [values[stack_keys["x_scale_linear"]], values[stack_keys["x_scale_sqrt"]], values[stack_keys["x_scale_log"]]]
             y_axes = [values[stack_keys["y_scale_linear"]], values[stack_keys["y_scale_sqrt"]], values[stack_keys["y_scale_log"]]]
             axis_words = ["linear", "sqrt", "log"]
-            stack_axis_scale = {}
-            stack_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
-            stack_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            stack_axis_scale = {
+                'x': [word for word, scale in zip(axis_words, x_axes) if scale][0],
+                'y': [word for word, scale in zip(axis_words, y_axes) if scale][0]
+            }
             # construct hkl checkbox dictionary
             plot_hkls = {"above": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_above"]],
                          "below": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_below"]]}
@@ -992,10 +1000,18 @@ def gui():
             y_axes = [values[surface_keys["y_scale_linear"]], values[surface_keys["y_scale_sqrt"]], values[surface_keys["y_scale_log"]]]
             z_axes = [values[surface_keys["z_scale_linear"]], values[surface_keys["z_scale_sqrt"]], values[surface_keys["z_scale_log"]]]
             axis_words = ["linear", "sqrt", "log"]
-            surface_axis_scale = {}
-            surface_axis_scale["x"] = [word for word, scale in zip(axis_words, x_axes) if scale][0]
-            surface_axis_scale["y"] = [word for word, scale in zip(axis_words, y_axes) if scale][0]
-            surface_axis_scale["z"] = [word for word, scale in zip(axis_words, z_axes) if scale][0]
+            surface_axis_scale = {
+                'x': [
+                    word for word, scale in zip(axis_words, x_axes) if scale
+                ][0],
+                'y': [
+                    word for word, scale in zip(axis_words, y_axes) if scale
+                ][0],
+                'z': [
+                    word for word, scale in zip(axis_words, z_axes) if scale
+                ][0],
+            }
+
             try:
                 surface_update_plot(x_ordinate, "Pattern number", z_ordinate, plot_hkls, surface_axis_scale, window)
             except (IndexError, ValueError) as e:
