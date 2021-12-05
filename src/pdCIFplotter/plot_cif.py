@@ -329,7 +329,7 @@ class PlotCIF:
                 y_norm = (y/cifpat[y_ordinates[0]+"_err"])**2
             y_norm = _scale_y_ordinate(y_norm, axis_scale)
 
-            plt.plot(x, y_norm, label=" Normalised intensity",
+            plt.plot(x, y_norm, label=" Norm. int. to errors",
                      color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
                      linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
                      markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3

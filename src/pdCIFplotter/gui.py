@@ -216,7 +216,7 @@ def y_ordinate_styling_popup(window_title, color_default, marker_styles_default,
 
 def z_ordinate_styling_popup(window_title, color_default, key, window):
     layout_def = [
-        [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
+        [sg.Text("What surface colour do you want?")],
         [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
         [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
          sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
