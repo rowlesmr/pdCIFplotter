@@ -285,6 +285,9 @@ class PlotCIF:
 
             hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
             for i, phase in enumerate(cifpat["str"].keys()):
+                if hkl_x_ordinate not in cifpat["str"][phase]:
+                    print(f"Couldn't find {hkl_x_ordinate} in {phase=}.")
+                    continue
                 hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
                 if plot_hkls["below"]:
                     hkl_y = np.array([min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkl_x))

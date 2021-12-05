@@ -200,7 +200,7 @@ class Toolbar(NavigationToolbar2Tk):
 def y_ordinate_styling_popup(window_title, color_default, marker_styles_default, line_style_default, size_default, key, window):
     layout_def = \
         [
-            [sg.Text(f"Here's the \nuser-defined \npopup for {key}!!!")],
+            [sg.Text("What line/marker colour, marker style, line style, and line/marker size do you want?")],
             [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
              sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
              sg.Combo(LINE_STYLES, default_value=line_style_default, key=key + "-popup-linestyle"),
@@ -468,7 +468,7 @@ layout_single_plot_control = \
          sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
          sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
         checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
-        checkbox_button_row("Show normalised intensity", "Options", False, single_keys["norm_int"]),
+        checkbox_button_row("Normalise intensity to errors", "Options", False, single_keys["norm_int"]),
         # [sg.Checkbox("Normalise intensity", enable_events=True, key="single_normalise_intensity_checkbox")],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
