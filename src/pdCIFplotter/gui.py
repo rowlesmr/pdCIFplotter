@@ -10,6 +10,8 @@ import PySimpleGUI as sg
 import pdCIFplotter as pcp
 from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+import matplotlib.figure as mf
+from typing import List, Tuple, Union, Any
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
@@ -26,18 +28,17 @@ action_column_width = 30
 canvas_x = 600
 canvas_y = 300
 
-single_fig = None
-single_figure_agg = None
+single_fig: mf.Figure = None
+single_figure_agg: FigureCanvasTkAgg = None
 
-stack_fig = None
-stack_figure_agg = None
+stack_fig: mf.Figure = None
+stack_figure_agg: FigureCanvasTkAgg = None
 
-surface_fig = None
-surface_ax = None
-surface_figure_agg = None
+surface_fig: mf.Figure = None
+surface_figure_agg: FigureCanvasTkAgg = None
 
 cif = {}  # the cif dictionary from my parsing
-plotcif = None
+plotcif: plot_cif.PlotCIF = None
 single_data_list = []  # a list of all pattern blocknames in the cif
 single_dropdown_lists = {}  # all the appropriate x and y ordinates for each pattern
 
@@ -138,8 +139,8 @@ def pretty(d, indent=0, print_values=True):
             print('\t' * (indent + 1) + str(value))
 
 
-def single_update_plot(pattern, x_ordinate, y_ordinates: list,
-                       plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int:bool,
+def single_update_plot(pattern, x_ordinate: str, y_ordinates: list,
+                       plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                        axis_scale: dict, window):
     global single_figure_agg, single_fig
 
@@ -151,7 +152,7 @@ def single_update_plot(pattern, x_ordinate, y_ordinates: list,
                                               window["single_matplotlib_controls"].TKCanvas)
 
 
-def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: dict, axis_scale: dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, axis_scale: dict, window):
     global stack_figure_agg, stack_fig
 
     stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, axis_scale, stack_fig)
@@ -160,7 +161,7 @@ def stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls: dict, axis_scal
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls: bool, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
     surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, axis_scale, surface_fig)
@@ -171,7 +172,7 @@ def surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls: bool, axi
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
-def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
+def draw_figure_w_toolbar(canvas, figure:mf.Figure, canvas_toolbar):
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -184,8 +185,8 @@ def draw_figure_w_toolbar(canvas, figure, canvas_toolbar):
     toolbar.config(background=sg.theme_background_color())
     toolbar._message_label.config(background=sg.theme_background_color())  # this is to do with the XY text that comes up when the cursor is over the plot
     toolbar.winfo_children()[-2].config(background=sg.theme_background_color())  # https://stackoverflow.com/a/69955540/36061
-    debug(f"{toolbar._message_label.config().keys()=}")
-    debug(f"{toolbar.config().keys()=}")
+    # debug(f"{toolbar._message_label.config().keys()=}")
+    # debug(f"{toolbar.config().keys()=}")
     toolbar.update()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
     return figure_canvas_agg
@@ -197,7 +198,7 @@ class Toolbar(NavigationToolbar2Tk):
         super(Toolbar, self).__init__(*args, **kwargs)
 
 
-def y_ordinate_styling_popup(window_title, color_default, marker_styles_default, line_style_default, size_default, key, window):
+def y_ordinate_styling_popup(window_title: str, color_default: str, marker_styles_default: str, line_style_default: str, size_default: str, key: str, window):
     layout_def = \
         [
             [sg.Text("What line/marker colour, marker style, line style, and line/marker size do you want?")],
@@ -214,7 +215,7 @@ def y_ordinate_styling_popup(window_title, color_default, marker_styles_default,
     window.write_event_value(event, values)
 
 
-def z_ordinate_styling_popup(window_title, color_default, key, window):
+def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, window):
     layout_def = [
         [sg.Text("What surface colour do you want?")],
         [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
@@ -231,14 +232,14 @@ def z_ordinate_styling_popup(window_title, color_default, key, window):
 #######################################################################################################
 ######################################################################################################
 
-def make_list_for_ordinate_dropdown(complete_list, possible_list, add_none=True):
+def make_list_for_ordinate_dropdown(complete_list: List[str], possible_list: List[str], add_none: bool = True) -> List[str]:
     used_list = [t for t in complete_list if t in possible_list]
     if add_none:
         used_list.append("None")
     return used_list
 
 
-def x_axis_title(x_ordinate, wavelength=None):
+def x_axis_title(x_ordinate: str, wavelength: float = None) -> str:
     if wavelength is None:
         wavelength = "(Wavelength unknown)"
     else:
@@ -256,25 +257,25 @@ def x_axis_title(x_ordinate, wavelength=None):
     return X_AXIS_TITLES[x_ordinate]
 
 
-def read_cif(filename):
+def read_cif(filename: str) -> None:
     global cif
     cif = parse_cif.ParseCIF(filename).get_processed_cif()
     if len(cif) == 0:
         raise ValueError("No diffraction pattern found in CIF.")
 
 
-def make_xy_dropdown_list(master_list, difpat, add_none=True):
+def make_xy_dropdown_list(master_list: List[str], difpat: str, add_none: bool = True) -> List[str]:
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
-def cif_get_this_else_that(cif, dataname, that):
+def cif_get_this_else_that(cif: dict, dataname: str, that: Union[List[str], str]):
     if dataname in cif:
         return cif[dataname]
     else:
         return that
 
 
-def initialise_pattern_and_dropdown_lists():
+def initialise_pattern_and_dropdown_lists() -> None:
     global single_data_list, single_dropdown_lists
     single_data_list = [pattern for pattern in cif]
     for pattern in single_data_list:
@@ -291,7 +292,7 @@ def initialise_pattern_and_dropdown_lists():
         single_dropdown_lists[pattern]["ybkg_value"] = single_dropdown_lists[pattern]["ybkg_values"][0]
 
 
-def initialise_stack_xy_lists():
+def initialise_stack_xy_lists() -> None:
     """
     Goes through every pattern and looks for an x-ordinate. If that x-ordinate isn't already in the list,
     add it to the list, and also add it as a potential pair with a y ordinate.
@@ -312,7 +313,7 @@ def initialise_stack_xy_lists():
                         stack_y_ordinates[x_ordinate].append(y_ordinate)
 
 
-def initialise_surface_xz_lists():
+def initialise_surface_xz_lists() -> None:
     """
     Goes through every pattern and looks for an x-ordinate. If that x-ordinate isn't already in the list,
     add it to the list, and also add it as a potential pair with a z ordinate.
@@ -351,18 +352,18 @@ def initialise_surface_xz_lists():
 decimalplaces = 4
 
 
-def label_dropdown_row(label, values, default, key):
+def label_dropdown_row(label: str, values: List[str], default: str, key: str) -> List:
     return [sg.T(label),
             sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30)]
 
 
-def label_dropdown_button_row(label, button_text, values, default, key):
+def label_dropdown_button_row(label: str, button_text: str, values: List[str], default: str, key: str) -> List:
     return [sg.T(label),
             sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30),
             sg.Button(button_text=button_text, key=key + "_button")]
 
 
-def checkbox_button_row(checkbox_text, button_text, default, key):
+def checkbox_button_row(checkbox_text: str, button_text: str, default: str, key: str) -> List:
     return [sg.Checkbox(checkbox_text, enable_events=True, default=default, key=key),
             sg.Stretch(),
             sg.Button(button_text=button_text, key=key + "_button")]
@@ -396,7 +397,7 @@ single_buttons_keys = {k: single_keys[k] + "_button" for k in single_keys_with_b
 single_buttons_values = {v: k for k, v in single_buttons_keys.items()}
 
 
-def update_single_element_disables(pattern, values, window):
+def update_single_element_disables(pattern: str, values: dict, window: sg.Window) -> None:
     if pattern == "":
         return
 
@@ -518,7 +519,7 @@ stack_keys = {"x_axis": "stack_x_ordinate",
               "y_scale_log": "stack_y_scale_log"}
 
 
-def update_stack_element_disables(values, window):
+def update_stack_element_disables(values: dict, window: sg.Window) -> None:
     # enable all buttons and dropdowns
     for key in stack_keys.keys():
         window[stack_keys[key]].update(disabled=False)
@@ -601,7 +602,7 @@ surface_buttons_keys = {k: surface_keys[k] + "_button" for k in surface_keys_wit
 surface_buttons_values = {v: (k, i) for i, (k, v) in enumerate(surface_buttons_keys.items())}
 
 
-def update_surface_element_disables(values, window):
+def update_surface_element_disables(values: dict, window: sg.Window) -> None:
     # enable all buttons and dropdowns
     for key in surface_keys.keys():
         window[surface_keys[key]].update(disabled=False)
@@ -704,7 +705,7 @@ layout = \
     ]
 
 
-def open_cif_popup(text):
+def open_cif_popup(text: str) -> sg.Window:
     m_layout = [[sg.T(text)]]
     window = sg.Window("Reading CIF...", m_layout)
     window.read(timeout=0)
@@ -716,7 +717,7 @@ def open_cif_popup(text):
 # --- setup the window and all button disable things
 #
 #################################################################################################################
-def gui():
+def gui() -> None:
     global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg
 
     window = sg.Window("pdCIFplotter", layout, finalize=True, use_ttk_buttons=True, resizable=True)
@@ -1001,15 +1002,9 @@ def gui():
             z_axes = [values[surface_keys["z_scale_linear"]], values[surface_keys["z_scale_sqrt"]], values[surface_keys["z_scale_log"]]]
             axis_words = ["linear", "sqrt", "log"]
             surface_axis_scale = {
-                'x': [
-                    word for word, scale in zip(axis_words, x_axes) if scale
-                ][0],
-                'y': [
-                    word for word, scale in zip(axis_words, y_axes) if scale
-                ][0],
-                'z': [
-                    word for word, scale in zip(axis_words, z_axes) if scale
-                ][0],
+                'x': [word for word, scale in zip(axis_words, x_axes) if scale][0],
+                'y': [word for word, scale in zip(axis_words, y_axes) if scale][0],
+                'z': [word for word, scale in zip(axis_words, z_axes) if scale][0],
             }
 
             try:
