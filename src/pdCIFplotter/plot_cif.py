@@ -154,6 +154,29 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
+    def get_y_norm_data(self, x_ordinate: str, y_ordinate: str) -> List:
+        """
+        Give an x and y-ordinate, return arrays holding y_norm values from all patterns in the cif
+        that have both of those ordinates.
+        :param x_ordinate: str representing the x_ordinate eg _pd_proc_d_spacing
+        :param y_ordinate: str representing the y_ordinate eg _pd_meas_intensity_total
+        :return: list of y_norm values
+        """
+        y_norms = []
+        for pattern in self.cif.keys():
+            cifpat = self.cif[pattern]
+            if x_ordinate not in cifpat or y_ordinate not in cifpat:
+                continue
+            # now the cifpat has both x and y
+            y = cifpat[y_ordinate]
+            if "_pd_proc_ls_weight" in cifpat:
+                y_norm = y * cifpat["_pd_proc_ls_weight"]
+            else:
+                y_norm = y / cifpat[y_ordinate + "_err"] ** 2
+            y_norms.append(y_norm)
+
+        return y_norms
+
     def get_all_xyz_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str) -> Tuple[List, List, List, List[str]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
@@ -237,9 +260,19 @@ class PlotCIF:
         cifpat = self.cif[pattern]
         x = _scale_x_ordinate(cifpat[x_ordinate], axis_scale)
         ys = []
+
+        if plot_norm_int and y_ordinates[0] != "None":
+            y = cifpat[y_ordinates[0]]
+            if "_pd_proc_ls_weight" in cifpat:
+                y_norm = y * cifpat["_pd_proc_ls_weight"]
+            else:
+                y_norm = y / cifpat[y_ordinates[0] + "_err"] ** 2
+        else:
+            y_norm = np.ones(len(x))
+
         for y in y_ordinates:
             if y != "None":
-                ys.append(_scale_y_ordinate(cifpat[y], axis_scale))
+                ys.append(_scale_y_ordinate(cifpat[y] * y_norm, axis_scale))
             else:
                 ys.append(None)
 
@@ -264,11 +297,12 @@ class PlotCIF:
                     # this is to plot the 'sero' line for the diff plot
                     plt.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
 
-                plt.plot(x, y, label=" " + y_name,
-                         color=self.single_y_style[y_type]["color"], marker=self.single_y_style[y_type]["marker"],
-                         linestyle=self.single_y_style[y_type]["linestyle"], linewidth=self.single_y_style[y_type]["linewidth"],
-                         markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
-                         )
+                label = f" {y_name}" if not plot_norm_int else f" {y_name} (norm.)"
+                ax.plot(x, y, label=label,
+                        color=self.single_y_style[y_type]["color"], marker=self.single_y_style[y_type]["marker"],
+                        linestyle=self.single_y_style[y_type]["linestyle"], linewidth=self.single_y_style[y_type]["linewidth"],
+                        markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
+                        )
                 # keep track of min and max to plot hkl ticks and diff correctly
                 min_plot = min(min_plot, np.nanmin(y))
                 max_plot = max(max_plot, np.nanmax(y))
@@ -323,20 +357,6 @@ class PlotCIF:
                 "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
         # end hkl if
 
-        if plot_norm_int:
-            y = cifpat[y_ordinates[0]]
-            if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y ** 2 * cifpat["_pd_proc_ls_weight"]
-            else:
-                y_norm = (y / cifpat[y_ordinates[0] + "_err"]) ** 2
-            y_norm = _scale_y_ordinate(y_norm, axis_scale)
-
-            plt.plot(x, y_norm, label=" Norm. int. to errors",
-                     color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
-                     linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
-                     markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
-                     )
-
         if plot_cchi2:
             # https://stackoverflow.com/a/10482477/36061
             def align_cchi2(ax_1, v1, ax_2):
@@ -372,7 +392,9 @@ class PlotCIF:
         if not plot_cchi2:
             plt.legend(frameon=False, loc='upper right')  # loc='best')
 
-        if "intensity" in y_ordinates[0]:
+        if plot_norm_int:
+            y_axis_title = "Normalised counts"
+        elif "intensity" in y_ordinates[0]:
             y_axis_title = "Intensity (arb. units)"
         else:
             y_axis_title = "Counts"
@@ -396,7 +418,8 @@ class PlotCIF:
 
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
-                          plot_hkls: dict, axis_scale: dict,
+                          plot_hkls: dict, plot_norm_int:dict,
+                          axis_scale: dict,
                           fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
         if fig is not None:
@@ -410,12 +433,22 @@ class PlotCIF:
         # xs and ys hold unscaled values
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
+
+        if plot_norm_int["norm_int"]:
+            print(f'{plot_norm_int["y_ordinate_for_norm"]=}')
+            y_norms = self.get_y_norm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
+        else:
+            y_norms = [np.ones(len(xi)) for xi in xs]
+
         # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
         for i in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[i]
-            x, y = _scale_xy_ordinates(xs[i], ys[i], axis_scale)
-            plt.plot(x, y + i * offset, label=pattern)  # do I want to fill white behind each plot?
+            x, y = xs[i], ys[i]*y_norms[i]
+            x, y = _scale_xy_ordinates(x, y, axis_scale)
+
+            label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
+            ax.plot(x, y + i * offset, label=label)  # do I want to fill white behind each plot?
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
@@ -465,7 +498,9 @@ class PlotCIF:
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             plt.gca().invert_xaxis()
 
-        if "intensity" in y_ordinate:
+        if plot_norm_int["norm_int"]:
+            y_axis_title = "Normalised counts"
+        elif "intensity" in y_ordinate:
             y_axis_title = "Intensity (arb. units)"
         else:
             y_axis_title = "Counts"

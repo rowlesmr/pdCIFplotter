@@ -152,10 +152,10 @@ def single_update_plot(pattern, x_ordinate: str, y_ordinates: list,
                                               window["single_matplotlib_controls"].TKCanvas)
 
 
-def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, axis_scale: dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, window):
     global stack_figure_agg, stack_fig
 
-    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, axis_scale, stack_fig)
+    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, stack_fig)
 
     stack_figure_agg = draw_figure_w_toolbar(window["stack_plot"].TKCanvas, stack_fig,
                                              window["stack_matplotlib_controls"].TKCanvas)
@@ -172,7 +172,7 @@ def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
-def draw_figure_w_toolbar(canvas, figure:mf.Figure, canvas_toolbar):
+def draw_figure_w_toolbar(canvas, figure: mf.Figure, canvas_toolbar):
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -363,7 +363,7 @@ def label_dropdown_button_row(label: str, button_text: str, values: List[str], d
             sg.Button(button_text=button_text, key=key + "_button")]
 
 
-def checkbox_button_row(checkbox_text: str, button_text: str, default: str, key: str) -> List:
+def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str, bool], key: str) -> List:
     return [sg.Checkbox(checkbox_text, enable_events=True, default=default, key=key),
             sg.Stretch(),
             sg.Button(button_text=button_text, key=key + "_button")]
@@ -469,7 +469,7 @@ layout_single_plot_control = \
          sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
          sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
         checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
-        checkbox_button_row("Normalise intensity to errors", "Options", False, single_keys["norm_int"]),
+        checkbox_button_row("Normalise all intensities to counts", "Options", False, single_keys["norm_int"]),
         # [sg.Checkbox("Normalise intensity", enable_events=True, key="single_normalise_intensity_checkbox")],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
@@ -511,6 +511,7 @@ stack_keys = {"x_axis": "stack_x_ordinate",
               "hkl_checkbox": "stack_hkl_checkbox",
               "hkl_above": "stack_hkl_checkbox_above",
               "hkl_below": "stack_hkl_checkbox_below",
+              "norm_int": "stack_norm_int_checkbox",
               "x_scale_linear": "stack_x_scale_linear",
               "x_scale_sqrt": "stack_x_scale_sqrt",
               "x_scale_log": "stack_x_scale_log",
@@ -552,6 +553,7 @@ layout_stack_plot_control = \
         [sg.Checkbox("Show HKL ticks", enable_events=True, key=stack_keys["hkl_checkbox"]),
          sg.Radio("Above", "hkl", enable_events=True, key=stack_keys["hkl_above"]),
          sg.Radio("Below", "hkl", default=True, enable_events=True, key=stack_keys["hkl_below"])],
+        checkbox_button_row("Normalise intensity to counts", "Options", False, stack_keys["norm_int"]),
         # [sg.Checkbox("Normalise intensity", enable_events=True, key="stack_normalise_intensity_checkbox")],
         # --
         [sg.T("")],
@@ -987,8 +989,17 @@ def gui() -> None:
             # construct hkl checkbox dictionary
             plot_hkls = {"above": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_above"]],
                          "below": values[stack_keys["hkl_checkbox"]] and values[stack_keys["hkl_below"]]}
+
+            stack_norm_plot = {"norm_int": values[stack_keys["norm_int"]],
+                               "y_ordinate_for_norm": window[stack_keys['y_axis']].Values[0]}
             try:
-                stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_axis_scale, window)
+                stack_update_plot(x_ordinate,
+                                  y_ordinate,
+                                  offset,
+                                  plot_hkls,
+                                  stack_norm_plot,
+                                  stack_axis_scale,
+                                  window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
@@ -1008,7 +1019,12 @@ def gui() -> None:
             }
 
             try:
-                surface_update_plot(x_ordinate, "Pattern number", z_ordinate, plot_hkls, surface_axis_scale, window)
+                surface_update_plot(x_ordinate,
+                                    "Pattern number",
+                                    z_ordinate,
+                                    plot_hkls,
+                                    surface_axis_scale,
+                                    window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
