@@ -338,36 +338,7 @@ class PlotCIF:
                      )
 
         if plot_cchi2:
-            # https://stackoverflow.com/a/10482477/36061
-            def align_cchi2(ax_1, v1, ax_2):
-                """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
-                miny1, maxy1 = ax_1.get_ylim()
-                rangey1 = maxy1 - miny1
-                f = (v1 - miny1) / rangey1
-                _, maxy2 = ax_2.get_ylim()
-                miny2 = (f / (f - 1)) * maxy2
-                ax_2.set_ylim(miny2, maxy2)
-
-            cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
-            rwp = parse_cif.calc_rwp(cifpat, y_ordinates[0], y_ordinates[1])
-            ax2 = ax.twinx()
-            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
-                     color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
-                     linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
-                     markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
-                     )
-            ax2.set_yticklabels([])
-            ax2.set_yticks([])
-            ax2.margins(x=0)
-            ax2.set_ylabel("c\u03C7\u00b2")
-            align_cchi2(ax, cchi2_zero, ax2)
-
-            # organise legends:
-            # https://stackoverflow.com/a/10129461/36061
-            # ask matplotlib for the plotted objects and their labels
-            lines, labels = ax.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
+            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, ax)
 
         if not plot_cchi2:
             plt.legend(frameon=False, loc='upper right')  # loc='best')
@@ -393,6 +364,40 @@ class PlotCIF:
             ax.patch.set_visible(False)
 
         return fig
+
+    def single_plot_cchi2(self, cifpat, x, cchi2_y_ordinates, axis_scale, cchi2_zero, ax1):
+        # https://stackoverflow.com/a/10482477/36061
+        def align_cchi2(ax_1, v1, ax_2):
+            """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
+            miny1, maxy1 = ax_1.get_ylim()
+            rangey1 = maxy1 - miny1
+            f = (v1 - miny1) / rangey1
+            _, maxy2 = ax_2.get_ylim()
+            miny2 = (f / (f - 1)) * maxy2
+            ax_2.set_ylim(miny2, maxy2)
+
+        cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
+        rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
+        ax2 = ax1.twinx()
+        ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
+                 color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
+                 linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
+                 markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
+                 )
+        ax2.set_yticklabels([])
+        ax2.set_yticks([])
+        ax2.margins(x=0)
+        ax2.set_ylabel("c\u03C7\u00b2")
+        align_cchi2(ax1, cchi2_zero, ax2)
+
+        # organise legends:
+        # https://stackoverflow.com/a/10129461/36061
+        # ask matplotlib for the plotted objects and their labels
+        lines, labels = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
+
+        return ax2
 
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
