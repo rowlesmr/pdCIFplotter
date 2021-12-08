@@ -161,10 +161,10 @@ def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm:dict, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, axis_scale, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -392,7 +392,7 @@ single_keys = {"data": "single_data_chooser",  # this entry must remain at the b
                "y_scale_sqrt": "single_y_scale_sqrt",
                "y_scale_log": "single_y_scale_log"}
 
-single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cchi2", "norm_int"]
+single_keys_with_buttons = ["yobs", "ycalc", "ybkg", "ydiff", "cchi2"]
 single_buttons_keys = {k: single_keys[k] + "_button" for k in single_keys_with_buttons}
 single_buttons_values = {v: k for k, v in single_buttons_keys.items()}
 
@@ -469,8 +469,7 @@ layout_single_plot_control = \
          sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
          sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
         checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
-        checkbox_button_row("Normalise all intensities to counts", "Options", False, single_keys["norm_int"]),
-        # [sg.Checkbox("Normalise intensity", enable_events=True, key="single_normalise_intensity_checkbox")],
+        [sg.Checkbox("Normalise all intensities to counts", enable_events=True, default=False, key=single_keys["norm_int"])],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
         [sg.T("")],
@@ -553,8 +552,7 @@ layout_stack_plot_control = \
         [sg.Checkbox("Show HKL ticks", enable_events=True, key=stack_keys["hkl_checkbox"]),
          sg.Radio("Above", "hkl", enable_events=True, key=stack_keys["hkl_above"]),
          sg.Radio("Below", "hkl", default=True, enable_events=True, key=stack_keys["hkl_below"])],
-        checkbox_button_row("Normalise intensity to counts", "Options", False, stack_keys["norm_int"]),
-        # [sg.Checkbox("Normalise intensity", enable_events=True, key="stack_normalise_intensity_checkbox")],
+        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=stack_keys["norm_int"])],
         # --
         [sg.T("")],
         [sg.Text("X scale:"),
@@ -590,6 +588,7 @@ surface_keys = {"x_axis": "surface_x_ordinate",
                 "y_axis": "surface_y_ordinate",
                 "z_axis": "surface_z_ordinate",
                 "hkl_checkbox": "surface_hkl_checkbox",
+                "norm_int": "surface_norm_int_checkbox",
                 "x_scale_linear": "surface_x_scale_linear",
                 "x_scale_sqrt": "surface_x_scale_sqrt",
                 "x_scale_log": "surface_x_scale_log",
@@ -637,7 +636,7 @@ layout_surface_plot_control = \
         # --
         [sg.T("")],
         [sg.Checkbox("Show HKL ticks", enable_events=True, key=surface_keys["hkl_checkbox"])],
-        # [sg.Checkbox("Normalise intensity", enable_events=True, key="surface_normalise_intensity_checkbox")],
+        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=surface_keys["norm_int"])],
         # --
         [sg.T("")],
         [sg.Text("X scale:"),
@@ -1017,12 +1016,15 @@ def gui() -> None:
                 'y': [word for word, scale in zip(axis_words, y_axes) if scale][0],
                 'z': [word for word, scale in zip(axis_words, z_axes) if scale][0],
             }
+            surface_norm_plot = {"norm_int": values[surface_keys["norm_int"]],
+                                 "z_ordinate_for_norm": window[surface_keys['z_axis']].Values[0]}
 
             try:
                 surface_update_plot(x_ordinate,
                                     "Pattern number",
                                     z_ordinate,
                                     plot_hkls,
+                                    surface_norm_plot,
                                     surface_axis_scale,
                                     window)
             except (IndexError, ValueError) as e:

@@ -1,3 +1,5 @@
+from numpy import ndarray
+
 from pdCIFplotter import parse_cif
 import numpy as np
 import math
@@ -6,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 DEBUG = True
 
@@ -128,7 +130,8 @@ class PlotCIF:
 
         self.surface_z_color = "viridis"
         self.surface_plot_data = {"x_ordinate": "", "y_ordinate": "", "z_ordinate": "",
-                                  "x_data": None, "y_data": None, "z_data": None, "plot_list": []}
+                                  "x_data": None, "y_data": None, "z_data": None, "z_norm": None,
+                                  "plot_list": []}
 
         self.cif: dict = cif
 
@@ -154,7 +157,7 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
-    def get_y_norm_data(self, x_ordinate: str, y_ordinate: str) -> List:
+    def get_xy_ynorm_data(self, x_ordinate: str, y_ordinate: str) -> List:
         """
         Give an x and y-ordinate, return arrays holding y_norm values from all patterns in the cif
         that have both of those ordinates.
@@ -177,18 +180,18 @@ class PlotCIF:
 
         return y_norms
 
-    def get_all_xyz_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str) -> Tuple[List, List, List, List[str]]:
+    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, ndarray, ndarray, list[Any]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
         ys = []
         zs = []
+        znorms = []
         i = 1
         plot_list = []
         min_x = 9999999999
         max_x = -min_x
         x_step = 0
-        # get all the original data
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
             if (
@@ -202,6 +205,8 @@ class PlotCIF:
             x = cifpat[x_ordinate]
             z = cifpat[z_ordinate]
             y = i if y_ordinate == "Pattern number" else cifpat[y_ordinate]
+            z_norm = cifpat[z_norm_ordinate]
+            z_norm = z_norm * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else z_norm / cifpat[z_ordinate + "_err"] ** 2
             # interpolation only works if the x-ordinate is increasing.
             # if it doesn't, I need to flip all the ordinates to maintain
             # the relative ordering.
@@ -209,6 +214,7 @@ class PlotCIF:
                 x = np.flip(x)
                 y = np.flip(y)
                 z = np.flip(z)
+                z_norm = np.flip(z_norm)
 
             # keep track of min, max, and average step size so
             # I can do a naive linear interpolation to grid the data
@@ -219,21 +225,23 @@ class PlotCIF:
             xs.append(x)
             ys.append(y)
             zs.append(z)
+            znorms.append(z_norm)
             plot_list.append(pattern)
             i += 1
-        else:
-            x_step /= i
+        x_step /= i
 
         # create the x interpolation array and interpolate each diffraction pattern
         xi = np.arange(min_x, max_x, math.fabs(x_step))
         for j in range(len(xs)):
             zs[j] = np.interp(xi, xs[j], zs[j], left=float("nan"), right=float("nan"))
+            znorms[j] = np.interp(xi, xs[j], znorms[j], left=float("nan"), right=float("nan"))
 
         # https://stackoverflow.com/a/33943276/36061
         # https://stackoverflow.com/a/38025451/36061
         xx, yy = np.meshgrid(xi, ys)
         zz = np.array(zs)
-        return xx, yy, zz, plot_list
+        zn = np.array(znorms)
+        return xx, yy, zz, zn, plot_list
 
     def single_update_plot(self, pattern: str,
                            x_ordinate: str, y_ordinates: list,
@@ -436,7 +444,7 @@ class PlotCIF:
 
         if plot_norm_int["norm_int"]:
             print(f'{plot_norm_int["y_ordinate_for_norm"]=}')
-            y_norms = self.get_y_norm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
+            y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
         else:
             y_norms = [np.ones(len(xi)) for xi in xs]
 
@@ -520,7 +528,8 @@ class PlotCIF:
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, axis_scale: dict,
+                            plot_hkls: bool, plot_norm_int:dict,
+                            axis_scale: dict,
                             fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
 
@@ -541,9 +550,10 @@ class PlotCIF:
             xx = self.surface_plot_data["x_data"]
             yy = self.surface_plot_data["y_data"]
             zz = self.surface_plot_data["z_data"]
+            znorm = self.surface_plot_data["z_norm"]
             plot_list = self.surface_plot_data["plot_list"]
         else:
-            xx, yy, zz, plot_list = self.get_all_xyz_data(x_ordinate, y_ordinate, z_ordinate)
+            xx, yy, zz, znorm, plot_list = self.get_all_xyz_znorm_data(x_ordinate, y_ordinate, z_ordinate, plot_norm_int["z_ordinate_for_norm"])
             # update the surface_plot_data information, so I don't need to do those recalculations everytime if I don't have to.
             self.surface_plot_data["x_ordinate"] = x_ordinate
             self.surface_plot_data["y_ordinate"] = y_ordinate
@@ -551,10 +561,15 @@ class PlotCIF:
             self.surface_plot_data["x_data"] = xx
             self.surface_plot_data["y_data"] = yy
             self.surface_plot_data["z_data"] = zz
+            self.surface_plot_data["z_norm"] = znorm
             self.surface_plot_data["plot_list"] = plot_list
         # end of if
 
-        xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
+        if plot_norm_int["norm_int"]:
+            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz*znorm, axis_scale)
+        else:
+            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
+
         plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
@@ -601,7 +616,14 @@ class PlotCIF:
             if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
                 wavelength = None
                 break
-        x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_ordinate, axis_scale)
+
+        if plot_norm_int["norm_int"]:
+            z_axis_title = "Normalised counts"
+        elif "intensity" in z_ordinate:
+            z_axis_title = "Intensity (arb. units)"
+        else:
+            z_axis_title = "Counts"
+        x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_axis_title, axis_scale)
 
         plt.xlabel(x_axis_title)
         plt.ylabel(y_axis_title)
