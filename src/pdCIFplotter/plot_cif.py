@@ -180,7 +180,7 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
-      
+
     def get_xy_ynorm_data(self, x_ordinate: str, y_ordinate: str) -> List:
         """
         Give an x and y-ordinate, return arrays holding y_norm values from all patterns in the cif
@@ -189,7 +189,7 @@ class PlotCIF:
         :param y_ordinate: str representing the y_ordinate eg _pd_meas_intensity_total
         :return: list of y_norm values
         """
-        y_norms = [
+        y_norms = []
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
             if x_ordinate not in cifpat or y_ordinate not in cifpat:
@@ -290,7 +290,7 @@ class PlotCIF:
         if plot_norm_int and y_ordinates[0] != "None":
             y = cifpat[y_ordinates[0]]
             if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y * cifpat["_pd_proc_ls_weight"]
+                y_norm = y * np.maximum(cifpat["_pd_proc_ls_weight"], 1e-6)
             else:
                 y_norm = y / cifpat[y_ordinates[0] + "_err"] ** 2
         else:
@@ -319,7 +319,7 @@ class PlotCIF:
                     offset = min_plot - np.nanmax(y)
                     y += offset
                     # this is to plot the 'sero' line for the diff plot
-                    plt.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
+                    ax.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
 
                 label = f" {y_name}" if not plot_norm_int else f" {y_name} (norm.)"
                 ax.plot(x, y, label=label,
@@ -630,7 +630,8 @@ class PlotCIF:
                     hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt, color=TABLEAU_COLOR_VALUES[idx])
                     surface_hkl_artists.append(hkl_tick)
                     if "refln_hovertext" in cifpat["str"][phase]:
-                        hovertext = [f"{phase}: {hkls}" for hkls in cifpat["str"][phase]["refln_hovertext"]]
+                        phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                        hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                         surface_hovertexts.append(hovertext)
                     else:
                         surface_hovertexts.append([phase] * len(hkl_x))
