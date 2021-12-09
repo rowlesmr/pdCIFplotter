@@ -2,6 +2,14 @@
 Changelog
 =========
 
+0.0.6 (2021-12-09)
+------------------
+
+* Can normalise intensities to counts from provided weights or errors; possible in single, stack, and surface
+* hkl ticks labelled by phase name, if present, else, phase id: now including surface plot.
+* (ongoing) Refactoring of plot_cif
+
+
 0.0.5 (2021-11-16)
 ------------------
 
