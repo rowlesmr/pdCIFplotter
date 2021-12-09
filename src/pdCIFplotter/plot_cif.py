@@ -4,6 +4,7 @@ from pdCIFplotter import parse_cif
 import numpy as np
 import math
 import matplotlib.figure as mf
+import matplotlib.axes as ma
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
@@ -157,6 +158,29 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
+    def get_all_scaled_xy_data(self, x_ordinate: str, y_ordinate: str, axis_scale:dict) -> Tuple[List, List, List[str]]:
+        """
+        Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
+        that have both of those ordinates. Also return a list of the pattern names which where included
+        in the arrays
+        :param x_ordinate: str representing the x_ordinate eg _pd_proc_d_spacing
+        :param y_ordinate: str representing the y_ordinate eg _pd_meas_intensity_total
+        :return: tuple of xs, ys, list of pattern names
+        """
+        xs = []
+        ys = []
+        plot_list = []
+        for pattern in self.cif.keys():
+            cifpat = self.cif[pattern]
+            if x_ordinate not in cifpat or y_ordinate not in cifpat:
+                continue
+            # now the cif pat has both x and y
+            xs.append(_scale_x_ordinate(cifpat[x_ordinate], axis_scale))
+            ys.append(_scale_y_ordinate(cifpat[y_ordinate], axis_scale))
+            plot_list.append(pattern)
+        return xs, ys, plot_list
+
+      
     def get_xy_ynorm_data(self, x_ordinate: str, y_ordinate: str) -> List:
         """
         Give an x and y-ordinate, return arrays holding y_norm values from all patterns in the cif
@@ -165,7 +189,7 @@ class PlotCIF:
         :param y_ordinate: str representing the y_ordinate eg _pd_meas_intensity_total
         :return: list of y_norm values
         """
-        y_norms = []
+        y_norms = [
         for pattern in self.cif.keys():
             cifpat = self.cif[pattern]
             if x_ordinate not in cifpat or y_ordinate not in cifpat:
@@ -177,7 +201,6 @@ class PlotCIF:
             else:
                 y_norm = y / cifpat[y_ordinate + "_err"] ** 2
             y_norms.append(y_norm)
-
         return y_norms
 
     def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, ndarray, ndarray, list[Any]]:
@@ -250,12 +273,7 @@ class PlotCIF:
                            fig: mf.Figure) -> mf.Figure:
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         dpi = plt.gcf().get_dpi()
-        if fig is not None:
-            # this is needed for the hkl position calculations
-            single_height_px = fig.get_size_inches()[1] * dpi
-        else:
-            single_height_px = 382
-
+        single_height_px = fig.get_size_inches()[1] * dpi if fig is not None else 382  # this is needed for the hkl position calculations
         # if single_fig is None or single_ax is None:
         if fig is not None:
             plt.close(fig)
@@ -288,11 +306,9 @@ class PlotCIF:
         if plot_diff:
             ydiff = ys[0] - ys[1]
             ys.append(ydiff)
-            y_ordinates.append("Diff")
         else:
             ys.append(None)
-            y_ordinates.append("Diff")
-
+        y_ordinates.append("Diff")
         min_plot = 999999999
         max_plot = -min_plot
         cchi2_zero = 0
@@ -317,85 +333,12 @@ class PlotCIF:
                 if y_name != "Diff":
                     cchi2_zero = min_plot
 
-        # hkl plotting below     single_height_px
-        single_hovertexts = []
-        single_hkl_artists = []
         if plot_hkls["above"] or plot_hkls["below"]:
-            y_range = max_plot - min_plot
-            hkl_markersize_pt = 6
-            hkl_markersize_px = hkl_markersize_pt * 72 / dpi
-            num_hkl_rows = len(cifpat["str"].keys())
-            hkl_tick_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
-
-            hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
-            for i, phase in enumerate(cifpat["str"].keys()):
-                if hkl_x_ordinate not in cifpat["str"][phase]:
-                    print(f"Couldn't find {hkl_x_ordinate} in {phase=}.")
-                    continue
-                hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
-                if plot_hkls["below"]:
-                    hkl_y = np.array([min_plot - 4 * (i + 1) * hkl_tick_spacing] * len(hkl_x))
-                    markerstyle = "|"
-                    scalar = 1.0
-                else:  # plot above
-                    yobs = ys[0]
-                    ycalc = ys[1]
-                    markerstyle = 7  # a pointing-down triangle with the down tip being the point described by th x,y coordinate
-                    scalar = 1.04
-                    if yobs is None:
-                        hkl_y = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
-                    elif ycalc is None:
-                        hkl_y = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
-                    else:  # both are not none
-                        hkl_y1 = np.interp(hkl_x, x, yobs, left=float("nan"), right=float("nan"))
-                        hkl_y2 = np.interp(hkl_x, x, ycalc, left=float("nan"), right=float("nan"))
-                        hkl_y = np.maximum(hkl_y1, hkl_y2)
-
-                phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
-                hkl_tick, = ax.plot(hkl_x, hkl_y * scalar, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt)
-                single_hkl_artists.append(hkl_tick)
-                if "refln_hovertext" in cifpat["str"][phase]:
-                    single_hovertexts.append(cifpat["str"][phase]["refln_hovertext"])
-                else:
-                    single_hovertexts.append([phase] * len(hkl_x))
-
-            # https://stackoverflow.com/a/58350037/36061
-            single_hkl_hover_dict = dict(zip(single_hkl_artists, single_hovertexts))
-            mplcursors.cursor(single_hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
-                "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
-        # end hkl if
+            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi, single_height_px, ax)
+            self.add_hovertext_to_hkls(single_hkl_artists, single_hovertexts)
 
         if plot_cchi2:
-            # https://stackoverflow.com/a/10482477/36061
-            def align_cchi2(ax_1, v1, ax_2):
-                """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
-                miny1, maxy1 = ax_1.get_ylim()
-                rangey1 = maxy1 - miny1
-                f = (v1 - miny1) / rangey1
-                _, maxy2 = ax_2.get_ylim()
-                miny2 = (f / (f - 1)) * maxy2
-                ax_2.set_ylim(miny2, maxy2)
-
-            cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, y_ordinates[0], y_ordinates[1]), axis_scale)
-            rwp = parse_cif.calc_rwp(cifpat, y_ordinates[0], y_ordinates[1])
-            ax2 = ax.twinx()
-            ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
-                     color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
-                     linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
-                     markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
-                     )
-            ax2.set_yticklabels([])
-            ax2.set_yticks([])
-            ax2.margins(x=0)
-            ax2.set_ylabel("c\u03C7\u00b2")
-            align_cchi2(ax, cchi2_zero, ax2)
-
-            # organise legends:
-            # https://stackoverflow.com/a/10129461/36061
-            # ask matplotlib for the plotted objects and their labels
-            lines, labels = ax.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
+            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, ax)
 
         if not plot_cchi2:
             plt.legend(frameon=False, loc='upper right')  # loc='best')
@@ -410,7 +353,7 @@ class PlotCIF:
         wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
-        if x_ordinate in ["d", "_pd_proc_d_spacing"]:
+        if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             plt.gca().invert_xaxis()
 
         ax.set_xlabel(x_axis_title)
@@ -423,6 +366,116 @@ class PlotCIF:
             ax.patch.set_visible(False)
 
         return fig
+
+    def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
+                  axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
+                  single_plot: bool,
+                  dpi: int, single_height_px: int, ax: ma.Axes):
+
+        def interp(_hkl_x, _x, _y):
+            return np.interp(_hkl_x, _x, _y, left=float("nan"), right=float("nan"))
+
+        hovertexts = []
+        hkl_artists = []
+        y_range = y_max - y_min
+        hkl_markersize_pt = 6
+        hkl_markersize_px = hkl_markersize_pt * 72 / dpi
+        num_hkl_rows = len(cifpat["str"].keys())
+        hkl_tick_vertical_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
+
+        hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
+        for i, phase in enumerate(cifpat["str"].keys()):
+            if hkl_x_ordinate not in cifpat["str"][phase]:
+                print(f"Couldn't find {hkl_x_ordinate} in {phase=}.")
+                continue
+            hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
+            if plot_below:
+                if single_plot:
+                    hkl_y = np.array([y_min - 4 * (i + 1) * hkl_tick_vertical_spacing] * len(hkl_x))
+                else:
+                    hkl_y = np.array([min(ys[0])] * len(hkl_x))
+                markerstyle = 3
+                scalar = 1.0
+            else:  # plot above
+                markerstyle = 7  # a pointing-down triangle with the down tip being the point described by th x,y coordinate
+                scalar = 1.04
+                yobs = ys[0]  # ys is already scaled to the y-axis scale
+                ycalc = ys[1]
+                if yobs is None:
+                    hkl_y = interp(hkl_x, x, ycalc)
+                elif ycalc is None:
+                    hkl_y = interp(hkl_x, x, yobs)
+                else:
+                    hkl_y = np.maximum(interp(hkl_x, x, ycalc), interp(hkl_x, x, yobs))
+
+            hkl_y = hkl_y * scalar + hkl_y_offset
+            idx = i % len(TABLEAU_COLOR_VALUES)
+            phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+            hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+                                color=TABLEAU_COLOR_VALUES[idx])
+            hkl_artists.append(hkl_tick)
+            if "refln_hovertext" in cifpat["str"][phase]:
+                phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
+                hovertexts.append(hovertext)
+            else:
+                hovertexts.append([phase] * len(hkl_x))
+
+        return hovertexts, hkl_artists
+
+    def add_hovertext_to_hkls(self, hkl_artists, hovertexts):
+        # https://stackoverflow.com/a/58350037/36061
+        hkl_hover_dict = dict(zip(hkl_artists, hovertexts))
+        mplcursors.cursor(hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
+            "add", lambda sel: sel.annotation.set_text(hkl_hover_dict[sel.artist][sel.index]))
+
+    def plot_norm_int_to_err(self, cifpat: dict, x, norm_int_to_err_y_ordinate: str, axis_scale: dict, ax: ma.Axes) -> None:
+        y = cifpat[norm_int_to_err_y_ordinate]
+        if "_pd_proc_ls_weight" in cifpat:
+            y_norm = y ** 2 * cifpat["_pd_proc_ls_weight"]
+        else:
+            y_norm = (y / cifpat[norm_int_to_err_y_ordinate + "_err"]) ** 2
+        y_norm = _scale_y_ordinate(y_norm, axis_scale)
+
+        ax.plot(x, y_norm, label=" Norm. int. to errors",
+                color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
+                linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
+                markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
+                )
+
+    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, ax1: ma.Axes) -> ma.Axes:
+        # https://stackoverflow.com/a/10482477/36061
+        def align_cchi2(ax_1, v1, ax_2):
+            """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
+            miny1, maxy1 = ax_1.get_ylim()
+            rangey1 = maxy1 - miny1
+            f = (v1 - miny1) / rangey1
+            _, maxy2 = ax_2.get_ylim()
+            miny2 = (f / (f - 1)) * maxy2
+            ax_2.set_ylim(miny2, maxy2)
+
+        cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
+        rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
+        ax2 = ax1.twinx()
+        ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
+                 color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
+                 linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
+                 markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
+                 )
+        ax2.set_yticklabels([])
+        ax2.set_yticks([])
+        ax2.margins(x=0)
+        ax2.set_ylabel("c\u03C7\u00b2")
+        align_cchi2(ax1, cchi2_zero, ax2)
+
+        # organise legends:
+        # https://stackoverflow.com/a/10129461/36061
+        # ask matplotlib for the plotted objects and their labels
+        lines, labels = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
+
+        return ax2
 
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
@@ -450,57 +503,35 @@ class PlotCIF:
 
         # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
-        for i in range(len(plot_list) - 1, -1, -1):
-            pattern = plot_list[i]
-            x, y = xs[i], ys[i]*y_norms[i]
-            x, y = _scale_xy_ordinates(x, y, axis_scale)
 
+        for j in range(len(plot_list) - 1, -1, -1):
+            pattern = plot_list[j]
+            x, y = xs[j], ys[j]*y_norms[j]
+            x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
-            ax.plot(x, y + i * offset, label=label)  # do I want to fill white behind each plot?
+            ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
+
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
         mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
 
-        stack_hovertexts = []
-        stack_hkl_artists = []
         if plot_hkls["above"] or plot_hkls["below"]:
-            hkl_markersize_pt = 6
-            hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
-            for i in range(len(plot_list) - 1, -1, -1):
-                pattern = plot_list[i]
-                cifpat = self.cif[pattern]
+            stack_hovertexts = []
+            stack_hkl_artists = []
+            for j in range(len(plot_list) - 1, -1, -1):
+                cifpat = self.cif[plot_list[j]]
+                hkl_y_offset = j * offset
+                x, y = xs[j], ys[j]*y_norms[j]
+                x, y = _scale_xy_ordinates(x, y, axis_scale)
                 if "str" not in cifpat:
                     continue
-                for j, phase in enumerate(cifpat["str"].keys()):
-                    hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
-                    if plot_hkls["below"]:
-                        hkl_y = np.array([min(ys[i])] * len(hkl_x))
-                        markerstyle = 3
-                        scalar = 1.0
-                    else:  # plot above
-                        markerstyle = 7
-                        scalar = 1.04
-                        hkl_y = np.interp(hkl_x, _scale_x_ordinate(xs[i], axis_scale), ys[i], left=float("nan"), right=float("nan"))
+                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None],\
+                               axis_scale, 0, 0, hkl_y_offset, False, dpi, -1, ax)
+                stack_hovertexts.extend(tmp_hovertexts)
+                stack_hkl_artists.extend(tmp_hkl_artists)
 
-                    hkl_y = _scale_y_ordinate(hkl_y, axis_scale) * scalar
-
-                    idx = j % len(TABLEAU_COLOR_VALUES)
-                    phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
-                    hkl_tick, = ax.plot(hkl_x, hkl_y + i * offset, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
-                                        color=TABLEAU_COLOR_VALUES[idx])
-                    stack_hkl_artists.append(hkl_tick)
-                    if "refln_hovertext" in cifpat["str"][phase]:
-                        phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
-                        hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
-                        stack_hovertexts.append(hovertext)
-                    else:
-                        stack_hovertexts.append([phase] * len(hkl_x))
-
-            # https://stackoverflow.com/a/58350037/36061
-            single_hkl_hover_dict = dict(zip(stack_hkl_artists, stack_hovertexts))
-            mplcursors.cursor(stack_hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
-                "add", lambda sel: sel.annotation.set_text(single_hkl_hover_dict[sel.artist][sel.index]))
+            self.add_hovertext_to_hkls(stack_hkl_artists, stack_hovertexts)
         # end hkl if
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
