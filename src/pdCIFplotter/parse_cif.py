@@ -293,12 +293,12 @@ def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
     return np.sqrt(top / bottom)
 
 
-def theta2_from_min_max_inc(start:float, step:float, stop:float)->List[str]:
+def theta2_from_min_max_inc(start: float, step: float, stop: float) -> List[str]:
     num_points = int(round((stop - start) / step, 5)) + 1
     return [str(v) for v in np.linspace(start, stop, num_points)]
 
 
-def theta2_min_max_inc_expand(cifpat:CifBlock, val:str="meas")->None:
+def theta2_min_max_inc_expand(cifpat: CifBlock, val: str = "meas") -> None:
     MEAS_COL = ["_pd_meas_counts_total", "_pd_meas_intensity_total"]
     PROC_COL = ["_pd_proc_intensity_total", "_pd_proc_intensity_net"]
     MEAS_VALS = ["_pd_meas_2theta_range_min", "_pd_meas_2theta_scan", "_pd_meas_2theta_range_min", "_pd_meas_2theta_range_inc", "_pd_meas_2theta_range_max"]
@@ -327,7 +327,7 @@ def theta2_min_max_inc_expand(cifpat:CifBlock, val:str="meas")->None:
     cifpat.RemoveItem(maxval)
 
 
-def get_linked_structures_and_phase_ids(cifpat:CifFile, blockname_dict:dict)->Tuple[List[str], List[str]]:
+def get_linked_structures_and_phase_ids(cifpat: CifFile, blockname_dict: dict) -> Tuple[List[str], List[str]]:
     pd_phase_ids = []
     structures = []
     if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
@@ -345,19 +345,19 @@ def calc_dq_from_qd(dq):
     return 2. * np.pi / dq
 
 
-def calc_d_from_2theta(lam:float, th2):
+def calc_d_from_2theta(lam: float, th2):
     return lam / (2. * np.sin(th2 * np.pi / 360.))
 
 
-def calc_q_from_2theta(lam:float, th2):
+def calc_q_from_2theta(lam: float, th2):
     return 4. * np.pi * np.sin(th2 * np.pi / 360.) / lam
 
 
-def calc_2theta_from_d(lam:float, d):
+def calc_2theta_from_d(lam: float, d):
     return 2. * np.arcsin(lam / (2. * d)) * 180. / np.pi
 
 
-def add_hklds_to_cifpatstr(cifpatstr:dict, hkld_dict:dict)->None:
+def add_hklds_to_cifpatstr(cifpatstr: dict, hkld_dict: dict) -> None:
     """
     adds hkld information to a phase in the "str" section of a cif dictionary
     :param cifpatstr:  a dictionary of the form: cifpat["str"][phase_id]
@@ -368,7 +368,7 @@ def add_hklds_to_cifpatstr(cifpatstr:dict, hkld_dict:dict)->None:
         cifpatstr[refln] = hkld_dict[idx]
 
 
-def calc_dataname_and_err(cifpat:dict, dataname:str, default_error:str="zero") -> None:
+def calc_dataname_and_err(cifpat: dict, dataname: str, default_error: str = "zero") -> None:
     """
     gets a single value-as-string or list of values-as-strings and correctly turns them in to a float or lists of floats
     with an error term, if applicable
@@ -400,7 +400,7 @@ class ParseCIF:
                        "_pd_meas_2theta_range_inc", "_pd_proc_2theta_range_inc",  # these are here to capture blocks with start step stop values
                        "d", "q"]  # "_pd_proc_wavelength",
 
-    # These are datanames that fit correspond to the data you are modelling
+    # These are datanames that fit corresspond to the data you are modelling
     # these are also the only ones that could have an error
     OBSERVED_Y_LIST = ["_pd_meas_counts_total", "_pd_meas_intensity_total",
                        "_pd_proc_intensity_total", "_pd_proc_intensity_net"]
@@ -431,9 +431,9 @@ class ParseCIF:
 
     def __init__(self, ciffilename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
         print(f"Now reading {ciffilename}. This may take a while.")
-        self.ciffile:CifFile = ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
-        self.ncif:dict = {}  # this will be the cif file with pattern information only
-        self.cif:dict = {}
+        self.ciffile: CifFile = ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
+        self.ncif: dict = {}  # this will be the cif file with pattern information only
+        self.cif: dict = {}
 
         self._remove_empty_items()
         self._make_up_block_id()
@@ -446,7 +446,7 @@ class ParseCIF:
         self._calc_extra_data()
         self._rename_datablock_from_blockid()
 
-    def _remove_empty_items(self)->None:
+    def _remove_empty_items(self) -> None:
         """
         Checks every item in each block and if all the values are '?' or '.', it removes them from the cif
         :return: none. alters in place
@@ -470,7 +470,7 @@ class ParseCIF:
                 else:
                     print("How did we even get here?")
 
-    def _make_up_block_id(self)->None:
+    def _make_up_block_id(self) -> None:
         """
         Some people confuse the _pd_block_id and the data_ blockname.
         This goes and adds a _pd_block_id to every block that doesn't have an id such that _pd_block_id == blockname
@@ -480,7 +480,7 @@ class ParseCIF:
             cifblk = self.ciffile[block]
             cifblk["_pd_block_id"] = block if "_pd_block_id" not in cifblk else cifblk["_pd_block_id"]
 
-    def _expand_2theta_min_max_inc(self)->None:
+    def _expand_2theta_min_max_inc(self) -> None:
         """
         Expand _pd_meas_2theta_range_min/max/inc into explicit values of _pd_meas_2theta_scan, and
         _pd_proc_2theta_range_min/max/inc into _pd_proc_2theta_corrected. The min/max/inc dataitems are
@@ -493,7 +493,7 @@ class ParseCIF:
             theta2_min_max_inc_expand(cifpat, "meas")
             theta2_min_max_inc_expand(cifpat, "proc")
 
-    def _expand_multiple_dataloops(self)->None:
+    def _expand_multiple_dataloops(self) -> None:
         """
         This looks for patterns which have multiple loops containing diffraction data
         This clones the block as many times as there are loops, with each clone containing
@@ -541,7 +541,7 @@ class ParseCIF:
                 self.ciffile.NewBlock(new_pattern_name, insert_me)
                 self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + get_from_cif(self.ciffile[new_pattern_name], "_pd_block_id", new_pattern_name)
 
-    def _get_hkl_ticks(self)->None:
+    def _get_hkl_ticks(self) -> None:
         """
         Go through a pattern and look for linked structures. Get hkld information from either the linked structures
         or from the in reflection listing in the pattern block if there is a _pd_refln_phase_id data name
@@ -593,7 +593,7 @@ class ParseCIF:
                 add_hklds_to_cifpatstr(cifpat["str"]["1"], hkld_dict)
                 cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
 
-    def _get_nice_to_have_information(self)->None:
+    def _get_nice_to_have_information(self) -> None:
         """
         This traverses the linked structures, and then the "other" blocks, to look for information that is nice to have with
         the pattern
@@ -612,7 +612,7 @@ class ParseCIF:
                 if dataname not in cifpat or cifpat[dataname] in [".", "?"]:  # then need to look for it in different places
                     get_dataname_into_pattern(self.cif, pattern, dataname, structures, others)
 
-    def _make_just_patterns_cif(self)->None:
+    def _make_just_patterns_cif(self) -> None:
         """
         Goes through all of the blocks in the cif dictionary and only copies out the onces which contain diffraction patterns.
         All the other necessary information should already be in the "str" entry.
@@ -634,7 +634,7 @@ class ParseCIF:
                 else:
                     calc_dataname_and_err(cifpat, dataname, default_error="none")
 
-    def _calc_extra_data(self)->None:
+    def _calc_extra_data(self) -> None:
         for pattern in self.ncif:
             cifpat = self.ncif[pattern]
             if "_pd_proc_d_spacing" not in cifpat and "_pd_proc_recip_len_Q" in cifpat:
@@ -668,7 +668,7 @@ class ParseCIF:
                         cifstr["refln_hovertext"] = [f"{h} {k} {l}" for h, k, l in
                                                      zip(cifstr['_refln_index_h'], cifstr['_refln_index_k'], cifstr["_refln_index_l"])]
 
-    def _rename_datablock_from_blockid(self)->None:
+    def _rename_datablock_from_blockid(self) -> None:
         """
         A lot of the pdCIF revolves around block_id, and not the dataname.
         This renames the dataname as the block_id to enable easier lookups.

@@ -114,6 +114,13 @@ def _scale_xyz_title(xtitle: str, ytitle: str, ztitle: str, axis_scale: dict) ->
     return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale), _scale_z_title(ztitle, axis_scale)
 
 
+def add_hovertext_to_each_point(artists, hovertexts):
+    # https://stackoverflow.com/a/58350037/36061
+    hover_dict = dict(zip(artists, hovertexts))
+    mplcursors.cursor(artists, hover=mplcursors.HoverMode.Transient).connect(
+        "add", lambda sel: sel.annotation.set_text(hover_dict[sel.artist][sel.index]))
+
+
 class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
@@ -335,7 +342,7 @@ class PlotCIF:
 
         if plot_hkls["above"] or plot_hkls["below"]:
             single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi, single_height_px, ax)
-            self.add_hovertext_to_hkls(single_hkl_artists, single_hovertexts)
+            add_hovertext_to_each_point(single_hkl_artists, single_hovertexts)
 
         if plot_cchi2:
             ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, ax)
@@ -423,12 +430,6 @@ class PlotCIF:
 
         return hovertexts, hkl_artists
 
-    def add_hovertext_to_hkls(self, hkl_artists, hovertexts):
-        # https://stackoverflow.com/a/58350037/36061
-        hkl_hover_dict = dict(zip(hkl_artists, hovertexts))
-        mplcursors.cursor(hkl_artists, hover=mplcursors.HoverMode.Transient).connect(
-            "add", lambda sel: sel.annotation.set_text(hkl_hover_dict[sel.artist][sel.index]))
-
     def plot_norm_int_to_err(self, cifpat: dict, x, norm_int_to_err_y_ordinate: str, axis_scale: dict, ax: ma.Axes) -> None:
         y = cifpat[norm_int_to_err_y_ordinate]
         if "_pd_proc_ls_weight" in cifpat:
@@ -503,14 +504,15 @@ class PlotCIF:
 
         # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
-
+        hover_texts = []
         for j in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[j]
             x, y = xs[j], ys[j]*y_norms[j]
             x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
             ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
-
+            hover_texts.append(label)
+        hover_texts.reverse()
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
@@ -531,7 +533,7 @@ class PlotCIF:
                 stack_hovertexts.extend(tmp_hovertexts)
                 stack_hkl_artists.extend(tmp_hkl_artists)
 
-            self.add_hovertext_to_hkls(stack_hkl_artists, stack_hovertexts)
+            add_hovertext_to_each_point(stack_hkl_artists, stack_hovertexts)
         # end hkl if
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
