@@ -121,6 +121,15 @@ def add_hovertext_to_each_point(artists, hovertexts):
         "add", lambda sel: sel.annotation.set_text(hover_dict[sel.artist][sel.index]))
 
 
+# https://stackoverflow.com/a/30734735/36061
+def array_strictly_increasing_or_equal(a):
+    return np.all(a[1:] >= a[:-1])
+
+
+def array_strictly_decreasing_or_equal(a):
+    return np.all(a[1:] <= a[:-1])
+
+
 class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
@@ -165,7 +174,7 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
-    def get_all_scaled_xy_data(self, x_ordinate: str, y_ordinate: str, axis_scale:dict) -> Tuple[List, List, List[str]]:
+    def get_all_scaled_xy_data(self, x_ordinate: str, y_ordinate: str, axis_scale: dict) -> Tuple[List, List, List[str]]:
         """
         Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
         that have both of those ordinates. Also return a list of the pattern names which where included
@@ -186,7 +195,6 @@ class PlotCIF:
             ys.append(_scale_y_ordinate(cifpat[y_ordinate], axis_scale))
             plot_list.append(pattern)
         return xs, ys, plot_list
-
 
     def get_xy_ynorm_data(self, x_ordinate: str, y_ordinate: str) -> List:
         """
@@ -341,11 +349,16 @@ class PlotCIF:
                     cchi2_zero = min_plot
 
         if plot_hkls["above"] or plot_hkls["below"]:
-            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi, single_height_px, ax)
+            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi,
+                                                                   single_height_px, ax)
             add_hovertext_to_each_point(single_hkl_artists, single_hovertexts)
 
         if plot_cchi2:
-            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, ax)
+            if x_ordinate in {"d", "_pd_proc_d_spacing"}:
+                flip_cchi2 = True
+            else:
+                flip_cchi2 = False
+            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
 
         if not plot_cchi2:
             plt.legend(frameon=False, loc='upper right')  # loc='best')
@@ -360,13 +373,12 @@ class PlotCIF:
         wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
-        if x_ordinate in {"d", "_pd_proc_d_spacing"}:
-            plt.gca().invert_xaxis()
-
         ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
         plt.title(pattern, loc="left")
 
+        if x_ordinate in {"d", "_pd_proc_d_spacing"}:
+            ax.invert_xaxis()
         # https://stackoverflow.com/a/30506077/36061
         if plot_cchi2:
             ax.set_zorder(ax2.get_zorder() + 1)
@@ -444,7 +456,7 @@ class PlotCIF:
                 markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
                 )
 
-    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, ax1: ma.Axes) -> ma.Axes:
+    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool, ax1: ma.Axes) -> ma.Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -456,6 +468,25 @@ class PlotCIF:
             ax_2.set_ylim(miny2, maxy2)
 
         cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
+
+        if array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2):
+            print("Flipped!")
+            flip_cchi2 = True
+        else:
+            print("Not flipped...")
+
+        if flip_cchi2:
+            # this keeps the differences between datapoints, but inverts their sign, so
+            #  the list ends up changing from increasing to decreasing, or vice versa.
+            #  This is done to counteract an inverted plotting axis so I can keep the
+            #  cchi2 plot increasing from left to right
+            ylag = np.diff(cchi2, prepend=cchi2[0])
+            ynew = np.zeros(len(cchi2))
+            ynew[0] = cchi2[-1]
+            for i in range(1, len(ynew)):
+                ynew[i] = ynew[i - 1] - ylag[i]
+            cchi2 = ynew
+
         rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
         ax2 = ax1.twinx()
         ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
@@ -480,7 +511,7 @@ class PlotCIF:
 
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
-                          plot_hkls: dict, plot_norm_int:dict,
+                          plot_hkls: dict, plot_norm_int: dict,
                           axis_scale: dict,
                           fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
@@ -507,7 +538,7 @@ class PlotCIF:
         hover_texts = []
         for j in range(len(plot_list) - 1, -1, -1):
             pattern = plot_list[j]
-            x, y = xs[j], ys[j]*y_norms[j]
+            x, y = xs[j], ys[j] * y_norms[j]
             x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
             ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
@@ -524,12 +555,12 @@ class PlotCIF:
             for j in range(len(plot_list) - 1, -1, -1):
                 cifpat = self.cif[plot_list[j]]
                 hkl_y_offset = j * offset
-                x, y = xs[j], ys[j]*y_norms[j]
+                x, y = xs[j], ys[j] * y_norms[j]
                 x, y = _scale_xy_ordinates(x, y, axis_scale)
                 if "str" not in cifpat:
                     continue
-                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None],\
-                               axis_scale, 0, 0, hkl_y_offset, False, dpi, -1, ax)
+                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None], \
+                                                                 axis_scale, 0, 0, hkl_y_offset, False, dpi, -1, ax)
                 stack_hovertexts.extend(tmp_hovertexts)
                 stack_hkl_artists.extend(tmp_hkl_artists)
 
@@ -561,7 +592,7 @@ class PlotCIF:
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, plot_norm_int:dict,
+                            plot_hkls: bool, plot_norm_int: dict,
                             axis_scale: dict,
                             fig: mf.Figure) -> mf.Figure:
         dpi = plt.gcf().get_dpi()
@@ -599,7 +630,7 @@ class PlotCIF:
         # end of if
 
         if plot_norm_int["norm_int"]:
-            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz*znorm, axis_scale)
+            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz * znorm, axis_scale)
         else:
             xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
 
