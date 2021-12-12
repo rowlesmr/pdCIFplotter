@@ -707,9 +707,9 @@ layout = \
     ]
 
 
-def open_cif_popup(text: str) -> sg.Window:
+def open_cif_popup(text: str, icon:str) -> sg.Window:
     m_layout = [[sg.T(text)]]
-    window = sg.Window("Reading CIF...", m_layout)
+    window = sg.Window("Reading CIF...", m_layout, icon=icon)
     window.read(timeout=0)
     return window
 
@@ -783,7 +783,7 @@ def gui() -> None:
             reset_globals()
 
             try:
-                popup = open_cif_popup("Now opening your CIF file.\nPlease wait...")
+                popup = open_cif_popup("Now opening your CIF file.\nPlease wait...", icon)
                 read_cif(files_str)
                 plotcif = plot_cif.PlotCIF(cif, canvas_x, canvas_y)
             except Exception as e:
