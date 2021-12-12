@@ -101,11 +101,11 @@ or::
 
 When you first open ``pdCIFplotter``, you are met with an empty window
 
-![A screenshot showing pdCIFplotter as it appears when first opening](docs/empty.png?raw=true)
+.. image:: https://raw.githubusercontent.com/rowlesmr/pdCIFplotter/master/docs/empty.png?sanitize=true
 
 Clicking "Load file", and choosing a CIF file to open will automatically present you with a single plot. You can then alter how that plot is presented, or visualise all diffraction data in the CIF with the ``Stack`` and ``Surface`` tabs.
 
-![A screenshot showing pdCIFplotter as it appears after opening a CIF file](docs/single.png?raw=true)
+.. image:: https://raw.githubusercontent.com/rowlesmr/pdCIFplotter/master/docs/single.png?sanitize=true
 
 
 
