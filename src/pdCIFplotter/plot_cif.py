@@ -7,6 +7,7 @@ import matplotlib.figure as mf
 import matplotlib.axes as ma
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc  # a lot of colour choices in here to use
+import matplotlib as mpl
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 from typing import List, Tuple, Any
@@ -152,6 +153,9 @@ class PlotCIF:
 
         self.cif: dict = cif
 
+        self.previous_x_lim = None
+        self.previous_y_lim = None
+
     def get_all_xy_data(self, x_ordinate: str, y_ordinate: str) -> Tuple[List, List, List[str]]:
         """
         Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
@@ -281,22 +285,25 @@ class PlotCIF:
         zn = np.array(znorms)
         return xx, yy, zz, zn, plot_list
 
-    def single_update_plot(self, pattern: str,
+    def single_update_plot(self, pattern: str, change_data: bool,
                            x_ordinate: str, y_ordinates: list,
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                            axis_scale: dict,
-                           fig: mf.Figure) -> mf.Figure:
+                           fig: mf.Figure, ax: ma.Axes) -> Tuple[mf.Figure, ma.Axes, Tuple, Tuple]:
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         dpi = plt.gcf().get_dpi()
         single_height_px = fig.get_size_inches()[1] * dpi if fig is not None else 382  # this is needed for the hkl position calculations
         # if single_fig is None or single_ax is None:
+        old_x_lim = None
+        old_y_lim = None
         if fig is not None:
+            old_x_lim = plt.xlim()
+            old_y_lim = plt.ylim()
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
-        fig = plt.gcf()
         fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
-        fig.set_tight_layout(True)
-        plt.margins(x=0)
+        fig.set_tight_layout(True) # https://github.com/matplotlib/matplotlib/issues/21970
+        ax.margins(x=0)
 
         cifpat = self.cif[pattern]
         x = _scale_x_ordinate(cifpat[x_ordinate], axis_scale)
@@ -333,15 +340,16 @@ class PlotCIF:
                 if y_name == "Diff":
                     offset = min_plot - np.nanmax(y)
                     y += offset
-                    # this is to plot the 'sero' line for the diff plot
-                    ax.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
+                    # this is to plot the 'zero' line for the diff plot
+                    line, = ax.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
 
                 label = f" {y_name}" if not plot_norm_int else f" {y_name} (norm.)"
-                ax.plot(x, y, label=label,
-                        color=self.single_y_style[y_type]["color"], marker=self.single_y_style[y_type]["marker"],
-                        linestyle=self.single_y_style[y_type]["linestyle"], linewidth=self.single_y_style[y_type]["linewidth"],
-                        markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
-                        )
+                line, = ax.plot(x, y, label=label,
+                                color=self.single_y_style[y_type]["color"], marker=self.single_y_style[y_type]["marker"],
+                                linestyle=self.single_y_style[y_type]["linestyle"], linewidth=self.single_y_style[y_type]["linewidth"],
+                                markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
+                                )
+
                 # keep track of min and max to plot hkl ticks and diff correctly
                 min_plot = min(min_plot, np.nanmin(y))
                 max_plot = max(max_plot, np.nanmax(y))
@@ -349,16 +357,15 @@ class PlotCIF:
                     cchi2_zero = min_plot
 
         if plot_hkls["above"] or plot_hkls["below"]:
-            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi,
+            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, change_data,
+                                                                   x_ordinate, x, ys, axis_scale,
+                                                                   min_plot, max_plot, 0, True, dpi,
                                                                    single_height_px, ax)
             add_hovertext_to_each_point(single_hkl_artists, single_hovertexts)
 
         if plot_cchi2:
-            if x_ordinate in {"d", "_pd_proc_d_spacing"}:
-                flip_cchi2 = True
-            else:
-                flip_cchi2 = False
-            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
+            flip_cchi2 = x_ordinate in {"d", "_pd_proc_d_spacing"}
+            ax2 = self.single_plot_cchi2(cifpat, change_data, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
 
         if not plot_cchi2:
             plt.legend(frameon=False, loc='upper right')  # loc='best')
@@ -384,9 +391,15 @@ class PlotCIF:
             ax.set_zorder(ax2.get_zorder() + 1)
             ax.patch.set_visible(False)
 
-        return fig
 
-    def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
+        print(f"{old_x_lim=}")
+        print(f"{old_y_lim=}")
+        print(f"{plt.xlim()=}")
+        print(f"{plt.ylim()=}")
+
+        return fig, ax, old_x_lim, old_y_lim
+
+    def plot_hkls(self, plot_below: bool, cifpat: dict, change_data: bool, x_ordinate: str, x, ys,
                   axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
                   single_plot: bool,
                   dpi: int, single_height_px: int, ax: ma.Axes):
@@ -442,21 +455,8 @@ class PlotCIF:
 
         return hovertexts, hkl_artists
 
-    def plot_norm_int_to_err(self, cifpat: dict, x, norm_int_to_err_y_ordinate: str, axis_scale: dict, ax: ma.Axes) -> None:
-        y = cifpat[norm_int_to_err_y_ordinate]
-        if "_pd_proc_ls_weight" in cifpat:
-            y_norm = y ** 2 * cifpat["_pd_proc_ls_weight"]
-        else:
-            y_norm = (y / cifpat[norm_int_to_err_y_ordinate + "_err"]) ** 2
-        y_norm = _scale_y_ordinate(y_norm, axis_scale)
-
-        ax.plot(x, y_norm, label=" Norm. int. to errors",
-                color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
-                linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
-                markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
-                )
-
-    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool, ax1: ma.Axes) -> ma.Axes:
+    def single_plot_cchi2(self, cifpat: dict, change_data: bool, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool,
+                          ax1: ma.Axes) -> ma.Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -489,11 +489,13 @@ class PlotCIF:
 
         rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
         ax2 = ax1.twinx()
-        ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
-                 color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
-                 linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
-                 markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
-                 )
+
+        line, = ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
+                         color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
+                         linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
+                         markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
+                         )
+
         ax2.set_yticklabels([])
         ax2.set_yticks([])
         ax2.margins(x=0)
