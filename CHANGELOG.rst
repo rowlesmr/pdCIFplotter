@@ -2,6 +2,11 @@
 Changelog
 =========
 
+0.0.7 (2021-12-18)
+------------------
+
+* Zoom persists in single plots when changing between diffraction patterns or altering the view in some way.
+
 0.0.6 (2021-12-09)
 ------------------
 
