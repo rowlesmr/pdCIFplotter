@@ -18,7 +18,7 @@ import sys
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = True
+DEBUG = False
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
@@ -144,20 +144,20 @@ def pretty(d, indent=0, print_values=True):
             print('\t' * (indent + 1) + str(value))
 
 
-def single_update_plot(pattern, change_data: bool, x_ordinate: str, y_ordinates: list,
+def single_update_plot(pattern, x_ordinate: str, y_ordinates: list,
                        plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                        axis_scale: dict, window):
     global single_figure_agg, single_fig, single_ax
 
-    single_fig, single_ax, x_zoom, y_zoom = plotcif.single_update_plot(pattern, change_data,
-                                                                       x_ordinate, y_ordinates,
-                                                                       plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
-                                                                       axis_scale, single_fig, single_ax)
+    single_fig, single_ax, x_zoom, y_zoom = \
+        plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
+                                   plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
+                                   axis_scale, single_fig, single_ax)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
                                               window["single_matplotlib_controls"].TKCanvas,
-                                              change_data)
-    if change_data and x_zoom:
+                                              True)
+    if x_zoom:
         single_ax.set_xlim(x_zoom)  # restore zoom
         single_ax.set_ylim(y_zoom)
 
@@ -182,7 +182,7 @@ def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
-def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_toolbar: tkinter.Canvas, change_data: bool = False) -> FigureCanvasTkAgg:
+def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_toolbar: tkinter.Canvas, make_new_home: bool = False) -> FigureCanvasTkAgg:
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -198,8 +198,7 @@ def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_tool
     # debug(f"{toolbar._message_label.config().keys()=}")
     # debug(f"{toolbar.config().keys()=}")
     toolbar.update()
-    print(f"{change_data=}")
-    if change_data:
+    if make_new_home:
         toolbar.push_current()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
     return figure_canvas_agg
@@ -776,7 +775,6 @@ def gui() -> None:
         debug(f"-----------------\n{event}: {the_value} --- {values}\n-----------------")
 
         replot_single = False
-        single_changing_data = False
         replot_stack = False
         replot_surface = False
 
@@ -808,7 +806,8 @@ def gui() -> None:
             finally:
                 popup.close()
 
-            parse_cif.pretty(cif)
+            if DEBUG:
+                parse_cif.pretty(cif)
 
             window["file_string"].update(value=[])
             window["file_string_name"].update(value=values["file_string"])
@@ -866,7 +865,6 @@ def gui() -> None:
 
         elif event == single_keys["data"]:
             replot_single = True
-            single_changing_data = True
             pattern = values[event]
             # because I'm changing the pattern I'm plotting, there may be different data available to plot
             #  This will change the options for the dropdown boxes and the like
@@ -983,7 +981,6 @@ def gui() -> None:
                          "below": values[single_keys["hkl_checkbox"]] and values[single_keys["hkl_below"]]}
             try:
                 single_update_plot(pattern,
-                                   single_changing_data,
                                    x_ordinate,
                                    [yobs, ycalc, ybkg],
                                    plot_hkls,
