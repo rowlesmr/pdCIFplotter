@@ -170,6 +170,17 @@ def get_zoomed_data_min_max(ax, x_lim: tuple, y_lim: tuple):
     return (xmin, xmax), (ymin / 1.04, ymax * 1.04)
 
 
+def isclose_listlike(a, b, rel_tol=1e-09, abs_tol=0.0):
+    if a is None or b is None:
+        return False
+    if len(a) != len(b):
+        return False
+    return all(
+        math.isclose(av, bv, rel_tol=rel_tol, abs_tol=abs_tol)
+        for av, bv in zip(a, b)
+    )
+
+
 class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
@@ -344,7 +355,7 @@ class PlotCIF:
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
         fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
-        # fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970
+        # fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
 
         cifpat = self.cif[pattern]
@@ -444,13 +455,18 @@ class PlotCIF:
         zoomed_x_lim = ax.get_xlim() if not zoomed_x_lim else zoomed_x_lim
         zoomed_y_lim = ax.get_ylim() if not zoomed_y_lim else zoomed_y_lim
 
+
+        print(f'{self.previous_single_plot_state["data_x_lim"]=}, {zoomed_x_lim=}')
+        print(f'{self.previous_single_plot_state["data_y_lim"]=}, {zoomed_y_lim=}')
+
+
         # here go the rules on changing zoom to match the current data
         if (
             self.previous_single_plot_state["pattern"] != pattern
             # if the zoom view of the data is the entire data, then the view of the new data is the
             #  entire view of the new data, irrespective of the limits of the previous zoom
-            and self.previous_single_plot_state["data_x_lim"] == zoomed_x_lim
-            and self.previous_single_plot_state["data_y_lim"] == zoomed_y_lim
+            and isclose_listlike(self.previous_single_plot_state["data_x_lim"], zoomed_x_lim)
+            and isclose_listlike(self.previous_single_plot_state["data_y_lim"], zoomed_y_lim)
         ):
             reset_zoomed_to_plt_x_min = True
             reset_zoomed_to_plt_x_max = True
