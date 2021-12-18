@@ -11,18 +11,20 @@ import pdCIFplotter as pcp
 from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.figure as mf
+import matplotlib as mpl
 from typing import List, Tuple, Union, Any
 import sys
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = True
+DEBUG = False
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[THEME_NUMBER])
-sg.set_options(dpi_awareness=True)
+if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
+    sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30
@@ -795,7 +797,8 @@ def gui() -> None:
             finally:
                 popup.close()
 
-            parse_cif.pretty(cif)
+            if DEBUG:
+                parse_cif.pretty(cif)
 
             window["file_string"].update(value=[])
             window["file_string_name"].update(value=values["file_string"])
