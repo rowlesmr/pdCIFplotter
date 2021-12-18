@@ -5,12 +5,14 @@ Created on Sun Jul  4 20:56:13 2021
 @author: Matthew Rowles
 """
 
+import tkinter
 import PySimpleGUI as sg
 
 import pdCIFplotter as pcp
 from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.figure as mf
+import matplotlib.axes as ma
 import matplotlib as mpl
 from typing import List, Tuple, Union, Any
 import sys
@@ -32,6 +34,7 @@ canvas_x = 600
 canvas_y = 300
 
 single_fig: mf.Figure = None
+single_ax: ma.Axes = None
 single_figure_agg: FigureCanvasTkAgg = None
 
 stack_fig: mf.Figure = None
@@ -64,7 +67,7 @@ def reset_globals():
     Initialising them again is somebody else's problem...
     :return:
     """
-    global single_fig, single_figure_agg
+    global single_fig, single_ax, single_figure_agg
     global stack_fig, stack_figure_agg
     global surface_fig, surface_figure_agg
 
@@ -75,6 +78,7 @@ def reset_globals():
     global surface_x_ordinates, surface_z_ordinates
 
     single_fig = None
+    single_ax = None
     single_figure_agg = None
 
     stack_fig = None
@@ -145,14 +149,19 @@ def pretty(d, indent=0, print_values=True):
 def single_update_plot(pattern, x_ordinate: str, y_ordinates: list,
                        plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                        axis_scale: dict, window):
-    global single_figure_agg, single_fig
+    global single_figure_agg, single_fig, single_ax
 
-    single_fig = plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
-                                            plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
-                                            axis_scale, single_fig)
+    single_fig, single_ax, x_zoom, y_zoom = \
+        plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
+                                   plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
+                                   axis_scale, single_fig, single_ax)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
-                                              window["single_matplotlib_controls"].TKCanvas)
+                                              window["single_matplotlib_controls"].TKCanvas,
+                                              True)
+    if x_zoom:
+        single_ax.set_xlim(x_zoom)  # restore zoom
+        single_ax.set_ylim(y_zoom)
 
 
 def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, window):
@@ -164,7 +173,7 @@ def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm:dict, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
     surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, axis_scale, surface_fig)
@@ -175,7 +184,7 @@ def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_
 
 # https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
 # https://github.com/PySimpleGUI/PySimpleGUI/issues/3989#issuecomment-794005240
-def draw_figure_w_toolbar(canvas, figure: mf.Figure, canvas_toolbar):
+def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_toolbar: tkinter.Canvas, make_new_home: bool = False) -> FigureCanvasTkAgg:
     if canvas.children:
         for child in canvas.winfo_children():
             child.destroy()
@@ -191,6 +200,8 @@ def draw_figure_w_toolbar(canvas, figure: mf.Figure, canvas_toolbar):
     # debug(f"{toolbar._message_label.config().keys()=}")
     # debug(f"{toolbar.config().keys()=}")
     toolbar.update()
+    if make_new_home:
+        toolbar.push_current()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
     return figure_canvas_agg
 
@@ -709,7 +720,7 @@ layout = \
     ]
 
 
-def open_cif_popup(text: str, icon:str) -> sg.Window:
+def open_cif_popup(text: str, icon: str) -> sg.Window:
     m_layout = [[sg.T(text)]]
     window = sg.Window("Reading CIF...", m_layout, icon=icon)
     window.read(timeout=0)

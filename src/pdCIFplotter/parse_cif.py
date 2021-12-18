@@ -6,7 +6,7 @@ import copy
 from CifFile import CifFile, ReadCif, StarFile, CifBlock
 from typing import List, Tuple, Union, Any
 
-DEBUG = True
+DEBUG = False
 
 
 def pretty(d, indent=0, print_values=True):

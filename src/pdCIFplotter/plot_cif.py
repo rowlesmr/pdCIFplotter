@@ -7,11 +7,12 @@ import matplotlib.figure as mf
 import matplotlib.axes as ma
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc  # a lot of colour choices in here to use
+import matplotlib as mpl
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 from typing import List, Tuple, Any
 
-DEBUG = True
+DEBUG = False
 
 
 def debug(*args):
@@ -130,6 +131,45 @@ def array_strictly_decreasing_or_equal(a):
     return np.all(a[1:] <= a[:-1])
 
 
+def rescale_val(val: float, old_scale: dict, new_scale: dict, ordinate: str):
+    if old_scale[ordinate] == "log":
+        val = 10 ** val
+    elif old_scale[ordinate] == "sqrt":
+        val **= 2
+    return _scale_ordinate(new_scale, val, ordinate)
+
+
+def get_first_different_kv_pair(old_dict: dict, new_dict: dict):
+    for k, v in old_dict.items():
+        if new_dict[k] != v:
+            return k, v
+
+
+def get_zoomed_data_min_max(ax, x_lim: tuple, y_lim: tuple):
+    xmin = x_lim[0]
+    xmax = x_lim[1]
+    ymin = y_lim[0]
+    ymax = y_lim[1]
+    xs = []
+    ys = []
+
+    if xmin > xmax:
+        xmin, xmax = xmax, xmin
+    for line in ax.lines:
+        xa = line.get_xdata()
+        ya = line.get_ydata()
+        for x, y in zip(xa, ya):
+            if xmin < x < xmax:
+                xs.append(x)
+                ys.append(y)
+    xmin = min(xs)
+    xmax = max(xs)
+    ymin = max(ymin, min(ys))
+    ymax = min(ymax, max(ys))
+
+    return (xmin, xmax), (ymin / 1.04, ymax * 1.04)
+
+
 class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
@@ -149,6 +189,13 @@ class PlotCIF:
         self.surface_plot_data = {"x_ordinate": "", "y_ordinate": "", "z_ordinate": "",
                                   "x_data": None, "y_data": None, "z_data": None, "z_norm": None,
                                   "plot_list": []}
+
+        self.previous_single_plot_state = {"pattern": "", "change_data": False,
+                                           "x_ordinate": "", "y_ordinates": ["None"],
+                                           "plot_hkls": {}, "plot_diff": False, "plot_cchi2": False, "plot_norm_int": False,
+                                           "axis_scale": {},
+                                           "data_x_lim": None, "data_y_lim": None,
+                                           "zoomed_x_lim": None, "zoomed_y_lim": None}
 
         self.cif: dict = cif
 
@@ -281,22 +328,24 @@ class PlotCIF:
         zn = np.array(znorms)
         return xx, yy, zz, zn, plot_list
 
-    def single_update_plot(self, pattern: str,
-                           x_ordinate: str, y_ordinates: list,
+    def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                            axis_scale: dict,
-                           fig: mf.Figure) -> mf.Figure:
+                           fig: mf.Figure, ax: ma.Axes) -> Tuple[mf.Figure, ma.Axes, Tuple, Tuple]:
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         dpi = plt.gcf().get_dpi()
         single_height_px = fig.get_size_inches()[1] * dpi if fig is not None else 382  # this is needed for the hkl position calculations
         # if single_fig is None or single_ax is None:
-        if fig is not None:
+        zoomed_x_lim = None
+        zoomed_y_lim = None
+        if fig:
+            zoomed_x_lim = ax.get_xlim()
+            zoomed_y_lim = ax.get_ylim()
             plt.close(fig)
         fig, ax = plt.subplots(1, 1)
-        fig = plt.gcf()
         fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
-        fig.set_tight_layout(True)
-        plt.margins(x=0)
+        # fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970
+        ax.margins(x=0)
 
         cifpat = self.cif[pattern]
         x = _scale_x_ordinate(cifpat[x_ordinate], axis_scale)
@@ -333,7 +382,7 @@ class PlotCIF:
                 if y_name == "Diff":
                     offset = min_plot - np.nanmax(y)
                     y += offset
-                    # this is to plot the 'sero' line for the diff plot
+                    # this is to plot the 'zero' line for the diff plot
                     ax.plot(x, [offset] * len(x), color="black", marker=None, linestyle=(0, (5, 10)), linewidth=1)  # "loosely dashed"
 
                 label = f" {y_name}" if not plot_norm_int else f" {y_name} (norm.)"
@@ -342,6 +391,7 @@ class PlotCIF:
                         linestyle=self.single_y_style[y_type]["linestyle"], linewidth=self.single_y_style[y_type]["linewidth"],
                         markersize=float(self.single_y_style[y_type]["linewidth"]) * 3
                         )
+
                 # keep track of min and max to plot hkl ticks and diff correctly
                 min_plot = min(min_plot, np.nanmin(y))
                 max_plot = max(max_plot, np.nanmax(y))
@@ -349,15 +399,14 @@ class PlotCIF:
                     cchi2_zero = min_plot
 
         if plot_hkls["above"] or plot_hkls["below"]:
-            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, ys, axis_scale, min_plot, max_plot, 0, True, dpi,
+            single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat,
+                                                                   x_ordinate, x, ys, axis_scale,
+                                                                   min_plot, max_plot, 0, True, dpi,
                                                                    single_height_px, ax)
             add_hovertext_to_each_point(single_hkl_artists, single_hovertexts)
 
         if plot_cchi2:
-            if x_ordinate in {"d", "_pd_proc_d_spacing"}:
-                flip_cchi2 = True
-            else:
-                flip_cchi2 = False
+            flip_cchi2 = x_ordinate in {"d", "_pd_proc_d_spacing"}
             ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
 
         if not plot_cchi2:
@@ -384,7 +433,82 @@ class PlotCIF:
             ax.set_zorder(ax2.get_zorder() + 1)
             ax.patch.set_visible(False)
 
-        return fig
+        # now I need to set up all the checks to see if I want to push new views onto the home stack
+        #  and how to reset the zoom.
+        reset_zoomed_to_plt_x_min = False
+        reset_zoomed_to_plt_x_max = False
+        reset_zoomed_to_plt_y_min = False
+        reset_zoomed_to_plt_y_max = False
+        data_x_lim = ax.get_xlim()
+        data_y_lim = ax.get_ylim()
+        zoomed_x_lim = ax.get_xlim() if not zoomed_x_lim else zoomed_x_lim
+        zoomed_y_lim = ax.get_ylim() if not zoomed_y_lim else zoomed_y_lim
+
+        # here go the rules on changing zoom to match the current data
+        if (
+            self.previous_single_plot_state["pattern"] != pattern
+            # if the zoom view of the data is the entire data, then the view of the new data is the
+            #  entire view of the new data, irrespective of the limits of the previous zoom
+            and self.previous_single_plot_state["data_x_lim"] == zoomed_x_lim
+            and self.previous_single_plot_state["data_y_lim"] == zoomed_y_lim
+        ):
+            reset_zoomed_to_plt_x_min = True
+            reset_zoomed_to_plt_x_max = True
+            reset_zoomed_to_plt_y_min = True
+            reset_zoomed_to_plt_y_max = True
+        if self.previous_single_plot_state["x_ordinate"] != x_ordinate:
+            reset_zoomed_to_plt_x_min = True
+            reset_zoomed_to_plt_x_max = True
+        if self.previous_single_plot_state["y_ordinates"] != y_ordinates:
+            reset_zoomed_to_plt_y_min = True
+            reset_zoomed_to_plt_y_max = True
+        if self.previous_single_plot_state["plot_diff"] != plot_diff:
+            reset_zoomed_to_plt_y_min = True
+        if self.previous_single_plot_state["plot_hkls"] != plot_hkls:
+            reset_zoomed_to_plt_y_min = True
+
+        if self.previous_single_plot_state["plot_norm_int"] != plot_norm_int:
+            _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
+            yrange = (ymax - ymin)
+            ymid = yrange / 2
+            yrange = (yrange * 1.07) / 2
+            zoomed_y_lim = (ymid - yrange, ymid + yrange)
+        if self.previous_single_plot_state["axis_scale"] not in [axis_scale, {}]:
+            ordinate, _ = get_first_different_kv_pair(self.previous_single_plot_state["axis_scale"], axis_scale)
+            if ordinate == "x":
+                zoomed_xmin = rescale_val(zoomed_x_lim[0], self.previous_single_plot_state["axis_scale"], axis_scale, ordinate)
+                zoomed_xmax = rescale_val(zoomed_x_lim[1], self.previous_single_plot_state["axis_scale"], axis_scale, ordinate)
+                zoomed_x_lim = (zoomed_xmin, zoomed_xmax)
+            elif ordinate == "y":
+                zoomed_ymin = rescale_val(zoomed_y_lim[0], self.previous_single_plot_state["axis_scale"], axis_scale, ordinate)
+                zoomed_ymax = rescale_val(zoomed_y_lim[1], self.previous_single_plot_state["axis_scale"], axis_scale, ordinate)
+                zoomed_y_lim = (zoomed_ymin, zoomed_ymax)
+
+        if reset_zoomed_to_plt_x_min:
+            zoomed_x_lim = (data_x_lim[0], zoomed_x_lim[1])
+        if reset_zoomed_to_plt_x_max:
+            zoomed_x_lim = (zoomed_x_lim[0], data_x_lim[1])
+        if reset_zoomed_to_plt_y_min:
+            zoomed_y_lim = (data_y_lim[0], zoomed_y_lim[1])
+        if reset_zoomed_to_plt_y_max:
+            zoomed_y_lim = (zoomed_y_lim[0], data_y_lim[1])
+
+        # Now it's time to set up the previous-state dictionary for the next time this function is called.
+        #  Need to do it right at the end so nothing else changes
+        self.previous_single_plot_state["pattern"] = pattern
+        self.previous_single_plot_state["x_ordinate"] = x_ordinate
+        self.previous_single_plot_state["y_ordinates"] = y_ordinates
+        self.previous_single_plot_state["plot_hkls"] = plot_hkls
+        self.previous_single_plot_state["plot_diff"] = plot_diff
+        self.previous_single_plot_state["plot_cchi2"] = plot_cchi2
+        self.previous_single_plot_state["plot_norm_int"] = plot_norm_int
+        self.previous_single_plot_state["axis_scale"] = axis_scale
+        self.previous_single_plot_state["data_x_lim"] = plt.xlim()
+        self.previous_single_plot_state["data_y_lim"] = plt.ylim()
+        self.previous_single_plot_state["zoomed_x_lim"] = zoomed_x_lim
+        self.previous_single_plot_state["zoomed_y_lim"] = zoomed_y_lim
+
+        return fig, ax, zoomed_x_lim, zoomed_y_lim
 
     def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
                   axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
@@ -405,7 +529,6 @@ class PlotCIF:
         hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
         for i, phase in enumerate(cifpat["str"].keys()):
             if hkl_x_ordinate not in cifpat["str"][phase]:
-                print(f"Couldn't find {hkl_x_ordinate} in {phase=}.")
                 continue
             hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
             if plot_below:
@@ -442,21 +565,8 @@ class PlotCIF:
 
         return hovertexts, hkl_artists
 
-    def plot_norm_int_to_err(self, cifpat: dict, x, norm_int_to_err_y_ordinate: str, axis_scale: dict, ax: ma.Axes) -> None:
-        y = cifpat[norm_int_to_err_y_ordinate]
-        if "_pd_proc_ls_weight" in cifpat:
-            y_norm = y ** 2 * cifpat["_pd_proc_ls_weight"]
-        else:
-            y_norm = (y / cifpat[norm_int_to_err_y_ordinate + "_err"]) ** 2
-        y_norm = _scale_y_ordinate(y_norm, axis_scale)
-
-        ax.plot(x, y_norm, label=" Norm. int. to errors",
-                color=self.single_y_style["norm_int"]["color"], marker=self.single_y_style["norm_int"]["marker"],
-                linestyle=self.single_y_style["norm_int"]["linestyle"], linewidth=self.single_y_style["norm_int"]["linewidth"],
-                markersize=float(self.single_y_style["norm_int"]["linewidth"]) * 3
-                )
-
-    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool, ax1: ma.Axes) -> ma.Axes:
+    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool,
+                          ax1: ma.Axes) -> ma.Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -470,10 +580,9 @@ class PlotCIF:
         cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
 
         if array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2):
-            print("Flipped!")
             flip_cchi2 = True
         else:
-            print("Not flipped...")
+            pass
 
         if flip_cchi2:
             # this keeps the differences between datapoints, but inverts their sign, so
@@ -489,11 +598,13 @@ class PlotCIF:
 
         rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
         ax2 = ax1.twinx()
+
         ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
                  color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
                  linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
                  markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
                  )
+
         ax2.set_yticklabels([])
         ax2.set_yticks([])
         ax2.margins(x=0)
@@ -528,7 +639,6 @@ class PlotCIF:
         offset = _scale_y_ordinate(offset, axis_scale)
 
         if plot_norm_int["norm_int"]:
-            print(f'{plot_norm_int["y_ordinate_for_norm"]=}')
             y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
         else:
             y_norms = [np.ones(len(xi)) for xi in xs]
