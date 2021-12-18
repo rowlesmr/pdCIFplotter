@@ -23,7 +23,7 @@ def read(*names, **kwargs):
 
 setup(
     name='pdCIFplotter',
-    version='0.0.6',
+    version='0.0.7',
     license='Apache-2.0',
     description='A program for visualising diffraction data in pdCIF format.',
     long_description='%s\n%s' % (
