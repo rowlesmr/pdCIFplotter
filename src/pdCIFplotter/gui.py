@@ -13,6 +13,7 @@ from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import matplotlib.figure as mf
 import matplotlib.axes as ma
+import matplotlib as mpl
 from typing import List, Tuple, Union, Any
 import sys
 
@@ -24,7 +25,8 @@ DEBUG = False
 THEME_NUMBER = 2
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[THEME_NUMBER])
-sg.set_options(dpi_awareness=True)
+if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
+    sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30
