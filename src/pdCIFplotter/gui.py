@@ -28,8 +28,8 @@ sg.theme(MY_THEMES[THEME_NUMBER])
 
 print("somestuff")
 print(f"{mpl.__version__=}")
-# if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
-#     sg.set_options(dpi_awareness=True)
+if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
+    sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30
