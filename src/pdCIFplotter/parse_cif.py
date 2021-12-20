@@ -705,7 +705,7 @@ if __name__ == "__main__":
     #
     # _diffrn_wavelength = two values for ka1 ka2
 
-    import os
+    # import os
 
     # #18
     # filename = files[189]

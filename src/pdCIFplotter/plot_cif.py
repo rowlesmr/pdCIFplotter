@@ -1,5 +1,3 @@
-from numpy import ndarray
-
 from pdCIFplotter import parse_cif
 import numpy as np
 import math
@@ -7,7 +5,6 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
 import matplotlib.colors as mc  # a lot of colour choices in here to use
-import matplotlib as mpl
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 from typing import List, Tuple, Any
@@ -277,7 +274,7 @@ class PlotCIF:
             y_norms.append(y_norm)
         return y_norms
 
-    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, ndarray, ndarray, list[Any]]:
+    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, np.ndarray, np.ndarray, list[Any]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
@@ -455,11 +452,6 @@ class PlotCIF:
         zoomed_x_lim = ax.get_xlim() if not zoomed_x_lim else zoomed_x_lim
         zoomed_y_lim = ax.get_ylim() if not zoomed_y_lim else zoomed_y_lim
 
-
-        print(f'{self.previous_single_plot_state["data_x_lim"]=}, {zoomed_x_lim=}')
-        print(f'{self.previous_single_plot_state["data_y_lim"]=}, {zoomed_y_lim=}')
-
-
         # here go the rules on changing zoom to match the current data
         if (
             self.previous_single_plot_state["pattern"] != pattern
@@ -484,10 +476,10 @@ class PlotCIF:
             reset_zoomed_to_plt_y_min = True
 
         if self.previous_single_plot_state["plot_norm_int"] != plot_norm_int:
-            _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
-            yrange = (ymax - ymin)
-            ymid = yrange / 2
-            yrange = (yrange * 1.07) / 2
+            # _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
+            # yrange = (ymax - ymin)
+            # ymid = yrange / 2
+            # yrange = (yrange * 1.07) / 2
             zoomed_y_lim = data_y_lim
         if self.previous_single_plot_state["axis_scale"] not in [axis_scale, {}]:
             ordinate, _ = get_first_different_kv_pair(self.previous_single_plot_state["axis_scale"], axis_scale)
@@ -684,7 +676,7 @@ class PlotCIF:
                 x, y = _scale_xy_ordinates(x, y, axis_scale)
                 if "str" not in cifpat:
                     continue
-                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None], \
+                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None],
                                                                  axis_scale, 0, 0, hkl_y_offset, False, self.dpi, -1, ax)
                 stack_hovertexts.extend(tmp_hovertexts)
                 stack_hkl_artists.extend(tmp_hkl_artists)
