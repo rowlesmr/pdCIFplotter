@@ -31,7 +31,7 @@ if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/
 # global parameters
 action_column_width = 30
 canvas_x = 600
-canvas_y = 300
+canvas_y = canvas_x // 1.6
 
 single_fig: mf.Figure = None
 single_ax: ma.Axes = None
@@ -389,6 +389,8 @@ def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str
 #
 #################################################################################################################
 single_keys = {"data": "single_data_chooser",  # this entry must remain at the beginning
+               "next_data": "single_next_data",
+               "prev_data": "single_prev_data",
                "x_axis": "single_x_ordinate",
                "yobs": "single_yobs_ordinate",
                "ycalc": "single_ycalc_ordinate",
@@ -433,6 +435,9 @@ def update_single_element_disables(pattern: str, values: dict, window: sg.Window
         (values[single_keys["yobs"]] == "None" or values[single_keys["ycalc"]] == "None"):
         window[single_keys["ydiff"]].update(disabled=True, value=False)
         window[single_keys["cchi2"]].update(disabled=True, value=False)
+    if len(single_data_list) <= 1:
+        window[single_keys["next_data"]].update(disabled=True)
+        window[single_keys["prev_data"]].update(disabled=True)
     #   If there isn't at least one hkl list, or you've chosen an x-ordinate that
     #   doesn't allow hkl ticks, disable hkl checkbox and radio
     if "str" not in cif[pattern] or values[single_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
@@ -462,11 +467,14 @@ layout_single_data_chooser = \
     [[
         sg.Combo(values=["Load some files to start!"],
                  default_value="Load some files to start!",
-                 size=45,
+                 size=39,
                  enable_events=True,
                  key=single_keys["data"],
                  readonly=True),
-        sg.Push(),
+        sg.Stretch(),
+        sg.B("<", enable_events=True, key=single_keys["prev_data"]),
+        sg.B(">", enable_events=True, key=single_keys["next_data"]),
+
     ]]
 
 layout_single_plot_control = \
@@ -864,6 +872,29 @@ def gui() -> None:
         # --------------------------------------------------------------------------------------
         elif event == "tab-change" and values[event] == "single_tab" and single_figure_agg is None:
             replot_single = True
+
+        elif event in (single_keys["prev_data"], single_keys["next_data"]):
+            replot_single = True
+            single_current_data: str = values[single_keys["data"]]
+            single_current_data_list: List[str] = window[single_keys["data"]].Values
+            single_data_index = single_current_data_list.index(single_current_data)
+            if event == single_keys["prev_data"]:
+                single_data_index -= 1
+            else:
+                single_data_index += 1
+            single_data_index %= len(single_current_data_list)
+            pattern = single_current_data_list[single_data_index]
+
+            window[single_keys["data"]].update(value=pattern)
+            window[single_keys["x_axis"]].update(values=single_dropdown_lists[pattern]["x_values"], value=single_dropdown_lists[pattern]["x_value"])
+            window[single_keys["yobs"]].update(values=single_dropdown_lists[pattern]["yobs_values"], value=single_dropdown_lists[pattern]["yobs_value"])
+            window[single_keys["ycalc"]].update(values=single_dropdown_lists[pattern]["ycalc_values"], value=single_dropdown_lists[pattern]["ycalc_value"])
+            window[single_keys["ybkg"]].update(values=single_dropdown_lists[pattern]["ybkg_values"], value=single_dropdown_lists[pattern]["ybkg_value"])
+
+            # push all the window value updates and then update the enable/disable, and then push again
+            _, values = window.read(timeout=0)
+            update_single_element_disables(pattern, values, window)
+            _, values = window.read(timeout=0)
 
         elif event == single_keys["data"]:
             replot_single = True
