@@ -58,7 +58,7 @@ on visualising powder diffraction data stored in CIF format, and, in particular,
 Pre-installation
 ================
 
-If you are on Windows, you must read this step. If you are on Linuz, you can continue.
+If you are on Windows, you must read this step. If you are on Linux, you can continue.
 
 ``pdCIFplotter`` requires ``PyCifRW >= 4.4.3``. If you install ``PyCifRW`` from `PyPI <https://pypi.org/>`_ via ``pip``, then you will also need to compile the included C modules. To do so requires `Microsoft Visual C++ 14.0 or greater <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_. If you don't have this installed, or do not wish to install it, `precompiled wheel files are available <https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycifrw>`_. You must download the wheel file corresponding to your Python installation.
 

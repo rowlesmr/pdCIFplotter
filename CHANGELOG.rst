@@ -2,10 +2,18 @@
 Changelog
 =========
 
+0.0.8 (2021-12-20)
+------------------
+
+* Updated some of the zoom behaviour
+* Can now use arrows to move between consecutive diffraction patterns in the single plot
+
+
 0.0.7 (2021-12-18)
 ------------------
 
 * Zoom persists in single plots when changing between diffraction patterns or altering the view in some way.
+
 
 0.0.6 (2021-12-09)
 ------------------
