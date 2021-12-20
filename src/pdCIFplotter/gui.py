@@ -14,7 +14,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import matplotlib.figure as mf
 import matplotlib.axes as ma
 import matplotlib as mpl
-from typing import List, Tuple, Union, Any
+from typing import List, Union
 import sys
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
@@ -25,8 +25,11 @@ DEBUG = False
 THEME_NUMBER = 2
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[THEME_NUMBER])
-if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
-    sg.set_options(dpi_awareness=True)
+
+print("somestuff")
+print(f"{mpl.__version__=}")
+# if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
+#     sg.set_options(dpi_awareness=True)
 
 # global parameters
 action_column_width = 30

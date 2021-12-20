@@ -1,13 +1,10 @@
-from numpy import ndarray
-
 from pdCIFplotter import parse_cif
 import numpy as np
 import math
-import matplotlib.figure as mf
-import matplotlib.axes as ma
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+
 import matplotlib.colors as mc  # a lot of colour choices in here to use
-import matplotlib as mpl
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
 from typing import List, Tuple, Any
@@ -209,6 +206,7 @@ class PlotCIF:
                                            "zoomed_x_lim": None, "zoomed_y_lim": None}
 
         self.cif: dict = cif
+        self.dpi = 100
 
     def get_all_xy_data(self, x_ordinate: str, y_ordinate: str) -> Tuple[List, List, List[str]]:
         """
@@ -276,7 +274,7 @@ class PlotCIF:
             y_norms.append(y_norm)
         return y_norms
 
-    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, ndarray, ndarray, list[Any]]:
+    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, np.ndarray, np.ndarray, list[Any]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
@@ -342,19 +340,18 @@ class PlotCIF:
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                            axis_scale: dict,
-                           fig: mf.Figure, ax: ma.Axes) -> Tuple[mf.Figure, ma.Axes, Tuple, Tuple]:
+                           fig: Figure, ax: Axes) -> Tuple[Figure, Axes, Tuple, Tuple]:
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
-        dpi = plt.gcf().get_dpi()
-        single_height_px = fig.get_size_inches()[1] * dpi if fig is not None else 382  # this is needed for the hkl position calculations
+        single_height_px = fig.get_size_inches()[1] * self.dpi if fig is not None else 382  # this is needed for the hkl position calculations
         # if single_fig is None or single_ax is None:
         zoomed_x_lim = None
         zoomed_y_lim = None
         if fig:
             zoomed_x_lim = ax.get_xlim()
             zoomed_y_lim = ax.get_ylim()
-            plt.close(fig)
-        fig, ax = plt.subplots(1, 1)
-        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
+            fig.clear()
+        fig = Figure(figsize=(6, 3), dpi=self.dpi)
+        ax = fig.add_subplot()
         # fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
 
@@ -412,7 +409,7 @@ class PlotCIF:
         if plot_hkls["above"] or plot_hkls["below"]:
             single_hovertexts, single_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat,
                                                                    x_ordinate, x, ys, axis_scale,
-                                                                   min_plot, max_plot, 0, True, dpi,
+                                                                   min_plot, max_plot, 0, True, self.dpi,
                                                                    single_height_px, ax)
             add_hovertext_to_each_point(single_hkl_artists, single_hovertexts)
 
@@ -421,7 +418,7 @@ class PlotCIF:
             ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
 
         if not plot_cchi2:
-            plt.legend(frameon=False, loc='upper right')  # loc='best')
+            ax.legend(frameon=False, loc='upper right')  # loc='best')
 
         if plot_norm_int:
             y_axis_title = "Normalised counts"
@@ -435,7 +432,7 @@ class PlotCIF:
 
         ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
-        plt.title(pattern, loc="left")
+        ax.set_title(pattern, loc="left")
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             ax.invert_xaxis()
@@ -454,11 +451,6 @@ class PlotCIF:
         data_y_lim = ax.get_ylim()
         zoomed_x_lim = ax.get_xlim() if not zoomed_x_lim else zoomed_x_lim
         zoomed_y_lim = ax.get_ylim() if not zoomed_y_lim else zoomed_y_lim
-
-
-        print(f'{self.previous_single_plot_state["data_x_lim"]=}, {zoomed_x_lim=}')
-        print(f'{self.previous_single_plot_state["data_y_lim"]=}, {zoomed_y_lim=}')
-
 
         # here go the rules on changing zoom to match the current data
         if (
@@ -484,11 +476,11 @@ class PlotCIF:
             reset_zoomed_to_plt_y_min = True
 
         if self.previous_single_plot_state["plot_norm_int"] != plot_norm_int:
-            _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
-            yrange = (ymax - ymin)
-            ymid = yrange / 2
-            yrange = (yrange * 1.07) / 2
-            zoomed_y_lim = (ymid - yrange, ymid + yrange)
+            # _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
+            # yrange = (ymax - ymin)
+            # ymid = yrange / 2
+            # yrange = (yrange * 1.07) / 2
+            zoomed_y_lim = data_y_lim
         if self.previous_single_plot_state["axis_scale"] not in [axis_scale, {}]:
             ordinate, _ = get_first_different_kv_pair(self.previous_single_plot_state["axis_scale"], axis_scale)
             if ordinate == "x":
@@ -519,8 +511,8 @@ class PlotCIF:
         self.previous_single_plot_state["plot_cchi2"] = plot_cchi2
         self.previous_single_plot_state["plot_norm_int"] = plot_norm_int
         self.previous_single_plot_state["axis_scale"] = axis_scale
-        self.previous_single_plot_state["data_x_lim"] = plt.xlim()
-        self.previous_single_plot_state["data_y_lim"] = plt.ylim()
+        self.previous_single_plot_state["data_x_lim"] = ax.get_xlim()
+        self.previous_single_plot_state["data_y_lim"] = ax.get_ylim()
         self.previous_single_plot_state["zoomed_x_lim"] = zoomed_x_lim
         self.previous_single_plot_state["zoomed_y_lim"] = zoomed_y_lim
 
@@ -529,7 +521,7 @@ class PlotCIF:
     def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
                   axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
                   single_plot: bool,
-                  dpi: int, single_height_px: int, ax: ma.Axes):
+                  dpi: int, single_height_px: int, ax: Axes):
 
         def interp(_hkl_x, _x, _y):
             return np.interp(_hkl_x, _x, _y, left=float("nan"), right=float("nan"))
@@ -582,7 +574,7 @@ class PlotCIF:
         return hovertexts, hkl_artists
 
     def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool,
-                          ax1: ma.Axes) -> ma.Axes:
+                          ax1: Axes) -> Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -640,15 +632,14 @@ class PlotCIF:
                           x_ordinate: str, y_ordinate: str, offset: float,
                           plot_hkls: dict, plot_norm_int: dict,
                           axis_scale: dict,
-                          fig: mf.Figure) -> mf.Figure:
-        dpi = plt.gcf().get_dpi()
-        if fig is not None:
-            plt.close(fig)
-        fig, ax = plt.subplots(1, 1)
-        fig = plt.gcf()
-        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
-        fig.set_tight_layout(True)
-        plt.margins(x=0)
+                          fig: Figure) -> Figure:
+
+        if fig:
+            fig.clear()
+        fig = Figure(figsize=(6, 3), dpi=self.dpi)
+        ax = fig.add_subplot()
+        fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
+        ax.margins(x=0)
 
         # xs and ys hold unscaled values
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
@@ -685,8 +676,8 @@ class PlotCIF:
                 x, y = _scale_xy_ordinates(x, y, axis_scale)
                 if "str" not in cifpat:
                     continue
-                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None], \
-                                                                 axis_scale, 0, 0, hkl_y_offset, False, dpi, -1, ax)
+                tmp_hovertexts, tmp_hkl_artists = self.plot_hkls(plot_hkls["below"], cifpat, x_ordinate, x, [y, None],
+                                                                 axis_scale, 0, 0, hkl_y_offset, False, self.dpi, -1, ax)
                 stack_hovertexts.extend(tmp_hovertexts)
                 stack_hkl_artists.extend(tmp_hkl_artists)
 
@@ -694,7 +685,7 @@ class PlotCIF:
         # end hkl if
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
-            plt.gca().invert_xaxis()
+            ax.invert_xaxis()
 
         if plot_norm_int["norm_int"]:
             y_axis_title = "Normalised counts"
@@ -720,16 +711,14 @@ class PlotCIF:
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
                             plot_hkls: bool, plot_norm_int: dict,
                             axis_scale: dict,
-                            fig: mf.Figure) -> mf.Figure:
-        dpi = plt.gcf().get_dpi()
+                            fig: Figure) -> Figure:
+        if fig:
+            fig.clear()
+        fig = Figure(figsize=(6, 3), dpi=self.dpi)
+        ax = fig.add_subplot()
+        fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
+        ax.margins(x=0)
 
-        if fig is not None:
-            plt.close(fig)
-        fig, ax = plt.subplots(1, 1)
-        fig = plt.gcf()
-        fig.set_size_inches(self.canvas_x / float(dpi), self.canvas_y / float(dpi))
-        fig.set_tight_layout(True)
-        plt.margins(x=0)
 
         # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
         #  and I can just use what I already have.
@@ -760,12 +749,11 @@ class PlotCIF:
         else:
             xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
 
-        plt.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
+        pcm = ax.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
-            plt.gca().invert_xaxis()
+            ax.invert_xaxis()
 
-        # hkl plotting below     single_height_px
         surface_hovertexts = []
         surface_hkl_artists = []
         if plot_hkls:
@@ -816,8 +804,8 @@ class PlotCIF:
             z_axis_title = "Counts"
         x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_axis_title, axis_scale)
 
-        plt.xlabel(x_axis_title)
-        plt.ylabel(y_axis_title)
-        plt.colorbar(label=z_axis_title)
+        ax.set_xlabel(x_axis_title)
+        ax.set_ylabel(y_axis_title)
+        fig.colorbar(pcm, ax=ax, label=z_axis_title)
 
         return fig
