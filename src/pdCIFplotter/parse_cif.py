@@ -196,7 +196,7 @@ def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[f
         if ve in {".", "?"}:
             val = float("nan")
             err = float("nan")
-            return (val, err)
+            return val, err
         else:
             val = float(ve)
         if default_error == "sqrt":
@@ -205,7 +205,7 @@ def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[f
             err = 0.0
         else:
             err = None
-        return (val, err)
+        return val, err
 
     val, err = re.search("([0-9.]+)\(([0-9]*)\)", ve).groups()
     if "." not in val:  # it makes it much easier if there is a decimal place to count
@@ -235,9 +235,9 @@ def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> 
         errs.append(e)
 
     if isList:
-        return (vals, errs)
+        return vals, errs
     else:
-        return (vals[0], errs[0])
+        return vals[0], errs[0]
 
 
 def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):

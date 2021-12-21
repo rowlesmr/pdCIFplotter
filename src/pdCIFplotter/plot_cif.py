@@ -132,7 +132,7 @@ def rescale_val(val: float, old_scale: dict, new_scale: dict, ordinate: str):
     if old_scale[ordinate] == "log":
         val = math.copysign(1, val) * 10 ** abs(val)
     elif old_scale[ordinate] == "sqrt":
-        val = math.copysign(1, val) * val**2
+        val = math.copysign(1, val) * val ** 2
     return _scale_ordinate(new_scale, val, ordinate)
 
 
@@ -721,9 +721,11 @@ class PlotCIF:
 
         # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
         #  and I can just use what I already have.
-        if self.surface_plot_data["x_ordinate"] == x_ordinate and \
-            self.surface_plot_data["y_ordinate"] == y_ordinate and \
-            self.surface_plot_data["z_ordinate"] == z_ordinate:
+        if (
+            self.surface_plot_data["x_ordinate"] == x_ordinate and
+            self.surface_plot_data["y_ordinate"] == y_ordinate and
+            self.surface_plot_data["z_ordinate"] == z_ordinate
+        ):
             debug("reusing surface plot data")
             xx = self.surface_plot_data["x_data"]
             yy = self.surface_plot_data["y_data"]

@@ -7,7 +7,6 @@ Created on Sun Jul  4 20:56:13 2021
 
 import tkinter
 import PySimpleGUI as sg
-
 import pdCIFplotter as pcp
 from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -26,9 +25,8 @@ THEME_NUMBER = 2
 MY_THEMES = ["Default1", "GrayGrayGray", "Reddit", "SystemDefault1", "SystemDefaultForReal"]
 sg.theme(MY_THEMES[THEME_NUMBER])
 
-print("somestuff")
 print(f"{mpl.__version__=}")
-if mpl.__version__ <= "3.4.3":  # matplotlib bug workaround: https://github.com/matplotlib/matplotlib/issues/21875
+if mpl.__version__ <= "3.4.3":  # see https://github.com/matplotlib/matplotlib/issues/21875 https://github.com/matplotlib/matplotlib/issues/21994
     sg.set_options(dpi_awareness=True)
 
 # global parameters
@@ -279,9 +277,9 @@ def make_xy_dropdown_list(master_list: List[str], difpat: str, add_none: bool = 
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
-def cif_get_this_else_that(cif: dict, dataname: str, that: Union[List[str], str]):
-    if dataname in cif:
-        return cif[dataname]
+def cif_get_this_else_that(m_cif: dict, dataname: str, that: Union[List[str], str]):
+    if dataname in m_cif:
+        return m_cif[dataname]
     else:
         return that
 
@@ -365,13 +363,13 @@ decimalplaces = 4
 
 def label_dropdown_row(label: str, values: List[str], default: str, key: str, tooltip: str) -> List:
     return [sg.T(label),
-            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30, tooltip=tooltip)]
+            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=action_column_width, tooltip=tooltip)]
 
 
 def label_dropdown_button_row(label: str, button_text: str, values: List[str], default: str, key: str, tooltip_dd: str,
                               tooltip_b: str = "Change the look and feel of the\nplot associated with this item.") -> List:
     return [sg.T(label),
-            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30, tooltip=tooltip_dd),
+            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=action_column_width, tooltip=tooltip_dd),
             sg.Button(button_text=button_text, key=key + "_button", tooltip=tooltip_b)]
 
 
@@ -894,6 +892,8 @@ def gui() -> None:
             _, values = window.read(timeout=0)
             # plot first pattern
             replot_single = True
+            replot_stack = True
+            replot_surface = True
 
         # --------------------------------------------------------------------------------------
         #
@@ -1059,7 +1059,6 @@ def gui() -> None:
             x_ordinate = values[stack_keys["x_axis"]]
             y_ordinate = values[stack_keys["y_axis"]]
             offset = float(values[stack_keys["offset_input"]])
-            plot_hkls = values[stack_keys["hkl_checkbox"]]
             # construct axis scale dictionary
             x_axes = [values[stack_keys["x_scale_linear"]], values[stack_keys["x_scale_sqrt"]], values[stack_keys["x_scale_log"]]]
             y_axes = [values[stack_keys["y_scale_linear"]], values[stack_keys["y_scale_sqrt"]], values[stack_keys["y_scale_log"]]]
