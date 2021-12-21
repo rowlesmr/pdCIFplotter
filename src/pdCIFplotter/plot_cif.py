@@ -130,9 +130,9 @@ def array_strictly_decreasing_or_equal(a):
 
 def rescale_val(val: float, old_scale: dict, new_scale: dict, ordinate: str):
     if old_scale[ordinate] == "log":
-        val = 10 ** val
+        val = math.copysign(1, val) * 10 ** abs(val)
     elif old_scale[ordinate] == "sqrt":
-        val **= 2
+        val = math.copysign(1, val) * val**2
     return _scale_ordinate(new_scale, val, ordinate)
 
 
@@ -718,7 +718,6 @@ class PlotCIF:
         ax = fig.add_subplot()
         fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
-
 
         # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
         #  and I can just use what I already have.

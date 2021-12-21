@@ -196,7 +196,7 @@ def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_tool
             child.destroy()
     figure_canvas_agg = FigureCanvasTkAgg(figure, master=canvas)
     figure_canvas_agg.draw()
-    toolbar = Toolbar(figure_canvas_agg, canvas_toolbar)
+    toolbar = NavigationToolbar2Tk(figure_canvas_agg, canvas_toolbar)
     toolbar.config(background=sg.theme_background_color())
     toolbar._message_label.config(background=sg.theme_background_color())  # this is to do with the XY text that comes up when the cursor is over the plot
     toolbar.winfo_children()[-2].config(background=sg.theme_background_color())  # https://stackoverflow.com/a/69955540/36061
@@ -207,12 +207,6 @@ def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_tool
         toolbar.push_current()
     figure_canvas_agg.get_tk_widget().pack(side='right', fill='both', expand=1)
     return figure_canvas_agg
-
-
-# https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Embedded_Toolbar.py
-class Toolbar(NavigationToolbar2Tk):
-    def __init__(self, *args, **kwargs):
-        super(Toolbar, self).__init__(*args, **kwargs)
 
 
 def y_ordinate_styling_popup(window_title: str, color_default: str, marker_styles_default: str, line_style_default: str, size_default: str, key: str, window):
@@ -369,21 +363,23 @@ def initialise_surface_xz_lists() -> None:
 decimalplaces = 4
 
 
-def label_dropdown_row(label: str, values: List[str], default: str, key: str) -> List:
+def label_dropdown_row(label: str, values: List[str], default: str, key: str, tooltip: str) -> List:
     return [sg.T(label),
-            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30)]
+            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30, tooltip=tooltip)]
 
 
-def label_dropdown_button_row(label: str, button_text: str, values: List[str], default: str, key: str) -> List:
+def label_dropdown_button_row(label: str, button_text: str, values: List[str], default: str, key: str, tooltip_dd: str,
+                              tooltip_b: str = "Change the look and feel of the\nplot associated with this item.") -> List:
     return [sg.T(label),
-            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30),
-            sg.Button(button_text=button_text, key=key + "_button")]
+            sg.Combo(values=values, default_value=default, enable_events=True, key=key, readonly=True, size=30, tooltip=tooltip_dd),
+            sg.Button(button_text=button_text, key=key + "_button", tooltip=tooltip_b)]
 
 
-def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str, bool], key: str) -> List:
-    return [sg.Checkbox(checkbox_text, enable_events=True, default=default, key=key),
+def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str, bool], key: str, tooltip_cb: str,
+                        tooltip_b: str = "Change the look and feel of the plot associated with this item.") -> List:
+    return [sg.Checkbox(checkbox_text, enable_events=True, default=default, key=key, tooltip=tooltip_cb),
             sg.Stretch(),
-            sg.Button(button_text=button_text, key=key + "_button")]
+            sg.Button(button_text=button_text, key=key + "_button", tooltip=tooltip_b)]
 
 
 #################################################################################################################
@@ -434,8 +430,10 @@ def update_single_element_disables(pattern: str, values: dict, window: sg.Window
             window[single_buttons_keys[yname]].update(disabled=True)
     #   if yobs or ycalc lists are length 1, disable difference checkbox and cumRwp checbox
     #  or if you've chosen one of them to be none
-    if (len(single_dropdown_lists[pattern]["yobs_values"]) == 1 or len(single_dropdown_lists[pattern]["ycalc_values"]) == 1) or \
-        (values[single_keys["yobs"]] == "None" or values[single_keys["ycalc"]] == "None"):
+    if (
+        (len(single_dropdown_lists[pattern]["yobs_values"]) == 1 or len(single_dropdown_lists[pattern]["ycalc_values"]) == 1) or
+        (values[single_keys["yobs"]] == "None" or values[single_keys["ycalc"]] == "None")
+    ):
         window[single_keys["ydiff"]].update(disabled=True, value=False)
         window[single_keys["cchi2"]].update(disabled=True, value=False)
     if len(single_data_list) <= 1:
@@ -473,39 +471,48 @@ layout_single_data_chooser = \
                  size=39,
                  enable_events=True,
                  key=single_keys["data"],
-                 readonly=True),
+                 readonly=True,
+                 tooltip="Choose a diffraction pattern to display from this list."),
         sg.Stretch(),
-        sg.B("<", enable_events=True, key=single_keys["prev_data"]),
-        sg.B(">", enable_events=True, key=single_keys["next_data"]),
+        sg.B("<", enable_events=True, key=single_keys["prev_data"], tooltip="Go to the previous diffraction pattern."),
+        sg.B(">", enable_events=True, key=single_keys["next_data"], tooltip="Go to the next diffraction pattern."),
 
     ]]
 
 layout_single_plot_control = \
     [
-        label_dropdown_row("X axis:  ", [], "", single_keys["x_axis"]),
-        label_dropdown_button_row("Y(obs): ", "Options", [], "", single_keys["yobs"]),
-        label_dropdown_button_row("Y(calc):", "Options", [], "", single_keys["ycalc"]),
-        label_dropdown_button_row("Y(bkg): ", "Options", [], "", single_keys["ybkg"]),
-        # label_dropdown_button_row("Y axis 4:", "Options", y_list, "", "single_y4_ordinate"),
-        checkbox_button_row("Show difference plot", "Options", False, single_keys["ydiff"]),
+        label_dropdown_row("X axis:  ", [], "", single_keys["x_axis"], "Choose an x-ordinate to plot the data against."),
+        label_dropdown_button_row("Y(obs): ", "Options", [], "", single_keys["yobs"], "Choose a y-ordinate to plot as the observed intensities."),
+        label_dropdown_button_row("Y(calc):", "Options", [], "", single_keys["ycalc"], "Choose a y-ordinate to plot as the calculated intensities."),
+        label_dropdown_button_row("Y(bkg): ", "Options", [], "", single_keys["ybkg"], "Choose a y-ordinate to plot as the background intensities."),
+        checkbox_button_row("Show difference plot", "Options", False, single_keys["ydiff"],
+                            "Display the difference between the\nobserved and calculated intensities."),
         # --
         [sg.T("")],
-        [sg.Checkbox("Show HKL ticks", enable_events=True, key=single_keys["hkl_checkbox"]),
-         sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"]),
-         sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"])],
-        checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"]),
-        [sg.Checkbox("Normalise all intensities to counts", enable_events=True, default=False, key=single_keys["norm_int"])],
+        [sg.Checkbox("Show HKL ticks", enable_events=True, key=single_keys["hkl_checkbox"], tooltip="Display markers indicating the position of each reflection."),
+         sg.Radio("Above", "single_hkl", enable_events=True, key=single_keys["hkl_above"], tooltip="Display markers above the diffraction pattern."),
+         sg.Radio("Below", "single_hkl", default=True, enable_events=True, key=single_keys["hkl_below"], tooltip="Display markers below the diffraction pattern.")],
+        checkbox_button_row("Show cumulative \u03C7\u00b2", "Options", False, single_keys["cchi2"],
+                            "Display how \u03C7\u00b2 evolves over the diffraction pattern."),
+        [sg.Checkbox("Normalise all intensities to counts", enable_events=True, default=False, key=single_keys["norm_int"],
+                     tooltip="Alter all intensities such that the ratio\n'displayed intensity / sqrt(displayed intensity' is equal\nto 'actual intensity / uncertainty in actual intensity'.")],
         # [sg.Checkbox("Show error bars", enable_events=True, key="single_error_bars_checkbox")],
         # --
         [sg.T("")],
         [sg.Text("X scale:"),
-         sg.Radio("Linear", "single_x_scale_radio", default=True, enable_events=True, key=single_keys["x_scale_linear"]),
-         sg.Radio("Sqrt", "single_x_scale_radio", enable_events=True, key=single_keys["x_scale_sqrt"]),
-         sg.Radio("Log", "single_x_scale_radio", enable_events=True, key=single_keys["x_scale_log"])],
+         sg.Radio("Linear", "single_x_scale_radio", default=True, enable_events=True, key=single_keys["x_scale_linear"],
+                  tooltip="The displayed x-ordinate is equal to the actual x-ordinate."),
+         sg.Radio("Sqrt", "single_x_scale_radio", enable_events=True, key=single_keys["x_scale_sqrt"],
+                  tooltip="The displayed x-ordinate is equal to the square root of the actual x-ordinate."),
+         sg.Radio("Log", "single_x_scale_radio", enable_events=True, key=single_keys["x_scale_log"],
+                  tooltip="The displayed x-ordinate is equal to the base 10 logarithim of the actual x-ordinate.")],
         [sg.Text("Y scale:"),
-         sg.Radio("Linear", "single_y_scale_radio", default=True, enable_events=True, key=single_keys["y_scale_linear"]),
-         sg.Radio("Sqrt", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_sqrt"]),
-         sg.Radio("Log", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_log"])]
+         sg.Radio("Linear", "single_y_scale_radio", default=True, enable_events=True, key=single_keys["y_scale_linear"],
+                  tooltip="The displayed y-ordinate is equal to the actual y-ordinate."),
+         sg.Radio("Sqrt", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_sqrt"],
+                  tooltip="The displayed y-ordinate is equal to the square root of the actual y-ordinate."),
+         sg.Radio("Log", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_log"],
+                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate.")]
     ]
 
 layout_single_right = \
@@ -567,27 +574,35 @@ layout_stack_left = \
 
 layout_stack_plot_control = \
     [
-        label_dropdown_row("X axis:", [], "", stack_keys["x_axis"]),
-        label_dropdown_row("Y axis:", [], "", stack_keys["y_axis"]),
+        label_dropdown_row("X axis:", [], "", stack_keys["x_axis"], "Choose an x-ordinate to plot the data against."),
+        label_dropdown_row("Y axis:", [], "", stack_keys["y_axis"], "Choose a y-ordinate to plot as the intensity."),
         # label_dropdown_button_row("Y axis:", "Options", y_list, y_list[0], "stack_y_ordinate"),
-        [sg.T("Offset:"), sg.Input(default_text=100, size=(6, 1), enable_events=False, key=stack_keys["offset_input"]),
+        [sg.T("Offset:"), sg.Input(default_text=100, size=(6, 1), enable_events=False, key=stack_keys["offset_input"],
+                                   tooltip="The vertical offset between diffraction patterns."),
          sg.Button('Submit_offset', visible=False, bind_return_key=True, key=stack_keys["offset_value"], enable_events=True)],
         # --
         [sg.T("")],
-        [sg.Checkbox("Show HKL ticks", enable_events=True, key=stack_keys["hkl_checkbox"]),
-         sg.Radio("Above", "hkl", enable_events=True, key=stack_keys["hkl_above"]),
-         sg.Radio("Below", "hkl", default=True, enable_events=True, key=stack_keys["hkl_below"])],
-        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=stack_keys["norm_int"])],
+        [sg.Checkbox("Show HKL ticks", enable_events=True, key=stack_keys["hkl_checkbox"], tooltip="Display markers indicating the position of each reflection."),
+         sg.Radio("Above", "hkl", enable_events=True, key=stack_keys["hkl_above"], tooltip="Display markers above the diffraction pattern."),
+         sg.Radio("Below", "hkl", default=True, enable_events=True, key=stack_keys["hkl_below"], tooltip="Display markers below the diffraction pattern.")],
+        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=stack_keys["norm_int"],
+                     tooltip="Alter all intensities such that the ratio\n'displayed intensity / sqrt(displayed intensity' is equal\nto 'actual intensity / uncertainty in actual intensity'.")],
         # --
         [sg.T("")],
         [sg.Text("X scale:"),
-         sg.Radio("Linear", "stack_x_scale_radio", default=True, enable_events=True, key=stack_keys["x_scale_linear"]),
-         sg.Radio("Sqrt", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_sqrt"]),
-         sg.Radio("Log", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_log"])],
+         sg.Radio("Linear", "stack_x_scale_radio", default=True, enable_events=True, key=stack_keys["x_scale_linear"],
+                  tooltip="The displayed x-ordinate is equal to the actual x-ordinate."),
+         sg.Radio("Sqrt", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_sqrt"],
+                  tooltip="The displayed x-ordinate is equal to the square root of the actual x-ordinate."),
+         sg.Radio("Log", "stack_x_scale_radio", enable_events=True, key=stack_keys["x_scale_log"],
+                  tooltip="The displayed x-ordinate is equal to the base 10 logarithim of the actual x-ordinate.")],
         [sg.Text("Y scale:"),
-         sg.Radio("Linear", "stack_y_scale_radio", default=True, enable_events=True, key=stack_keys["y_scale_linear"]),
-         sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_sqrt"]),
-         sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_log"])]
+         sg.Radio("Linear", "stack_y_scale_radio", default=True, enable_events=True, key=stack_keys["y_scale_linear"],
+                  tooltip="The displayed ordinate is equal to the actual ordinate."),
+         sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_sqrt"],
+                  tooltip="The displayed ordinate is equal to the square root of the actual ordinate."),
+         sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_log"],
+                  tooltip="The displayed ordinate is equal to the base 10 logarithim of the actual ordinate.")]
     ]
 
 layout_stack_right = \
@@ -655,27 +670,38 @@ layout_surface_left = \
 
 layout_surface_plot_control = \
     [
-        label_dropdown_row("X axis:", [], "", surface_keys["x_axis"]),
-        label_dropdown_row("Y axis:", ["Pattern number"], "Pattern number", surface_keys["y_axis"]),
-        label_dropdown_button_row("Z axis:", "Options", [], "", surface_keys["z_axis"]),
+        label_dropdown_row("X axis:", [], "", surface_keys["x_axis"], "Choose an x-ordinate to plot the data against."),
+        label_dropdown_row("Y axis:", ["Pattern number"], "Pattern number", surface_keys["y_axis"],
+                           "Currently, you can only use the order of appearance\nof the data in the CIF as the y-ordinate."),
+        label_dropdown_button_row("Z axis:", "Options", [], "", surface_keys["z_axis"], "Choose an intensity to plot as the colour axis."),
         # --
         [sg.T("")],
-        [sg.Checkbox("Show HKL ticks", enable_events=True, key=surface_keys["hkl_checkbox"])],
-        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=surface_keys["norm_int"])],
+        [sg.Checkbox("Show HKL ticks", enable_events=True, key=surface_keys["hkl_checkbox"], tooltip="Display markers indicating the position of each reflection.")],
+        [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=surface_keys["norm_int"],
+                     tooltip="Alter all intensities such that the ratio\n'displayed intensity / sqrt(displayed intensity' is equal\nto 'actual intensity / uncertainty in actual intensity'.")],
         # --
         [sg.T("")],
         [sg.Text("X scale:"),
-         sg.Radio("Linear", "surface_x_scale_radio", default=True, enable_events=True, key=surface_keys["x_scale_linear"]),
-         sg.Radio("Sqrt", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_sqrt"]),
-         sg.Radio("Log", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_log"])],
+         sg.Radio("Linear", "surface_x_scale_radio", default=True, enable_events=True, key=surface_keys["x_scale_linear"],
+                  tooltip="The displayed x-ordinate is equal to the actual x-ordinate."),
+         sg.Radio("Sqrt", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_sqrt"],
+                  tooltip="The displayed x-ordinate is equal to the square root of the actual x-ordinate."),
+         sg.Radio("Log", "surface_x_scale_radio", enable_events=True, key=surface_keys["x_scale_log"],
+                  tooltip="The displayed x-ordinate is equal to the base 10 logarithim of the actual x-ordinate.")],
         [sg.Text("Y scale:"),
-         sg.Radio("Linear", "surface_y_scale_radio", default=True, enable_events=True, key=surface_keys["y_scale_linear"]),
-         sg.Radio("Sqrt", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_sqrt"]),
-         sg.Radio("Log", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_log"])],
+         sg.Radio("Linear", "surface_y_scale_radio", default=True, enable_events=True, key=surface_keys["y_scale_linear"],
+                  tooltip="The displayed y-ordinate is equal to the actual y-ordinate."),
+         sg.Radio("Sqrt", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_sqrt"],
+                  tooltip="The displayed y-ordinate is equal to the square root of the actual y-ordinate."),
+         sg.Radio("Log", "surface_y_scale_radio", enable_events=True, key=surface_keys["y_scale_log"],
+                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate.")],
         [sg.Text("Z scale:"),
-         sg.Radio("Linear", "surface_z_scale_radio", default=True, enable_events=True, key=surface_keys["z_scale_linear"]),
-         sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_sqrt"]),
-         sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_log"])]
+         sg.Radio("Linear", "surface_z_scale_radio", default=True, enable_events=True, key=surface_keys["z_scale_linear"],
+                  tooltip="The displayed z-ordinate is equal to the actual z-ordinate."),
+         sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_sqrt"],
+                  tooltip="The displayed z-ordinate is equal to the square root of the actual z-ordinate."),
+         sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_log"],
+                  tooltip="The displayed z-ordinate is equal to the base 10 logarithim of the actual z-ordinate.")]
     ]
 
 layout_surface_right = \
@@ -706,9 +732,10 @@ layout_file_chooser = \
                        file_types=(('CIF Files', '*.cif'),
                                    # ('State Files', '*.state'),
                                    ('ALL Files', '*.*')),
-                       enable_events=True),  # may need to implement OneLineProgressMeter on loading and parsing CIF
+                       enable_events=True,
+                       tooltip="Click here to load a pdCIF file to visualise."),
         sg.In(key='file_string', visible=False, enable_events=True),
-        sg.T(key="file_string_name"),
+        sg.T(key="file_string_name", tooltip="The name of the currently loaded file."),
         sg.Stretch(),
         sg.T(pcp.__version__)
     ]]
