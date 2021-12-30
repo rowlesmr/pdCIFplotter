@@ -227,6 +227,8 @@ class PlotCIF:
         self.cif: dict = cif
         self.dpi = 100
 
+        self.qpa = self.get_all_qpa()
+
     def get_all_xy_data(self, x_ordinate: str, y_ordinate: str) -> Tuple[List, List, List[str]]:
         """
         Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
@@ -355,6 +357,31 @@ class PlotCIF:
         zz = np.array(zs)
         zn = np.array(znorms)
         return xx, yy, zz, zn, plot_list
+
+    def get_all_qpa(self) -> dict:
+        q = []
+        all_phases = set()
+        for pattern in self.cif:
+            cifpat = self.cif[pattern]
+            try:
+                qpa = cifpat["_pd_phase_mass_%"].tolist()
+                phase_names = [cifpat["str"][phase]["_pd_phase_name"] for phase in cifpat["str"]]
+                for phase in phase_names:
+                    all_phases.add(phase)
+            except KeyError:
+                qpa = []
+                phase_names = []
+            q.append((phase_names, qpa))
+        all_phases = list(all_phases)
+
+        d = {phase: [] for phase in all_phases}
+        for i, (phases, qpas) in enumerate(q, start=1):
+            for phase, qpa in zip(phases, qpas):
+                d[phase].append(qpa)
+            for phase, qpa_list in d.items():
+                if len(qpa_list) != i:
+                    d[phase].append(0)
+        return d
 
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
@@ -559,7 +586,7 @@ class PlotCIF:
         hkl_tick_vertical_spacing = (((y_range / (single_height_px - hkl_markersize_px * num_hkl_rows)) * single_height_px) - y_range) / num_hkl_rows
 
         hkl_x_ordinate = PlotCIF.hkl_x_ordinate_mapping[x_ordinate]
-        for i, phase in enumerate(cifpat["str"].keys()):
+        for i, phase in enumerate(cifpat["str"]):
             if hkl_x_ordinate not in cifpat["str"][phase]:
                 continue
             hkl_x = _scale_x_ordinate(cifpat["str"][phase][hkl_x_ordinate], axis_scale)
@@ -734,13 +761,13 @@ class PlotCIF:
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, plot_norm_int: dict, plot_temp_pres: str,
+                            plot_hkls: bool, plot_norm_int: dict, plot_temp_pres_qpa: str,
                             axis_scale: dict,
                             fig: Figure) -> Figure:
         if fig:
             fig.clear()
         fig = Figure(figsize=(6, 3), dpi=self.dpi)
-        if plot_temp_pres:
+        if plot_temp_pres_qpa:
             ax, ax1 = fig.subplots(1, 2, gridspec_kw={'width_ratios': [2, 1]}, sharey=True)
         else:
             ax = fig.subplots(1, 1)
@@ -837,26 +864,30 @@ class PlotCIF:
         ax.set_ylabel(y_axis_title)
 
         # make second subplot here
-        if plot_temp_pres:
-            second_plot = []
-            y = []
-            for i, pattern in enumerate(self.cif, start=1):
-                cifpat = self.cif[pattern]
-                y.append(_scale_y_ordinate(i, axis_scale))
-
-                if plot_temp_pres == "temp":
-                    try:
-                        second_plot.append(cifpat["_diffrn_ambient_temperature"])
-                    except KeyError:
-                        second_plot.append(None)
-                    ax1.set_xlabel("Temperature (K)")
-                elif plot_temp_pres == "pres":
-                    try:
-                        second_plot.append(cifpat["_diffrn_ambient_pressure"])
-                    except KeyError:
-                        second_plot.append(None)
-                    ax1.set_xlabel("Pressure (kPa)")
-            ax1.plot(second_plot, y, marker="o")
+        if plot_temp_pres_qpa:  # string == "temp", "pres", "qpa"
+            y = [_scale_y_ordinate(i + 1, axis_scale) for i in range(len(self.cif))]
+            if plot_temp_pres_qpa != "qpa":
+                second_plot = []
+                for pattern in self.cif:
+                    cifpat = self.cif[pattern]
+                    if plot_temp_pres_qpa == "temp":
+                        try:
+                            second_plot.append(cifpat["_diffrn_ambient_temperature"])
+                        except KeyError:
+                            second_plot.append(None)
+                        ax1.set_xlabel("Temperature (K)")
+                    elif plot_temp_pres_qpa == "pres":
+                        try:
+                            second_plot.append(cifpat["_diffrn_ambient_pressure"])
+                        except KeyError:
+                            second_plot.append(None)
+                        ax1.set_xlabel("Pressure (kPa)")
+                ax1.plot(second_plot, y, marker="o")
+            else:
+                for phase in self.qpa:
+                    ax1.plot(self.qpa[phase], y, label=phase)
+                ax1.set_xlabel("Weight percent (wt%)")
+                ax1.legend()
             ax1.grid(True, color='lightgrey')
             fig.colorbar(pcm, ax=ax1, label=z_axis_title)  # this is the code that adds the colour bar.
         else:

@@ -43,7 +43,7 @@ stack_figure_agg: FigureCanvasTkAgg = None
 
 surface_fig: mf.Figure = None
 surface_figure_agg: FigureCanvasTkAgg = None
-surface_temp_pres: str = ""
+surface_temp_pres_qpa: str = ""
 
 cif = {}  # the cif dictionary from my parsing
 plotcif: plot_cif.PlotCIF = None
@@ -71,7 +71,7 @@ def reset_globals():
     """
     global single_fig, single_ax, single_figure_agg
     global stack_fig, stack_figure_agg
-    global surface_fig, surface_figure_agg, surface_temp_pres
+    global surface_fig, surface_figure_agg, surface_temp_pres_qpa
 
     global cif
     global plotcif
@@ -88,7 +88,7 @@ def reset_globals():
 
     surface_fig = None
     surface_figure_agg = None
-    surface_temp_pres = ""
+    surface_temp_pres_qpa = ""
 
     cif = {}  # the cif dictionary from my parsing
     plotcif = None
@@ -176,10 +176,10 @@ def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_press: str, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_press, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -352,6 +352,12 @@ def cif_has_temperatures():
 def cif_has_pressures():
     return any("_diffrn_ambient_pressure" in cif[pattern] for pattern in cif)
 
+
+def cif_has_qpa():
+    # needs a stricter test than temperature and pressure, as I need to work with
+    # multiple phases and it is difficult to figure out what to do
+    # if there is a missing wt% entry.
+    return all("_pd_phase_mass_%" in cif[pattern] for pattern in cif)
 
 # single                                    # stack                                     # surface
 # --------------------------------------- # # --------------------------------------- # # --------------------------------------- #
@@ -637,6 +643,7 @@ surface_keys = {"x_axis": "surface_x_ordinate",
                 "z_axis": "surface_z_ordinate",
                 "temperature": "surface_temperature",
                 "pressure": "surface_pressure",
+                "qpa": "surface_qpa",
                 "hkl_checkbox": "surface_hkl_checkbox",
                 "norm_int": "surface_norm_int_checkbox",
                 "x_scale_linear": "surface_x_scale_linear",
@@ -675,6 +682,8 @@ def update_surface_element_disables(values: dict, window: sg.Window) -> None:
         window[surface_keys["temperature"]].update(disabled=True)
     if not cif_has_pressures():
         window[surface_keys["pressure"]].update(disabled=True)
+    if not cif_has_qpa():
+        window[surface_keys["qpa"]].update(disabled=True)
 
 
 layout_surface_left = \
@@ -693,6 +702,7 @@ layout_surface_plot_control = \
         [sg.T("")],
         [sg.Checkbox("Show temperature", enable_events=True, default=False, key=surface_keys["temperature"], tooltip="Show the temperatures on a secondary plot.")],
         [sg.Checkbox("Show pressure", enable_events=True, default=False, key=surface_keys["pressure"], tooltip="Show the pressures on a secondary plot.")],
+        [sg.Checkbox("Show QPA", enable_events=True, default=False, key=surface_keys["qpa"], tooltip="Show the quantitative phase analysis on a secondary plot.")],
         # --
 
         [sg.T("")],
@@ -791,7 +801,7 @@ def open_cif_popup(text: str, icon: str) -> sg.Window:
 #
 #################################################################################################################
 def gui() -> None:
-    global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg, surface_temp_pres
+    global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg, surface_temp_pres_qpa
 
     # This bit gets the taskbar icon working properly in Windows
     # https://github.com/PySimpleGUI/PySimpleGUI/issues/2722#issuecomment-852923088
@@ -1027,18 +1037,24 @@ def gui() -> None:
             update_surface_element_disables(values, window)
             _, values = window.read(timeout=0)
 
-        elif event in (surface_keys["temperature"], surface_keys["pressure"]):
+        elif event in (surface_keys["temperature"], surface_keys["pressure"], surface_keys["qpa"]):
             replot_surface = True
 
             if not values[event]:  # ie I'm turning off the plot
-                surface_temp_pres = ""
+                surface_temp_pres_qpa = ""
             else:
                 if event == surface_keys["temperature"]:
                     window[surface_keys["pressure"]].update(value=False)
-                    surface_temp_pres = "temp"
+                    window[surface_keys["qpa"]].update(value=False)
+                    surface_temp_pres_qpa = "temp"
                 elif event == surface_keys["pressure"]:
+                    window[surface_keys["qpa"]].update(value=False)
                     window[surface_keys["temperature"]].update(value=False)
-                    surface_temp_pres = "pres"
+                    surface_temp_pres_qpa = "pres"
+                elif event == surface_keys["qpa"]:
+                    window[surface_keys["temperature"]].update(value=False)
+                    window[surface_keys["pressure"]].update(value=False)
+                    surface_temp_pres_qpa = "qpa"
                 # push all the window value updates and then update the enable/disable, and then push again
                 _, values = window.read(timeout=0)
                 update_surface_element_disables(values, window)
@@ -1146,7 +1162,7 @@ def gui() -> None:
                                     z_ordinate,
                                     plot_hkls,
                                     surface_norm_plot,
-                                    surface_temp_pres,
+                                    surface_temp_pres_qpa,
                                     surface_axis_scale,
                                     window)
             except (IndexError, ValueError) as e:

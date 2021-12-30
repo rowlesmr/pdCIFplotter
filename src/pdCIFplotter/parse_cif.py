@@ -118,7 +118,7 @@ def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     id_local = get_from_cif(structure, '_pd_refln_phase_id')
 
     if d_local is None:
-        return None
+        return {}
     d_len = len(d_local)
     # h,k,l, and d must be of the same length
     if h_local is None or len(h_local) != d_len:
@@ -166,8 +166,8 @@ def get_hkld_from_matching_id(hkld_ids: dict) -> dict:
     :param hkld_ids: dictionary of h,k,l,d,id values
     :return: a list containing the corresponding hkld values, or None, if none match.
     """
-    if hkld_ids is None:
-        return None
+    if not hkld_ids:
+        return {}
     unique_ids = set(hkld_ids["id"])
     return {idv: {"h": [h for h, idval in zip(hkld_ids["h"], hkld_ids["id"]) if idval == idv],
                   "k": [k for k, idval in zip(hkld_ids["k"], hkld_ids["id"]) if idval == idv],
@@ -573,7 +573,7 @@ class ParseCIF:
                     for phase_id, structure in zip(pd_phase_ids, structures):
                         cifstr = self.cif[structure]
                         hkld_dict = get_hkld_ids(cifstr)
-                        if hkld_dict is None:
+                        if not hkld_dict:
                             continue
                         add_hklds_to_cifpatstr(cifpat["str"][phase_id], hkld_dict)
                 elif "_pd_refln_phase_id" in cifpat:
@@ -587,7 +587,7 @@ class ParseCIF:
                             print(f"No hkls found for phase {phase_id}.")
             elif "_refln_d_spacing" in cifpat:  # there is no phase_block_id and so only a single phase's worth of tick marks
                 hkld_dict = get_hkld_ids(cifpat)
-                if hkld_dict is None:
+                if not hkld_dict:
                     continue
                 cifpat["str"] = {"1": {}}
                 add_hklds_to_cifpatstr(cifpat["str"]["1"], hkld_dict)
