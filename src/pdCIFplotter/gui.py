@@ -43,6 +43,7 @@ stack_figure_agg: FigureCanvasTkAgg = None
 
 surface_fig: mf.Figure = None
 surface_figure_agg: FigureCanvasTkAgg = None
+surface_temp_pres: str = ""
 
 cif = {}  # the cif dictionary from my parsing
 plotcif: plot_cif.PlotCIF = None
@@ -70,7 +71,7 @@ def reset_globals():
     """
     global single_fig, single_ax, single_figure_agg
     global stack_fig, stack_figure_agg
-    global surface_fig, surface_figure_agg
+    global surface_fig, surface_figure_agg, surface_temp_pres
 
     global cif
     global plotcif
@@ -87,6 +88,7 @@ def reset_globals():
 
     surface_fig = None
     surface_figure_agg = None
+    surface_temp_pres = ""
 
     cif = {}  # the cif dictionary from my parsing
     plotcif = None
@@ -174,10 +176,10 @@ def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_press: str, axis_scale: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_press, axis_scale, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -277,9 +279,9 @@ def make_xy_dropdown_list(master_list: List[str], difpat: str, add_none: bool = 
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
-def cif_get_this_else_that(m_cif: dict, dataname: str, that: Union[List[str], str]):
-    if dataname in m_cif:
-        return m_cif[dataname]
+def cif_get_this_else_that(m_cif: dict, this: str, that: Union[List[str], str]):
+    if this in m_cif:
+        return m_cif[this]
     else:
         return that
 
@@ -341,6 +343,14 @@ def initialise_surface_xz_lists() -> None:
                 for y_ordinate in parse_cif.ParseCIF.COMPLETE_Y_LIST:
                     if y_ordinate in cif[pattern] and y_ordinate not in surface_z_ordinates[x_ordinate]:
                         surface_z_ordinates[x_ordinate].append(y_ordinate)
+
+
+def cif_has_temperatures():
+    return any("_diffrn_ambient_temperature" in cif[pattern] for pattern in cif)
+
+
+def cif_has_pressures():
+    return any("_diffrn_ambient_pressure" in cif[pattern] for pattern in cif)
 
 
 # single                                    # stack                                     # surface
@@ -625,6 +635,8 @@ layout_stack = \
 surface_keys = {"x_axis": "surface_x_ordinate",
                 "y_axis": "surface_y_ordinate",
                 "z_axis": "surface_z_ordinate",
+                "temperature": "surface_temperature",
+                "pressure": "surface_pressure",
                 "hkl_checkbox": "surface_hkl_checkbox",
                 "norm_int": "surface_norm_int_checkbox",
                 "x_scale_linear": "surface_x_scale_linear",
@@ -656,8 +668,13 @@ def update_surface_element_disables(values: dict, window: sg.Window) -> None:
     if values[surface_keys["x_axis"]] in ["_pd_meas_time_of_flight", "_pd_meas_position"]:
         window[surface_keys["hkl_checkbox"]].update(disabled=True, value=False)
 
-    # always disable the y-ordinate chooser. Will need a large upgrade to change that ont
+    # always disable the y-ordinate chooser. Will need a large upgrade to change this one
     window[surface_keys["y_axis"]].update(disabled=True)
+
+    if not cif_has_temperatures():
+        window[surface_keys["temperature"]].update(disabled=True)
+    if not cif_has_pressures():
+        window[surface_keys["pressure"]].update(disabled=True)
 
 
 layout_surface_left = \
@@ -673,6 +690,11 @@ layout_surface_plot_control = \
                            "Currently, you can only use the order of appearance\nof the data in the CIF as the y-ordinate."),
         label_dropdown_button_row("Z axis:", "Options", [], "", surface_keys["z_axis"], "Choose an intensity to plot as the colour axis."),
         # --
+        [sg.T("")],
+        [sg.Checkbox("Show temperature", enable_events=True, default=False, key=surface_keys["temperature"], tooltip="Show the temperatures on a secondary plot.")],
+        [sg.Checkbox("Show pressure", enable_events=True, default=False, key=surface_keys["pressure"], tooltip="Show the pressures on a secondary plot.")],
+        # --
+
         [sg.T("")],
         [sg.Checkbox("Show HKL ticks", enable_events=True, key=surface_keys["hkl_checkbox"], tooltip="Display markers indicating the position of each reflection.")],
         [sg.Checkbox("Normalise intensity to counts", enable_events=True, default=False, key=surface_keys["norm_int"],
@@ -769,7 +791,7 @@ def open_cif_popup(text: str, icon: str) -> sg.Window:
 #
 #################################################################################################################
 def gui() -> None:
-    global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg
+    global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg, surface_temp_pres
 
     # This bit gets the taskbar icon working properly in Windows
     # https://github.com/PySimpleGUI/PySimpleGUI/issues/2722#issuecomment-852923088
@@ -1005,6 +1027,23 @@ def gui() -> None:
             update_surface_element_disables(values, window)
             _, values = window.read(timeout=0)
 
+        elif event in (surface_keys["temperature"], surface_keys["pressure"]):
+            replot_surface = True
+
+            if not values[event]:  # ie I'm turning off the plot
+                surface_temp_pres = ""
+            else:
+                if event == surface_keys["temperature"]:
+                    window[surface_keys["pressure"]].update(value=False)
+                    surface_temp_pres = "temp"
+                elif event == surface_keys["pressure"]:
+                    window[surface_keys["temperature"]].update(value=False)
+                    surface_temp_pres = "pres"
+                # push all the window value updates and then update the enable/disable, and then push again
+                _, values = window.read(timeout=0)
+                update_surface_element_disables(values, window)
+                _, values = window.read(timeout=0)
+
         elif event in list(surface_keys.values())[1:]:  # ie if I click anything apart from the x-axis
             replot_surface = True
             # push all the window value updates and then update the enable/disable, and then push again
@@ -1107,6 +1146,7 @@ def gui() -> None:
                                     z_ordinate,
                                     plot_hkls,
                                     surface_norm_plot,
+                                    surface_temp_pres,
                                     surface_axis_scale,
                                     window)
             except (IndexError, ValueError) as e:

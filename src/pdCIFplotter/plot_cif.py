@@ -178,6 +178,25 @@ def isclose_listlike(a, b, rel_tol=1e-09, abs_tol=0.0):
     )
 
 
+def add_datetime_temp_press_to_string(cifpat, s):
+    if "_pd_meas_datetime_initiated" in cifpat:
+        if s:
+            s += f"; {cifpat['_pd_meas_datetime_initiated']}"
+        else:
+            s = cifpat["_pd_meas_datetime_initiated"]
+    if "_diffrn_ambient_temperature" in cifpat:
+        if s:
+            s += f"; {cifpat['_diffrn_ambient_temperature']} K"
+        else:
+            s = f"{cifpat['_diffrn_ambient_temperature']} K"
+    if "_diffrn_ambient_pressure" in cifpat:
+        if s:
+            s += f"; {cifpat['_diffrn_ambient_pressure']} kPa"
+        else:
+            s = f"{cifpat['_diffrn_ambient_pressure']} kPa"
+    return s
+
+
 class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
@@ -432,7 +451,12 @@ class PlotCIF:
 
         ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
-        ax.set_title(pattern, loc="left")
+        fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left")
+        fig.subplots_adjust(top=0.9)
+
+        subtitle = add_datetime_temp_press_to_string(cifpat, "")
+        if subtitle:
+            ax.set_title(subtitle, loc="left")
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             ax.invert_xaxis()
@@ -659,12 +683,13 @@ class PlotCIF:
             x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
             ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
+            label = add_datetime_temp_press_to_string(self.cif[pattern], label)
             hover_texts.append(label)
-        hover_texts.reverse()
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
-        mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+        mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add",
+                                                                                       lambda sel: sel.annotation.set_text(hover_texts[stack_artists.index(sel.artist)]))
 
         if plot_hkls["above"] or plot_hkls["below"]:
             stack_hovertexts = []
@@ -709,13 +734,16 @@ class PlotCIF:
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, plot_norm_int: dict,
+                            plot_hkls: bool, plot_norm_int: dict, plot_temp_pres: str,
                             axis_scale: dict,
                             fig: Figure) -> Figure:
         if fig:
             fig.clear()
         fig = Figure(figsize=(6, 3), dpi=self.dpi)
-        ax = fig.add_subplot()
+        if plot_temp_pres:
+            ax, ax1 = fig.subplots(1, 2, gridspec_kw={'width_ratios': [2, 1]}, sharey=True)
+        else:
+            ax = fig.subplots(1, 1)
         fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
 
@@ -807,6 +835,31 @@ class PlotCIF:
 
         ax.set_xlabel(x_axis_title)
         ax.set_ylabel(y_axis_title)
-        fig.colorbar(pcm, ax=ax, label=z_axis_title)
+
+        # make second subplot here
+        if plot_temp_pres:
+            second_plot = []
+            y = []
+            for i, pattern in enumerate(self.cif, start=1):
+                cifpat = self.cif[pattern]
+                y.append(_scale_y_ordinate(i, axis_scale))
+
+                if plot_temp_pres == "temp":
+                    try:
+                        second_plot.append(cifpat["_diffrn_ambient_temperature"])
+                    except KeyError:
+                        second_plot.append(None)
+                    ax1.set_xlabel("Temperature (K)")
+                elif plot_temp_pres == "pres":
+                    try:
+                        second_plot.append(cifpat["_diffrn_ambient_pressure"])
+                    except KeyError:
+                        second_plot.append(None)
+                    ax1.set_xlabel("Pressure (kPa)")
+            ax1.plot(second_plot, y, marker="o")
+            ax1.grid(True, color='lightgrey')
+            fig.colorbar(pcm, ax=ax1, label=z_axis_title)  # this is the code that adds the colour bar.
+        else:
+            fig.colorbar(pcm, ax=ax, label=z_axis_title)
 
         return fig
