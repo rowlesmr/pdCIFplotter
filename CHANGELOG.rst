@@ -2,6 +2,12 @@
 Changelog
 =========
 
+0.0.10 (2021-12-31)
+------------------
+
+* Updated type hints to maintain compatibility with Python <=v3.8.
+
+
 0.0.9 (2021-12-31)
 ------------------
 
