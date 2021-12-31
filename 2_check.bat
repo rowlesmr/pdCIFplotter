@@ -1,0 +1,2 @@
+twine check dist/*
+pause
