@@ -245,7 +245,11 @@ def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
     Calculate the cumulative chi-squared statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     This is an indication of the value of chi2 taking into account only the data with the x-ordinate <= the current
     x-ordinate. It shows where there are large deviations contributing to the overall chi2
-    see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23. https://doi.org/10.6028/jres.008.
+    see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23.
+    https://doi.org/10.6028/jres.008.
+
+    chi^2 = (Rwp / Rexp)^2 = gof^2
+
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
@@ -255,6 +259,7 @@ def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
     """
     yobs = cifpat[yobs_dataname]
     ycalc = cifpat[ycalc_dataname]
+    N = len(cifpat[yobs_dataname])
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return [-1] * len(yobs)
@@ -263,10 +268,10 @@ def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
     else:
         yobs_dataname_err = yobs_dataname + "_err"
         yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
-    return np.nancumsum(yweight * ((yobs - ycalc) ** 2))  # treats nan as 0
+    return np.nancumsum(yweight * ((yobs - ycalc) ** 2)) / N  # treats nan as 0
 
 
-def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None) -> float:
     """
     Calculate the Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -275,13 +280,13 @@ def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
     :param ycalc_dataname: dataname of the ycalc value
     :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
     :param ymod_dataname: this currently does nothing.
-    :return: a numpy array with values of Rwp. It has the same length as yobs
+    :return: a float with value of Rwp.
     """
     yobs = cifpat[yobs_dataname]
     ycalc = cifpat[ycalc_dataname]
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
-        return [-1] * len(yobs)
+        return -1
     if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
         yweight = cifpat["_pd_proc_ls_weight"]
     else:
@@ -291,6 +296,53 @@ def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
     top = np.nansum(yweight * ((yobs - ycalc) ** 2))
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(top / bottom)
+
+
+def calc_rexp_approx(cifpat: dict, yobs_dataname: str, yobs_dataname_err: str = "", ymod_dataname: str = "") -> float:
+    """
+    Calculate the Rexp statistic using the given yobs, uncertinaty, and y_modifier.
+    See Table 1.3 in "The Rietveld Method" by RA Young
+
+    I am approximating N-P with N, as there should be many more datapoints than parameters.
+
+    :param cifpat: dictionary representation of the cif pattern you want
+    :param yobs_dataname: dataname of the yobs value
+    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param ymod_dataname: this currently does nothing.
+    :return: a float with value of Rexp.
+    """
+    yobs = cifpat[yobs_dataname]
+    N = len(cifpat[yobs_dataname])  # should strictly be N-P
+
+    if ymod_dataname:  # I don't know what ymod means yet...
+        return -1
+
+    if not yobs_dataname_err and "_pd_proc_ls_weight" in cifpat:
+        yweight = cifpat["_pd_proc_ls_weight"]
+    else:
+        yobs_dataname_err = yobs_dataname + "_err"
+        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+    bottom = np.nansum(yweight * (yobs ** 2))
+    return np.sqrt(N / bottom)
+
+
+def calc_gof_approx(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+    """
+    Calculate the goodness-of-fit statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
+    See Table 1.3 in "The Rietveld Method" by RA Young
+
+    Should be using N-P, but there should be many more datapoints than parameters, so it should be pretty good.
+
+    :param cifpat: dictionary representation of the cif pattern you want
+    :param yobs_dataname: dataname of the yobs value
+    :param ycalc_dataname: dataname of the ycalc value
+    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param ymod_dataname: this currently does nothing.
+    :return: a float with values of gof.
+    """
+    rwp = calc_rwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err, ymod_dataname)
+    rexp = calc_rexp_approx(cifpat, yobs_dataname, yobs_dataname_err, ymod_dataname)
+    return rwp / rexp
 
 
 def theta2_from_min_max_inc(start: float, step: float, stop: float) -> List[str]:
@@ -423,7 +475,8 @@ class ParseCIF:
     NICE_TO_HAVE_DATANAMES = ['_diffrn_radiation_wavelength', "_cell_measurement_wavelength",
                               "_diffrn_ambient_temperature", "_cell_measurement_temperature",
                               "_diffrn_ambient_pressure", "_cell_measurement_pressure",
-                              "_pd_meas_datetime_initiated"]
+                              "_refine_ls_goodness_of_fit_all", "_pd_proc_ls_prof_wr_factor",
+                              "_pd_proc_ls_prof_wr_expected", "_pd_meas_datetime_initiated"]
 
     DATANAMES_THAT_SHOULD_BE_NUMERIC = ["_pd_phase_mass_%", "_refln_d_spacing"] + \
                                        COMPLETE_X_LIST + COMPLETE_Y_LIST + MODIFIER_Y_LIST + \
@@ -672,7 +725,7 @@ class ParseCIF:
         """
         A lot of the pdCIF revolves around block_id, and not the dataname.
         This renames the dataname as the block_id to enable easier lookups.
-        This needs to be done as a ductionary, and not a PyCifRW, as PyCIFRW
+        This needs to be done as a dictionary, and not a PyCifRW, as PyCIFRW
         forces datablock names to be lowercase.
         :return:
         """

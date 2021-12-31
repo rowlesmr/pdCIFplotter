@@ -178,22 +178,37 @@ def isclose_listlike(a, b, rel_tol=1e-09, abs_tol=0.0):
     )
 
 
-def add_datetime_temp_press_to_string(cifpat, s):
+def make_subtitle_string(cifpat, s="", yobs: str = "", ycalc: str = ""):
+    def add_string(add_me, s, brackets=False):
+        if s and brackets:
+            return f"{s} ({add_me})"
+        elif s:
+            return f"{s}; {add_me}"
+        else:
+            return add_me
+
+    print_Rfactor = ((yobs and ycalc) and (yobs != "None" and ycalc != "None")) or ("_pd_proc_ls_prof_wr_factor" in cifpat or "_refine_ls_goodness_of_fit_all" in cifpat)
+
     if "_pd_meas_datetime_initiated" in cifpat:
-        if s:
-            s += f"; {cifpat['_pd_meas_datetime_initiated']}"
-        else:
-            s = cifpat["_pd_meas_datetime_initiated"]
+        s = add_string(cifpat['_pd_meas_datetime_initiated'], s)
     if "_diffrn_ambient_temperature" in cifpat:
-        if s:
-            s += f"; {cifpat['_diffrn_ambient_temperature']} K"
-        else:
-            s = f"{cifpat['_diffrn_ambient_temperature']} K"
+        s = add_string(f"{cifpat['_diffrn_ambient_temperature']} K", s)
     if "_diffrn_ambient_pressure" in cifpat:
-        if s:
-            s += f"; {cifpat['_diffrn_ambient_pressure']} kPa"
-        else:
-            s = f"{cifpat['_diffrn_ambient_pressure']} kPa"
+        s = add_string(f"{cifpat['_diffrn_ambient_pressure']} kPa", s)
+    if print_Rfactor:
+        s = add_string("GoF = ", s)
+    if "_refine_ls_goodness_of_fit_all" in cifpat:
+        s += f"{cifpat['_refine_ls_goodness_of_fit_all']:.3f}"
+    if (yobs and ycalc) and (yobs != "None" and ycalc != "None"):
+        gof = parse_cif.calc_gof_approx(cifpat, yobs, ycalc)
+        s = add_string(f"{gof:.3f}", s, brackets=True)
+    if print_Rfactor:
+        s = add_string("Rwp = ", s)
+    if "_pd_proc_ls_prof_wr_factor" in cifpat:
+        s += f"{cifpat['_pd_proc_ls_prof_wr_factor'] * 100:.2f}%"
+    if (yobs and ycalc) and (yobs != "None" and ycalc != "None"):
+        rwp = parse_cif.calc_rwp(cifpat, yobs, ycalc)
+        s = add_string(f"{rwp * 100:.2f}%", s, brackets=True)
     return s
 
 
@@ -481,7 +496,7 @@ class PlotCIF:
         fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left")
         fig.subplots_adjust(top=0.9)
 
-        subtitle = add_datetime_temp_press_to_string(cifpat, "")
+        subtitle = make_subtitle_string(cifpat, yobs=y_ordinates[0], ycalc=y_ordinates[1])
         if subtitle:
             ax.set_title(subtitle, loc="left")
 
@@ -655,10 +670,9 @@ class PlotCIF:
                 ynew[i] = ynew[i - 1] - ylag[i]
             cchi2 = ynew
 
-        rwp = parse_cif.calc_rwp(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1])
         ax2 = ax1.twinx()
 
-        ax2.plot(x, cchi2, label=f" c\u03C7\u00b2 - (Rwp = {rwp * 100:.2f}%)",
+        ax2.plot(x, cchi2, label=f" c\u03C7\u00b2",
                  color=self.single_y_style["cchi2"]["color"], marker=self.single_y_style["cchi2"]["marker"],
                  linestyle=self.single_y_style["cchi2"]["linestyle"], linewidth=self.single_y_style["cchi2"]["linewidth"],
                  markersize=float(self.single_y_style["cchi2"]["linewidth"]) * 3
@@ -710,7 +724,7 @@ class PlotCIF:
             x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
             ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
-            label = add_datetime_temp_press_to_string(self.cif[pattern], label)
+            label = make_subtitle_string(self.cif[pattern], label)
             hover_texts.append(label)
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
