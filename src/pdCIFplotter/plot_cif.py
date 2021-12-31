@@ -142,7 +142,7 @@ def get_first_different_kv_pair(old_dict: dict, new_dict: dict):
             return k, v
 
 
-def get_zoomed_data_min_max(ax, x_lim: tuple, y_lim: tuple):
+def get_zoomed_data_min_max(ax, x_lim: Tuple, y_lim: Tuple):
     xmin = x_lim[0]
     xmax = x_lim[1]
     ymin = y_lim[0]
@@ -178,7 +178,7 @@ def isclose_listlike(a, b, rel_tol=1e-09, abs_tol=0.0):
     )
 
 
-def make_subtitle_string(cifpat, s="", yobs: str = "", ycalc: str = ""):
+def make_subtitle_string(cifpat, s="", yobs: str = "", ycalc: str = "") -> str:
     def add_string(add_me, s, brackets=False):
         if s and brackets:
             return f"{s} ({add_me})"
@@ -310,7 +310,7 @@ class PlotCIF:
             y_norms.append(y_norm)
         return y_norms
 
-    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> tuple[Any, Any, np.ndarray, np.ndarray, list[Any]]:
+    def get_all_xyz_znorm_data(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, z_norm_ordinate: str) -> Tuple[Any, Any, np.ndarray, np.ndarray, List[Any]]:
         # need to construct a single array for each x, y, z, by looping through only those
         # patterns which have the ordinates necessary to make the piccie I want to see.
         xs = []
@@ -729,8 +729,8 @@ class PlotCIF:
 
         # https://mplcursors.readthedocs.io/en/stable/examples/artist_labels.html
         stack_artists = ax.get_children()
-        mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add",
-                                                                                       lambda sel: sel.annotation.set_text(hover_texts[stack_artists.index(sel.artist)]))
+        mplcursors.cursor(stack_artists,
+                          hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(hover_texts[stack_artists.index(sel.artist)]))
 
         if plot_hkls["above"] or plot_hkls["below"]:
             stack_hovertexts = []

@@ -756,46 +756,8 @@ class ParseCIF:
 
 
 if __name__ == "__main__":
-    # filename = r"..\..\data\forJames_before.cif"
-    # filename = r"..\..\data\ideal_condensed.cif"
-    # filename = r"..\..\data\ideal_strsWithHKLs_condensed.cif"
-    # filename = r"..\..\data\ALUMINA.cif"
     filename = r"c:\data\La2Ti2O7-n-883C-mono.cif"
-    # filename = r"c:\data\yh5011sup1.cif"
-    # filename = r"c:\data\Nd2Ti2O7-x-1456C-mono_fixed.cif"
-    # filename = r"..\..\data\NISI.cif"
-    # filename = r"..\..\data\ideal_5patterns.cif"
-    # filename = r"..\..\data\pam\ws5072ibuprofen_all.cif"
-    # filename = r"..\..\data\pam\mag_cif_testfile_modified.cif"
-    # filename = r"..\..\data\simon\cifs\cu31501sup2.rtv.combined.cif"
-    #
-    # _diffrn_wavelength = two values for ka1 ka2
-
-    # import os
-
-    # #18
-    # filename = files[189]
-
-    # os.system("start " + filename)
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
     print("This is the end of the file:")
     pretty(cifd, print_values=True)
-    # print(filename)
-    # print(files[18])
-    # 18 could not convert string to float: 'YES' C:/Users/184277j/Documents/GitHub/pdCIFplotter/data/simon/cifs/hr0041isup4.rtv.combined.cif
-
-#
-# for i in range(len(files)):
-#     filename = files[i]
-#     try:
-#         cf = ParseCIF(filename)
-#         # print(i)
-#     except Exception as e:
-#         print(f"{i}\t{e}\t{filename}")
-#         continue
-
-
-# print(cf.rwp("pattern_0", "_pd_meas_intensity_total", "_pd_calc_intensity_total", "_pd_proc_ls_weight"))
-
-# print(type(cf))

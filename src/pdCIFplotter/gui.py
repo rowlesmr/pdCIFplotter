@@ -149,7 +149,7 @@ def pretty(d, indent=0, print_values=True):
             print('\t' * (indent + 1) + str(value))
 
 
-def single_update_plot(pattern, x_ordinate: str, y_ordinates: list,
+def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
                        plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
                        axis_scale: dict, window):
     global single_figure_agg, single_fig, single_ax
