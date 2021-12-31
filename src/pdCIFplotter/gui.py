@@ -18,7 +18,7 @@ import sys
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = False
+DEBUG = True
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
@@ -635,6 +635,8 @@ surface_keys = {"x_axis": "surface_x_ordinate",
                 "temperature": "surface_temperature",
                 "pressure": "surface_pressure",
                 "qpa": "surface_qpa",
+                "rwp": "surface_rwp",
+                "gof": "surface_gof",
                 "hkl_checkbox": "surface_hkl_checkbox",
                 "norm_int": "surface_norm_int_checkbox",
                 "x_scale_linear": "surface_x_scale_linear",
@@ -694,6 +696,8 @@ layout_surface_plot_control = \
         [sg.Checkbox("Show temperature", enable_events=True, default=False, key=surface_keys["temperature"], tooltip="Show the temperatures on a secondary plot.")],
         [sg.Checkbox("Show pressure", enable_events=True, default=False, key=surface_keys["pressure"], tooltip="Show the pressures on a secondary plot.")],
         [sg.Checkbox("Show QPA", enable_events=True, default=False, key=surface_keys["qpa"], tooltip="Show the quantitative phase analysis on a secondary plot.")],
+        [sg.Checkbox("Show Rwp", enable_events=True, default=False, key=surface_keys["rwp"], tooltip="Show the Rwp values on a secondary plot, if defined \nby _pd_proc_ls_prof_wr_factor.")],
+        [sg.Checkbox("Show GoF", enable_events=True, default=False, key=surface_keys["gof"], tooltip="Show the GoF values on a secondary plot, if defined \nby _refine_ls_goodness_of_fit_all.")],
         # --
 
         [sg.T("")],
@@ -1028,7 +1032,7 @@ def gui() -> None:
             update_surface_element_disables(values, window)
             _, values = window.read(timeout=0)
 
-        elif event in (surface_keys["temperature"], surface_keys["pressure"], surface_keys["qpa"]):
+        elif event in (surface_keys["temperature"], surface_keys["pressure"], surface_keys["qpa"], surface_keys["rwp"], surface_keys["gof"]):
             replot_surface = True
 
             if not values[event]:  # ie I'm turning off the plot
@@ -1037,15 +1041,33 @@ def gui() -> None:
                 if event == surface_keys["temperature"]:
                     window[surface_keys["pressure"]].update(value=False)
                     window[surface_keys["qpa"]].update(value=False)
+                    window[surface_keys["rwp"]].update(value=False)
+                    window[surface_keys["gof"]].update(value=False)
                     surface_temp_pres_qpa = "temp"
                 elif event == surface_keys["pressure"]:
                     window[surface_keys["qpa"]].update(value=False)
+                    window[surface_keys["rwp"]].update(value=False)
+                    window[surface_keys["gof"]].update(value=False)
                     window[surface_keys["temperature"]].update(value=False)
                     surface_temp_pres_qpa = "pres"
                 elif event == surface_keys["qpa"]:
+                    window[surface_keys["rwp"]].update(value=False)
+                    window[surface_keys["gof"]].update(value=False)
                     window[surface_keys["temperature"]].update(value=False)
                     window[surface_keys["pressure"]].update(value=False)
                     surface_temp_pres_qpa = "qpa"
+                elif event == surface_keys["rwp"]:
+                    window[surface_keys["gof"]].update(value=False)
+                    window[surface_keys["temperature"]].update(value=False)
+                    window[surface_keys["pressure"]].update(value=False)
+                    window[surface_keys["qpa"]].update(value=False)
+                    surface_temp_pres_qpa = "rwp"
+                elif event == surface_keys["gof"]:
+                    window[surface_keys["temperature"]].update(value=False)
+                    window[surface_keys["pressure"]].update(value=False)
+                    window[surface_keys["qpa"]].update(value=False)
+                    window[surface_keys["rwp"]].update(value=False)
+                    surface_temp_pres_qpa = "gof"
                 # push all the window value updates and then update the enable/disable, and then push again
                 _, values = window.read(timeout=0)
                 update_surface_element_disables(values, window)
