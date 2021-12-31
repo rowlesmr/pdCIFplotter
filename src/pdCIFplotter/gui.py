@@ -345,19 +345,9 @@ def initialise_surface_xz_lists() -> None:
                         surface_z_ordinates[x_ordinate].append(y_ordinate)
 
 
-def cif_has_temperatures():
-    return any("_diffrn_ambient_temperature" in cif[pattern] for pattern in cif)
+def cif_has_dataname(dataname: str, any_or_all=any):
+    return any_or_all(dataname in cif[pattern] for pattern in cif)
 
-
-def cif_has_pressures():
-    return any("_diffrn_ambient_pressure" in cif[pattern] for pattern in cif)
-
-
-def cif_has_qpa():
-    # needs a stricter test than temperature and pressure, as I need to work with
-    # multiple phases and it is difficult to figure out what to do
-    # if there is a missing wt% entry.
-    return all("_pd_phase_mass_%" in cif[pattern] for pattern in cif)
 
 # single                                    # stack                                     # surface
 # --------------------------------------- # # --------------------------------------- # # --------------------------------------- #
@@ -373,6 +363,7 @@ def cif_has_qpa():
 # |                      |              | # # |                      |              | # # |                      |              | #
 # |                      |              | # # |                      |              | # # |                      |              | #
 # |-------------------------------------| # # |-------------------------------------| # # |-------------------------------------| #
+
 
 decimalplaces = 4
 
@@ -678,11 +669,11 @@ def update_surface_element_disables(values: dict, window: sg.Window) -> None:
     # always disable the y-ordinate chooser. Will need a large upgrade to change this one
     window[surface_keys["y_axis"]].update(disabled=True)
 
-    if not cif_has_temperatures():
+    if not cif_has_dataname("_diffrn_ambient_temperature"):
         window[surface_keys["temperature"]].update(disabled=True)
-    if not cif_has_pressures():
+    if not cif_has_dataname("_diffrn_ambient_pressure"):
         window[surface_keys["pressure"]].update(disabled=True)
-    if not cif_has_qpa():
+    if not cif_has_dataname("_pd_phase_mass_%", any_or_all=all):
         window[surface_keys["qpa"]].update(disabled=True)
 
 
