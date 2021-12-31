@@ -2,11 +2,20 @@
 Changelog
 =========
 
+0.0.9 (2021-12-31)
+------------------
+
+* Single plot - subtitle now shows the datetime, temperature, pressure, Rwp, and GoF, if available in the CIF file. Rwp and GoF is also calculated and displayed in brackets if possible. Gof calculation uses N, and not N-P, so it is only an approximation.
+* Stack plot - Hovertext now shows the datetime, temperature, pressure, Rwp, and GoF, if available in the CIF file.
+* Surface plot - Can now plot temperature, pressure, quantitative phase analysis (QPA), Rwp, and GoF (if available in the CIF file) next to the surface plot. QPA phases are linked together by their _pd_phase_name, 
+so it is important that the same string is used to denote the same phases in different patterns.
+
+
 0.0.8 (2021-12-20)
 ------------------
 
 * Updated some of the zoom behaviour
-* Can now use arrows to move between consecutive diffraction patterns in the single plot
+* Can now use arrow buttons to move between consecutive diffraction patterns in the single plot
 
 
 0.0.7 (2021-12-18)
