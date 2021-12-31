@@ -497,6 +497,7 @@ class ParseCIF:
         self._make_just_patterns_cif()
         self._make_cif_numeric()
         self._calc_extra_data()
+        self._put_phase_mass_pct_in_strs()
         self._rename_datablock_from_blockid()
 
     def _remove_empty_items(self) -> None:
@@ -720,6 +721,18 @@ class ParseCIF:
                             cifstr["refln_2theta"] = calc_2theta_from_d(lam, cifstr["_refln_d_spacing"])
                         cifstr["refln_hovertext"] = [f"{h} {k} {l}" for h, k, l in
                                                      zip(cifstr['_refln_index_h'], cifstr['_refln_index_k'], cifstr["_refln_index_l"])]
+
+    def _put_phase_mass_pct_in_strs(self) -> None:
+        for pattern in self.ncif:
+            cifpat = self.ncif[pattern]
+            if "_pd_phase_mass_%" not in cifpat or "str" not in cifpat:
+                continue
+            phase_ids = cifpat["_pd_phase_id"]
+            qpas = cifpat["_pd_phase_mass_%"]
+            qpa_errs = cifpat["_pd_phase_mass_%_err"]
+            for phase, qpa, err in zip(phase_ids, qpas, qpa_errs):
+                cifpat["str"][phase]["_pd_phase_mass_%"] = qpa
+                cifpat["str"][phase]["_pd_phase_mass_%_err"] = err
 
     def _rename_datablock_from_blockid(self) -> None:
         """
