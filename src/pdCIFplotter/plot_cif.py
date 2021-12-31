@@ -622,10 +622,12 @@ class PlotCIF:
                 else:
                     hkl_y = np.maximum(interp(hkl_x, x, ycalc), interp(hkl_x, x, yobs))
 
+            phase_wt_pct = f'– {cifpat["str"][phase]["_pd_phase_mass_%"]} wt%' if "_pd_phase_mass_%" in cifpat["str"][phase] else ""
+
             hkl_y = hkl_y * scalar + hkl_y_offset
             idx = i % len(TABLEAU_COLOR_VALUES)
             phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
-            hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phasename, marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+            hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
                                 color=TABLEAU_COLOR_VALUES[idx])
             hkl_artists.append(hkl_tick)
             if "refln_hovertext" in cifpat["str"][phase]:

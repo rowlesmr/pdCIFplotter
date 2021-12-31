@@ -18,7 +18,7 @@ import sys
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = True
+DEBUG = False
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
