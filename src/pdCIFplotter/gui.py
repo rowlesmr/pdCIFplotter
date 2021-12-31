@@ -696,8 +696,10 @@ layout_surface_plot_control = \
         [sg.Checkbox("Show temperature", enable_events=True, default=False, key=surface_keys["temperature"], tooltip="Show the temperatures on a secondary plot.")],
         [sg.Checkbox("Show pressure", enable_events=True, default=False, key=surface_keys["pressure"], tooltip="Show the pressures on a secondary plot.")],
         [sg.Checkbox("Show QPA", enable_events=True, default=False, key=surface_keys["qpa"], tooltip="Show the quantitative phase analysis on a secondary plot.")],
-        [sg.Checkbox("Show Rwp", enable_events=True, default=False, key=surface_keys["rwp"], tooltip="Show the Rwp values on a secondary plot, if defined \nby _pd_proc_ls_prof_wr_factor.")],
-        [sg.Checkbox("Show GoF", enable_events=True, default=False, key=surface_keys["gof"], tooltip="Show the GoF values on a secondary plot, if defined \nby _refine_ls_goodness_of_fit_all.")],
+        [sg.Checkbox("Show Rwp", enable_events=True, default=False, key=surface_keys["rwp"],
+                     tooltip="Show the Rwp values on a secondary plot, if defined \nby _pd_proc_ls_prof_wr_factor.")],
+        [sg.Checkbox("Show GoF", enable_events=True, default=False, key=surface_keys["gof"],
+                     tooltip="Show the GoF values on a secondary plot, if defined \nby _refine_ls_goodness_of_fit_all.")],
         # --
 
         [sg.T("")],

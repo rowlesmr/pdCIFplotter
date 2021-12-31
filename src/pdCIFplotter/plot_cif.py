@@ -374,28 +374,26 @@ class PlotCIF:
         return xx, yy, zz, zn, plot_list
 
     def get_all_qpa(self) -> dict:
-        q = []
         all_phases = set()
+        # get all phase names
         for pattern in self.cif:
             cifpat = self.cif[pattern]
-            try:
-                qpa = cifpat["_pd_phase_mass_%"].tolist()
-                phase_names = [cifpat["str"][phase]["_pd_phase_name"] for phase in cifpat["str"]]
-                for phase in phase_names:
-                    all_phases.add(phase)
-            except KeyError:
-                qpa = []
-                phase_names = []
-            q.append((phase_names, qpa))
-        all_phases = list(all_phases)
-
+            for phase in cifpat["str"]:
+                all_phases.add(cifpat["str"][phase]["_pd_phase_name"])
         d = {phase: [] for phase in all_phases}
-        for i, (phases, qpas) in enumerate(q, start=1):
-            for phase, qpa in zip(phases, qpas):
-                d[phase].append(qpa)
+        # get all phase wt%
+        for i, pattern in enumerate(self.cif, start=1):
+            cifpat = self.cif[pattern]
+            for phase in cifpat["str"]:
+                try:
+                    qpa = cifpat["str"][phase]["_pd_phase_mass_%"]
+                except KeyError:
+                    qpa = None
+                phase_name = cifpat["str"][phase]["_pd_phase_name"]
+                d[phase_name].append(qpa)
             for phase, qpa_list in d.items():
                 if len(qpa_list) != i:
-                    d[phase].append(0)
+                    d[phase].append(None)
         return d
 
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
@@ -898,7 +896,7 @@ class PlotCIF:
                         ax1.set_xlabel("Pressure (kPa)")
                     elif plot_metadata == "rwp":
                         try:
-                            second_plot.append(cifpat["_pd_proc_ls_prof_wr_factor"]*100)
+                            second_plot.append(cifpat["_pd_proc_ls_prof_wr_factor"] * 100)
                         except KeyError:
                             second_plot.append(None)
                         ax1.set_xlabel("Rwp (%)")
