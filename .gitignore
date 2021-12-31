@@ -10,6 +10,8 @@ data/ian/
 PySimpleGUI.py
 data/ideal.cif
 data/sn5079.cif
+data/dave
+data/john
 
 
 # Byte-compiled / optimized / DLL files
@@ -127,78 +129,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-data/dave/topas_alternate.str
-data/dave/topas.str
-data/dave/data.isoviz
-data/dave/d8_12_31.raw
-data/dave/d8_01143_VT_run_30deg_to_900deg.raw
-data/dave/BaPbO3_annealed_900deg_9.raw
-data/dave/BaPbO3_annealed_900deg_8.raw
-data/dave/BaPbO3_annealed_900deg_7.raw
-data/dave/BaPbO3_annealed_900deg_61.raw
-data/dave/BaPbO3_annealed_900deg_60.raw
-data/dave/BaPbO3_annealed_900deg_6.raw
-data/dave/BaPbO3_annealed_900deg_59.raw
-data/dave/BaPbO3_annealed_900deg_58.raw
-data/dave/BaPbO3_annealed_900deg_57.raw
-data/dave/BaPbO3_annealed_900deg_56.raw
-data/dave/BaPbO3_annealed_900deg_55.raw
-data/dave/BaPbO3_annealed_900deg_54.raw
-data/dave/BaPbO3_annealed_900deg_53.raw
-data/dave/BaPbO3_annealed_900deg_52.raw
-data/dave/BaPbO3_annealed_900deg_51.raw
-data/dave/BaPbO3_annealed_900deg_50.raw
-data/dave/BaPbO3_annealed_900deg_5.raw
-data/dave/BaPbO3_annealed_900deg_49.raw
-data/dave/BaPbO3_annealed_900deg_48.raw
-data/dave/BaPbO3_annealed_900deg_47.raw
-data/dave/BaPbO3_annealed_900deg_46.raw
-data/dave/BaPbO3_annealed_900deg_45.raw
-data/dave/BaPbO3_annealed_900deg_44.raw
-data/dave/BaPbO3_annealed_900deg_43.raw
-data/dave/BaPbO3_annealed_900deg_42.raw
-data/dave/BaPbO3_annealed_900deg_41.raw
-data/dave/BaPbO3_annealed_900deg_40.raw
-data/dave/BaPbO3_annealed_900deg_4.raw
-data/dave/BaPbO3_annealed_900deg_39.raw
-data/dave/BaPbO3_annealed_900deg_38.raw
-data/dave/BaPbO3_annealed_900deg_37.raw
-data/dave/BaPbO3_annealed_900deg_36.raw
-data/dave/BaPbO3_annealed_900deg_35.raw
-data/dave/BaPbO3_annealed_900deg_34.raw
-data/dave/BaPbO3_annealed_900deg_33.raw
-data/dave/BaPbO3_annealed_900deg_32.raw
-data/dave/BaPbO3_annealed_900deg_31.raw
-data/dave/BaPbO3_annealed_900deg_30.raw
-data/dave/BaPbO3_annealed_900deg_3.raw
-data/dave/BaPbO3_annealed_900deg_29.raw
-data/dave/BaPbO3_annealed_900deg_28.raw
-data/dave/BaPbO3_annealed_900deg_27.raw
-data/dave/BaPbO3_annealed_900deg_26.raw
-data/dave/BaPbO3_annealed_900deg_25.raw
-data/dave/BaPbO3_annealed_900deg_24.raw
-data/dave/BaPbO3_annealed_900deg_23.raw
-data/dave/BaPbO3_annealed_900deg_22.raw
-data/dave/BaPbO3_annealed_900deg_21.raw
-data/dave/BaPbO3_annealed_900deg_20.raw
-data/dave/BaPbO3_annealed_900deg_2.raw
-data/dave/BaPbO3_annealed_900deg_19.raw
-data/dave/BaPbO3_annealed_900deg_18.raw
-data/dave/BaPbO3_annealed_900deg_17.raw
-data/dave/BaPbO3_annealed_900deg_16.raw
-data/dave/BaPbO3_annealed_900deg_15.raw
-data/dave/BaPbO3_annealed_900deg_14.raw
-data/dave/BaPbO3_annealed_900deg_13.raw
-data/dave/BaPbO3_annealed_900deg_12.raw
-data/dave/BaPbO3_annealed_900deg_11.raw
-data/dave/BaPbO3_annealed_900deg_10.raw
-data/dave/BaPbO3_annealed_900deg_1.raw
-data/dave/BaPbO3_annealed_900deg_0.raw
-data/dave/first-last_phaseid.eva
-data/john/(Ce0.78La0.22)2O2MnSe2_Mag_30K.vesta
-data/john/Ce2O2MnSe2_Mag_30K.vesta
-data/john/ce2o2mnse2_published_2015.pdf
-data/john/Ce2O2MnSe2_SI_20150120.pdf
-data/john/cifs and checkcifs.zip
-data/john/rietveld.zip
