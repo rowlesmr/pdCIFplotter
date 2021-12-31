@@ -775,13 +775,13 @@ class PlotCIF:
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, plot_norm_int: dict, plot_temp_pres_qpa: str,
+                            plot_hkls: bool, plot_norm_int: dict, plot_metadata: str,
                             axis_scale: dict,
                             fig: Figure) -> Figure:
         if fig:
             fig.clear()
         fig = Figure(figsize=(6, 3), dpi=self.dpi)
-        if plot_temp_pres_qpa:
+        if plot_metadata:
             ax, ax1 = fig.subplots(1, 2, gridspec_kw={'width_ratios': [2, 1]}, sharey=True)
         else:
             ax = fig.subplots(1, 1)
@@ -878,24 +878,36 @@ class PlotCIF:
         ax.set_ylabel(y_axis_title)
 
         # make second subplot here
-        if plot_temp_pres_qpa:  # string == "temp", "pres", "qpa"
+        if plot_metadata:  # string == "temp", "pres", "qpa"
             y = [_scale_y_ordinate(i + 1, axis_scale) for i in range(len(self.cif))]
-            if plot_temp_pres_qpa != "qpa":
+            if plot_metadata != "qpa":
                 second_plot = []
                 for pattern in self.cif:
                     cifpat = self.cif[pattern]
-                    if plot_temp_pres_qpa == "temp":
+                    if plot_metadata == "temp":
                         try:
                             second_plot.append(cifpat["_diffrn_ambient_temperature"])
                         except KeyError:
                             second_plot.append(None)
                         ax1.set_xlabel("Temperature (K)")
-                    elif plot_temp_pres_qpa == "pres":
+                    elif plot_metadata == "pres":
                         try:
                             second_plot.append(cifpat["_diffrn_ambient_pressure"])
                         except KeyError:
                             second_plot.append(None)
                         ax1.set_xlabel("Pressure (kPa)")
+                    elif plot_metadata == "rwp":
+                        try:
+                            second_plot.append(cifpat["_pd_proc_ls_prof_wr_factor"]*100)
+                        except KeyError:
+                            second_plot.append(None)
+                        ax1.set_xlabel("Rwp (%)")
+                    elif plot_metadata == "gof":
+                        try:
+                            second_plot.append(cifpat["_refine_ls_goodness_of_fit_all"])
+                        except KeyError:
+                            second_plot.append(None)
+                        ax1.set_xlabel("GoF")
                 ax1.plot(second_plot, y, marker="o")
             else:
                 for phase in self.qpa:
