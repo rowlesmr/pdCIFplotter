@@ -488,6 +488,10 @@ class ParseCIF:
         self.ncif: dict = {}  # this will be the cif file with pattern information only
         self.cif: dict = {}
 
+
+        if self.ciffile is None:
+            raise ValueError("CIF file is empty.")
+
         self._remove_empty_items()
         self._make_up_block_id()
         self._expand_2theta_min_max_inc()
