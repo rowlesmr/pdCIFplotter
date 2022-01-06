@@ -15,6 +15,7 @@ import matplotlib.axes as ma
 import matplotlib as mpl
 from typing import List, Union
 import sys
+import traceback
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
@@ -866,9 +867,12 @@ def gui() -> None:
                 plotcif = plot_cif.PlotCIF(cif, canvas_x, canvas_y)
             except Exception as e:
                 # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
-                msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. Some information may be apparant from the text below:\n\n{e}"
+                msg = f"There has been an error in reading the CIF file. Please check that it is of a valid format before continuing. "\
+                      f"Some information may be apparant from the text below:\n\n{e}\n\n---\n{traceback.format_exc()}"
                 sg.Print(msg)
                 print(e)
+                print("\n\n")
+                print(traceback.format_exc())
                 continue
             finally:
                 popup.close()

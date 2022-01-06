@@ -378,12 +378,16 @@ class PlotCIF:
         # get all phase names
         for pattern in self.cif:
             cifpat = self.cif[pattern]
+            if "str" not in cifpat:
+                continue
             for phase in cifpat["str"]:
                 all_phases.add(cifpat["str"][phase]["_pd_phase_name"])
         d = {phase: [] for phase in all_phases}
         # get all phase wt%
         for i, pattern in enumerate(self.cif, start=1):
             cifpat = self.cif[pattern]
+            if "str" not in cifpat:
+                continue
             for phase in cifpat["str"]:
                 try:
                     qpa = cifpat["str"][phase]["_pd_phase_mass_%"]
@@ -723,7 +727,7 @@ class PlotCIF:
             x, y = xs[j], ys[j] * y_norms[j]
             x, y = _scale_xy_ordinates(x, y, axis_scale)
             label = pattern if not plot_norm_int["norm_int"] else f"{pattern} (norm.)"
-            ax.plot(x, y + j * offset, label=label)  # do I want to fill white behind each plot?
+            ax.plot(x, y + j * offset, label=label)
             label = make_subtitle_string(self.cif[pattern], label)
             hover_texts.append(label)
 
