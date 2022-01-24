@@ -2,6 +2,14 @@
 Changelog
 =========
 
+0.0.11 (2022-01-24)
+-------------------
+
+* Created a program icon.
+* Fixed bug in quantitative phase analysis parsing to enable reading of data-only CIFs.
+* Correctly reads an empty file.
+
+
 0.0.10 (2021-12-31)
 -------------------
 
