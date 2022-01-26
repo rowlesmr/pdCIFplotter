@@ -119,6 +119,8 @@ def add_hovertext_to_each_point(artists, hovertexts):
         "add", lambda sel: sel.annotation.set_text(hover_dict[sel.artist][sel.index]))
 
 
+# mplcursors.cursor(stack_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
+
 # https://stackoverflow.com/a/30734735/36061
 def array_strictly_increasing_or_equal(a):
     return np.all(a[1:] >= a[:-1])
@@ -397,7 +399,7 @@ class PlotCIF:
                 d[phase_name].append(qpa)
             for phase, qpa_list in d.items():
                 if len(qpa_list) != i:
-                    d[phase].append(None)
+                    d[phase].append(np.nan)
         return d
 
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
@@ -914,8 +916,14 @@ class PlotCIF:
                         ax1.set_xlabel("GoF")
                 ax1.plot(second_plot, y, marker="o")
             else:
+                amor_qpa = 100 * np.ones(len(y))
                 for phase in self.qpa:
                     ax1.plot(self.qpa[phase], y, label=phase)
+                    amor_qpa = np.subtract(amor_qpa, np.nan_to_num(self.qpa[phase]))
+                if np.any(amor_qpa > 0.5):
+                    ax1.plot(amor_qpa, y, label="Unknown", color="black", linestyle='dashed')
+                surface_qpa_artists = ax1.get_children()
+                mplcursors.cursor(surface_qpa_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
                 ax1.set_xlabel("Weight percent (wt%)")
                 ax1.legend()
             ax1.grid(True, color='lightgrey')
