@@ -2,6 +2,11 @@
 Changelog
 =========
 
+0.1.0 (2022-03-14)
+-------------------
+* Submitting final version of manuscript for publication - feature freeze!
+
+
 0.0.11 (2022-01-24)
 -------------------
 
