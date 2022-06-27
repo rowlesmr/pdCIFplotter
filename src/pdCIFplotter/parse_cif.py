@@ -55,7 +55,7 @@ def blockname_lookupdict_from_blockid(cif: Union[dict, CifFile]) -> dict:
 
 def get_blockname_from_block_id(lookup_dict: dict, block_id: str) -> str:
     """
-    Pycifrw makes datablock names all lower case. When I make up a pd+block_id from a dataname, sometimes the user has a
+    Pycifrw makes datablock names all lower case. When I make up a pd_block_id from a dataname, sometimes the user has a
     case-dependent reference somewhere in their CIF, and so I can't find the datablock. This looks in my lookup dictionary
     two ways to see if it can be found.
     :param lookup_dict: the dictionary mapping block_id to datablock
@@ -105,7 +105,7 @@ def get_from_cif(cif: Union[dict, CifFile], itemname: str, default: Any = None):
 
 def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     """
-    Given a cif block representing aa structure, get the h,k,l, and d values of the reflections
+    Given a cif block representing a structure, get the h,k,l, and d values of the reflections
     and return them in a dictionary. or returns None if '_refln_d_spacing' doesn't exist
 
     :param structure: a cif dictionary or PyCIFRW
@@ -472,7 +472,7 @@ class ParseCIF:
 
     COMPLETE_Y_LIST = OBSERVED_Y_LIST + BACKGROUND_Y_LIST + CALCULATED_Y_LIST
 
-    NICE_TO_HAVE_DATANAMES = ['_diffrn_radiation_wavelength', "_cell_measurement_wavelength",
+    NICE_TO_HAVE_DATANAMES = ["_diffrn_radiation_wavelength", "_cell_measurement_wavelength",
                               "_diffrn_ambient_temperature", "_cell_measurement_temperature",
                               "_diffrn_ambient_pressure", "_cell_measurement_pressure",
                               "_refine_ls_goodness_of_fit_all", "_pd_proc_ls_prof_wr_factor",
