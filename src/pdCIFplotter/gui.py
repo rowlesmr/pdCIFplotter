@@ -19,7 +19,8 @@ import traceback
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = False
+
+DEBUG = True
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
@@ -109,6 +110,22 @@ LINE_STYLES = plot_cif.LINE_STYLES
 LINE_MARKER_SIZE = plot_cif.LINE_MARKER_SIZE
 SURFACE_COLOR_MAPS = plot_cif.SURFACE_COLOR_MAPS
 
+
+FONT_FAMILY = plot_cif.FONT_FAMILY
+FONT_SIZES = plot_cif.FONT_SIZES
+FONT_COLOURS = plot_cif.FONT_COLOURS
+FONT_WEIGHTS = plot_cif.FONT_WEIGHTS
+FONT_STYLES = plot_cif.FONT_STYLES
+
+FONT_DICT = {"xlabel":      {"family": "sans-serif", "size": 14, "color": "silver", "weight": "normal", "style": "italic"},
+             "ylabel":      {"family": "sans-serif", "size": 14, "color": "red", "weight": "normal", "style": "italic"},
+             "title":       {"family": "sans-serif", "size": 18, "color": "green", "weight": "normal", "style": "italic"},
+             "subtitle":    {"family": "sans-serif", "size": 16, "color": "blue", "weight": "normal", "style": "italic"},
+             "legend":      {"family": "sans-serif", "size": 12,                  "weight": "bold", "style": "italic"},
+             "legendcolor": {"color": "darkred"},
+             "xticklabel":  {"family": "sans-serif", "size": 8, "color": "orange", "weight": "normal", "style": "italic"},
+             "yticklabel":  {"family": "sans-serif", "size": 8, "color": "violet", "weight": "normal", "style": "italic"}}
+
 # these lists contain all the possible x and y ordinate data items that I want to worry about in this program
 # the last few entries in each list correspond to values that could potentially be calc'd from the given
 # information, but were not presented in the CIF.
@@ -152,13 +169,13 @@ def pretty(d, indent=0, print_values=True):
 
 def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
                        plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                       axis_scale: dict, window):
+                       axis_scale: dict, fontdict: dict, window):
     global single_figure_agg, single_fig, single_ax
 
     single_fig, single_ax, x_zoom, y_zoom = \
         plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
                                    plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
-                                   axis_scale, single_fig, single_ax)
+                                   axis_scale, fontdict, single_fig, single_ax)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
                                               window["single_matplotlib_controls"].TKCanvas,
@@ -233,6 +250,66 @@ def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, wi
         [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
         [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
          sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+    ]
+    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    event, values = win.read()
+    win.close()
+    window.write_event_value(event, values)
+
+
+def font_styling_popup(window_title: str, font_dict: dict, key: str, window):
+    print("I'm being called.")
+    layout_def = [
+        [sg.Text("Header", size=10, justification="center"),
+         sg.Text("Font", size=10, justification="center"),
+         sg.Text("Size", size=10, justification="center"),
+         sg.Text("Colour", size=15, justification="center"),
+         sg.Text("Weight", size=10, justification="center"),
+         sg.Text("Style", size=10, justification="center")],
+        [sg.Text("Title", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["title"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-title-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["title"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-title-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["title"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-title-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["title"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-title-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["title"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-title-style")],
+        [sg.Text("Subtitle", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["subtitle"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["subtitle"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-subtitle-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["subtitle"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-subtitle-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["subtitle"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["subtitle"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-style")],
+        [sg.Text("X labe'", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["xlabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["xlabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-xlabel-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["xlabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-xlabel-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["xlabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["xlabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-style")],
+        [sg.Text("Y label", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["ylabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["ylabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-ylabel-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["ylabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-ylabel-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["ylabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["ylabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-style")],
+        [sg.Text("X ticks", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["xticklabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["xticklabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-xticklabel-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["xticklabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-xticklabel-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["xticklabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["xticklabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-style")],
+        [sg.Text("Y ticks", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["yticklabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["yticklabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-yticklabel-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["yticklabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-yticklabel-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["yticklabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["yticklabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-style")],
+        [sg.Text("Legend", size=10, justification="left"),
+         sg.Combo(FONT_FAMILY,  default_value=font_dict["legend"]["family"],     readonly=True,  size=(10, 5), key=f"{key}-popup-legend-family"),
+         sg.Combo(FONT_SIZES,   default_value=font_dict["legend"]["size"],       readonly=False, size=(10, 5), key=f"{key}-popup-legend-size"),
+         sg.Combo(FONT_COLOURS, default_value=font_dict["legendcolor"]["color"], readonly=False, size=(15, 5), key=f"{key}-popup-legendcolor-color"),
+         sg.Combo(FONT_WEIGHTS, default_value=font_dict["legend"]["weight"],     readonly=True,  size=(10, 5), key=f"{key}-popup-legend-weight"),
+         sg.Combo(FONT_STYLES,  default_value=font_dict["legend"]["style"],      readonly=True,  size=(10, 5), key=f"{key}-popup-legend-style")],
+        [sg.Button("Ok", key=f"{key}-popup-ok", enable_events=True),
+         sg.Button("Cancel", key=f"{key}-popup-cancel", enable_events=True)]
     ]
     win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
     event, values = win.read()
@@ -393,7 +470,8 @@ def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str
 # --- single tab
 #
 #################################################################################################################
-single_keys = {"data": "single_data_chooser",  # this entry must remain at the beginning
+single_keys = {"data": "single_data_chooser", # this entry must remain at the beginning
+               "plot_fonts": "single_plot_fonts",  # this entry must remain second
                "next_data": "single_next_data",
                "prev_data": "single_prev_data",
                "x_axis": "single_x_ordinate",
@@ -518,7 +596,9 @@ layout_single_plot_control = \
          sg.Radio("Sqrt", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_sqrt"],
                   tooltip="The displayed y-ordinate is equal to the square root of the actual y-ordinate."),
          sg.Radio("Log", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_log"],
-                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate.")]
+                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=single_keys["plot_fonts"], tooltip="Change the font properties of the current plot")] #single_keys["plot_fonts"]
     ]
 
 layout_single_right = \
@@ -848,12 +928,14 @@ def gui() -> None:
 
         # this is a big if/elif that controls the entire gui flow
         if event is None:
+            debug("Exiting the program.")
             break  # Exit the program
 
         # ----------
         # load file
         # ----------
         elif event == "file_string":
+            debug("Getting file string.")
             files_str = values['file_string']
             if files_str == "":
                 continue  # the file wasn't chosen, so just keep looping
@@ -934,9 +1016,11 @@ def gui() -> None:
         #
         # --------------------------------------------------------------------------------------
         elif event == "tab-change" and values[event] == "single_tab" and single_figure_agg is None:
+            debug("Changine to single tab")
             replot_single = True
 
         elif event in (single_keys["prev_data"], single_keys["next_data"]):
+            debug("Getting previous or next single data.")
             replot_single = True
             single_current_data: str = values[single_keys["data"]]
             single_current_data_list: List[str] = window[single_keys["data"]].Values
@@ -960,6 +1044,7 @@ def gui() -> None:
             _, values = window.read(timeout=0)
 
         elif event == single_keys["data"]:
+            debug("Getting single data")
             replot_single = True
             pattern = values[event]
             # because I'm changing the pattern I'm plotting, there may be different data available to plot
@@ -975,7 +1060,8 @@ def gui() -> None:
             update_single_element_disables(pattern, values, window)
             _, values = window.read(timeout=0)
 
-        elif event in list(single_keys.values())[1:]:  # ie if I click anything apart from the data chooser
+        elif event in list(single_keys.values())[2:]:  # ie if I click anything apart from the data chooser or font button
+            debug("Single: clicking something that is not the data chooser.")
             replot_single = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
@@ -983,6 +1069,7 @@ def gui() -> None:
             _, values = window.read(timeout=0)
 
         elif event in list(single_buttons_keys.values()):
+            debug("Single: you pushed a button")
             y_ordinate_styling_popup(f"{single_buttons_values[event]} styling",
                                      plotcif.single_y_style[single_buttons_values[event]]["color"],
                                      plotcif.single_y_style[single_buttons_values[event]]["marker"],
@@ -992,6 +1079,7 @@ def gui() -> None:
                                      window)
 
         elif event in [v + "-popupkey-popup-ok" for v in single_buttons_keys.values()]:
+            debug("single popup: you clicked OK")
             button = event.replace('-popupkey-popup-ok', '')
 
             # update the style values
@@ -1000,6 +1088,19 @@ def gui() -> None:
             plotcif.single_y_style[single_buttons_values[button]]["linestyle"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-linestyle']
             plotcif.single_y_style[single_buttons_values[button]]["linewidth"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-size']
             replot_single = True
+
+        elif event == single_keys["plot_fonts"]:
+            debug("Single: you did the font thing")
+            font_styling_popup("Choose your font styles...", FONT_DICT, f"{event}-popupkey", window)
+
+        elif event == "single_plot_fonts-popupkey-popup-ok":
+            debug("single font popup: you clicked OK")
+            for axis in FONT_DICT:
+                for thing in FONT_DICT[axis]:
+                    FONT_DICT[axis][thing] = values["single_plot_fonts-popupkey-popup-ok"][f'{single_keys["plot_fonts"]}-popupkey-popup-{axis}-{thing}']
+            replot_single = True
+
+
 
         # --------------------------------------------------------------------------------------
         #  stack window things
@@ -1125,6 +1226,7 @@ def gui() -> None:
                                    values[single_keys["cchi2"]],
                                    values[single_keys["norm_int"]],
                                    single_axis_scale,
+                                   FONT_DICT,
                                    window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)

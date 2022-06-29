@@ -16,11 +16,21 @@ def debug(*args):
     if DEBUG:
         print(*args)
 
+#colour thing
+_by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
+
+
+# Font related things
+FONT_FAMILY = ["sans-serif", "serif", "cursive", "fantasy", "monospace"]
+FONT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72]
+FONT_COLOURS = [name for hsv, name in _by_hsv]
+FONT_WEIGHTS = ['normal', 'bold', 'heavy', 'light', 'ultrabold', 'ultralight']
+FONT_STYLES = ['normal', 'italic', 'oblique']
+
 
 # LINE_MARKER_COLORS = list(mc.CSS4_COLORS.keys())
 # from here: https://matplotlib.org/stable/gallery/color/named_colors.html
-_by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color in mc.CSS4_COLORS.items())
-LINE_MARKER_COLORS = [name for hsv, name in _by_hsv]
+LINE_MARKER_COLORS = FONT_COLOURS #[name for hsv, name in _by_hsv]
 MARKER_STYLES: List[str] = [None, ".", "o", "s", "*", "+", "x", "D"]
 LINE_STYLES: List[str] = ["solid", "None", "dashed", "dashdot", "dotted"]
 LINE_MARKER_SIZE: List[str] = [str(s) for s in range(1, 10)]
@@ -404,7 +414,7 @@ class PlotCIF:
 
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
                            plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                           axis_scale: dict,
+                           axis_scale: dict, fontdict: dict,
                            fig: Figure, ax: Axes) -> Tuple[Figure, Axes, Tuple, Tuple]:
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         single_height_px = fig.get_size_inches()[1] * self.dpi if fig is not None else 382  # this is needed for the hkl position calculations
@@ -480,10 +490,10 @@ class PlotCIF:
 
         if plot_cchi2:
             flip_cchi2 = x_ordinate in {"d", "_pd_proc_d_spacing"}
-            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, ax)
+            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, fontdict, ax)
 
         if not plot_cchi2:
-            ax.legend(frameon=False, loc='upper right')  # loc='best')
+            ax.legend(frameon=False, loc='upper right', prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])  # loc='best')
 
         if plot_norm_int:
             y_axis_title = "Normalised counts"
@@ -495,14 +505,19 @@ class PlotCIF:
         wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
-        ax.set_xlabel(x_axis_title)
-        ax.set_ylabel(y_axis_title)
-        fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left")
+        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
+        fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left", fontproperties={"size": fontdict["title"]["size"]}, fontdict=fontdict["title"])
         fig.subplots_adjust(top=0.9)
 
         subtitle = make_subtitle_string(cifpat, yobs=y_ordinates[0], ycalc=y_ordinates[1])
         if subtitle:
-            ax.set_title(subtitle, loc="left")
+            ax.set_title(subtitle, loc="left", fontdict=fontdict["subtitle"])
+
+        for label in ax.get_xticklabels():
+            label.update(fontdict["xticklabel"])
+        for label in ax.get_yticklabels():
+            label.update(fontdict["yticklabel"])
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             ax.invert_xaxis()
@@ -588,6 +603,7 @@ class PlotCIF:
 
         return fig, ax, zoomed_x_lim, zoomed_y_lim
 
+
     def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
                   axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
                   single_plot: bool,
@@ -646,7 +662,7 @@ class PlotCIF:
         return hovertexts, hkl_artists
 
     def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool,
-                          ax1: Axes) -> Axes:
+                          fontdict: dict, ax1: Axes) -> Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -695,7 +711,7 @@ class PlotCIF:
         # ask matplotlib for the plotted objects and their labels
         lines, labels = ax1.get_legend_handles_labels()
         lines2, labels2 = ax2.get_legend_handles_labels()
-        ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False)
+        ax2.legend(lines + lines2, labels + labels2, loc='upper right', frameon=False, prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])
 
         return ax2
 
