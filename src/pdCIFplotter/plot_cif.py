@@ -24,7 +24,7 @@ _by_hsv = sorted((tuple(mc.rgb_to_hsv(mc.to_rgb(color))), name) for name, color 
 FONT_FAMILY = ["sans-serif", "serif", "cursive", "fantasy", "monospace"]
 FONT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72]
 FONT_COLOURS = [name for hsv, name in _by_hsv]
-FONT_WEIGHTS = ['normal', 'bold', 'heavy', 'light', 'ultrabold', 'ultralight']
+FONT_WEIGHTS = ['normal', 'bold', 'light']
 FONT_STYLES = ['normal', 'italic', 'oblique']
 
 
@@ -46,6 +46,12 @@ for c in SURFACE_COLOR_MAPS_SOURCE:
 
 TABLEAU_COLORS = mc.TABLEAU_COLORS
 TABLEAU_COLOR_VALUES: List[str] = list(TABLEAU_COLORS.values())
+
+def get_dict_value(dic, key, default=None):
+    try:
+        return dic[key]
+    except KeyError:
+        return default
 
 
 def _x_axis_title(x_ordinate: str, wavelength: float = None) -> str:
@@ -718,7 +724,7 @@ class PlotCIF:
     def stack_update_plot(self,
                           x_ordinate: str, y_ordinate: str, offset: float,
                           plot_hkls: dict, plot_norm_int: dict,
-                          axis_scale: dict,
+                          axis_scale: dict, fontdict: dict,
                           fig: Figure) -> Figure:
 
         if fig:
@@ -790,15 +796,20 @@ class PlotCIF:
                 break
 
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
-        ax.set_xlabel(x_axis_title)
-        ax.set_ylabel(y_axis_title)
+        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
+
+        for label in ax.get_xticklabels():
+            label.update(fontdict["xticklabel"])
+        for label in ax.get_yticklabels():
+            label.update(fontdict["yticklabel"])
 
         return fig
 
     def surface_update_plot(self,
                             x_ordinate: str, y_ordinate: str, z_ordinate: str,
                             plot_hkls: bool, plot_norm_int: dict, plot_metadata: str,
-                            axis_scale: dict,
+                            axis_scale: dict, fontdict: dict,
                             fig: Figure) -> Figure:
         if fig:
             fig.clear()
@@ -896,8 +907,13 @@ class PlotCIF:
             z_axis_title = "Counts"
         x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_axis_title, axis_scale)
 
-        ax.set_xlabel(x_axis_title)
-        ax.set_ylabel(y_axis_title)
+        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
+
+        for label in ax.get_xticklabels():
+            label.update(fontdict["xticklabel"])
+        for label in ax.get_yticklabels():
+            label.update(fontdict["yticklabel"])
 
         # make second subplot here
         if plot_metadata:  # string == "temp", "pres", "qpa"
@@ -907,29 +923,23 @@ class PlotCIF:
                 for pattern in self.cif:
                     cifpat = self.cif[pattern]
                     if plot_metadata == "temp":
-                        try:
-                            second_plot.append(cifpat["_diffrn_ambient_temperature"])
-                        except KeyError:
-                            second_plot.append(None)
-                        ax1.set_xlabel("Temperature (K)")
+                        second_data = get_dict_value(cifpat, "_diffrn_ambient_temperature")
+                        ax1_label = "Temperature (K)"
                     elif plot_metadata == "pres":
-                        try:
-                            second_plot.append(cifpat["_diffrn_ambient_pressure"])
-                        except KeyError:
-                            second_plot.append(None)
-                        ax1.set_xlabel("Pressure (kPa)")
+                        second_data = get_dict_value(cifpat, "_diffrn_ambient_pressure")
+                        ax1_label = "Pressure (kPa)"
                     elif plot_metadata == "rwp":
-                        try:
-                            second_plot.append(cifpat["_pd_proc_ls_prof_wr_factor"] * 100)
-                        except KeyError:
-                            second_plot.append(None)
-                        ax1.set_xlabel("Rwp (%)")
+                        second_data = get_dict_value(cifpat, "_pd_proc_ls_prof_wr_factor") * 100
+                        ax1_label = "Rwp (%)"
                     elif plot_metadata == "gof":
-                        try:
-                            second_plot.append(cifpat["_refine_ls_goodness_of_fit_all"])
-                        except KeyError:
-                            second_plot.append(None)
-                        ax1.set_xlabel("GoF")
+                        second_data = get_dict_value(cifpat, "_refine_ls_goodness_of_fit_all")
+                        ax1_label = "GoF"
+
+                    second_plot.append(second_data)
+                    ax1.set_xlabel(ax1_label, fontdict=fontdict["xlabel"])
+                    for label in ax1.get_xticklabels():
+                        label.update(fontdict["xticklabel"])
+
                 ax1.plot(second_plot, y, marker="o")
             else:
                 amor_qpa = 100 * np.ones(len(y))
@@ -940,11 +950,16 @@ class PlotCIF:
                     ax1.plot(amor_qpa, y, label="Unknown", color="black", linestyle='dashed')
                 surface_qpa_artists = ax1.get_children()
                 mplcursors.cursor(surface_qpa_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
-                ax1.set_xlabel("Weight percent (wt%)")
-                ax1.legend()
+                ax1.set_xlabel("Weight percent (wt%)", fontdict=fontdict["xlabel"])
+                ax1.legend(prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])
+                for label in ax1.get_xticklabels():
+                    label.update(fontdict["xticklabel"])
             ax1.grid(True, color='lightgrey')
-            fig.colorbar(pcm, ax=ax1, label=z_axis_title)  # this is the code that adds the colour bar.
+            cb = fig.colorbar(pcm, ax=ax1)  # this is the code that adds the colour bar.
         else:
-            fig.colorbar(pcm, ax=ax, label=z_axis_title)
+            cb = fig.colorbar(pcm, ax=ax)
 
+        cb.set_label(z_axis_title, **fontdict["zlabel"])
+        for label in cb.ax.get_yticklabels():
+            label.update(fontdict["zticklabel"])
         return fig

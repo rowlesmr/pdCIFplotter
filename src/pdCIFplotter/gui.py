@@ -117,14 +117,16 @@ FONT_COLOURS = plot_cif.FONT_COLOURS
 FONT_WEIGHTS = plot_cif.FONT_WEIGHTS
 FONT_STYLES = plot_cif.FONT_STYLES
 
-FONT_DICT = {"xlabel":      {"family": "sans-serif", "size": 14, "color": "silver", "weight": "normal", "style": "italic"},
-             "ylabel":      {"family": "sans-serif", "size": 14, "color": "red", "weight": "normal", "style": "italic"},
-             "title":       {"family": "sans-serif", "size": 18, "color": "green", "weight": "normal", "style": "italic"},
-             "subtitle":    {"family": "sans-serif", "size": 16, "color": "blue", "weight": "normal", "style": "italic"},
-             "legend":      {"family": "sans-serif", "size": 12,                  "weight": "bold", "style": "italic"},
-             "legendcolor": {"color": "darkred"},
-             "xticklabel":  {"family": "sans-serif", "size": 8, "color": "orange", "weight": "normal", "style": "italic"},
-             "yticklabel":  {"family": "sans-serif", "size": 8, "color": "violet", "weight": "normal", "style": "italic"}}
+FONT_DICT = {"title":       {"family": "sans-serif", "size": 16, "color": "black", "weight": "normal", "style": "normal"},
+             "subtitle":    {"family": "sans-serif", "size": 12, "color": "black", "weight": "normal", "style": "normal"},
+             "xlabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "ylabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "zlabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "xticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "yticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "zticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "legend":      {"family": "sans-serif", "size": 10,                   "weight": "normal", "style": "normal"},
+             "legendcolor": {                                    "color": "black"}}
 
 # these lists contain all the possible x and y ordinate data items that I want to worry about in this program
 # the last few entries in each list correspond to values that could potentially be calc'd from the given
@@ -185,19 +187,19 @@ def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
         single_ax.set_ylim(y_zoom)
 
 
-def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, fontdict: dict, window):
     global stack_figure_agg, stack_fig
 
-    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, stack_fig)
+    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, fontdict, stack_fig)
 
     stack_figure_agg = draw_figure_w_toolbar(window["stack_plot"].TKCanvas, stack_fig,
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, fontdict: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, fontdict, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -257,57 +259,32 @@ def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, wi
     window.write_event_value(event, values)
 
 
+def font_styling_row(label: str, axis: str, font_dict: dict, key: str):
+    axis2 = "legendcolor" if axis == "legend" else axis
+    return [sg.Text(label, size=10, justification="left"),
+            sg.Combo(FONT_FAMILY,  default_value=font_dict[axis]["family"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-family"),
+            sg.Combo(FONT_SIZES,   default_value=font_dict[axis]["size"],  readonly=False, size=(10, 5), key=f"{key}-popup-{axis}-size"),
+            sg.Combo(FONT_COLOURS, default_value=font_dict[axis2]["color"], readonly=False, size=(15, 5), key=f"{key}-popup-{axis2}-color"),
+            sg.Combo(FONT_WEIGHTS, default_value=font_dict[axis]["weight"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-weight"),
+            sg.Combo(FONT_STYLES,  default_value=font_dict[axis]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-style")]
+
 def font_styling_popup(window_title: str, font_dict: dict, key: str, window):
-    print("I'm being called.")
     layout_def = [
-        [sg.Text("Header", size=10, justification="center"),
+        [sg.Text("", size=10, justification="center"),
          sg.Text("Font", size=10, justification="center"),
          sg.Text("Size", size=10, justification="center"),
          sg.Text("Colour", size=15, justification="center"),
          sg.Text("Weight", size=10, justification="center"),
          sg.Text("Style", size=10, justification="center")],
-        [sg.Text("Title", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["title"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-title-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["title"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-title-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["title"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-title-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["title"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-title-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["title"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-title-style")],
-        [sg.Text("Subtitle", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["subtitle"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["subtitle"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-subtitle-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["subtitle"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-subtitle-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["subtitle"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["subtitle"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-subtitle-style")],
-        [sg.Text("X labe'", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["xlabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["xlabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-xlabel-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["xlabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-xlabel-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["xlabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["xlabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-xlabel-style")],
-        [sg.Text("Y label", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["ylabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["ylabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-ylabel-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["ylabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-ylabel-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["ylabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["ylabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-ylabel-style")],
-        [sg.Text("X ticks", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["xticklabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["xticklabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-xticklabel-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["xticklabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-xticklabel-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["xticklabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["xticklabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-xticklabel-style")],
-        [sg.Text("Y ticks", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["yticklabel"]["family"], readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["yticklabel"]["size"],   readonly=False, size=(10, 5), key=f"{key}-popup-yticklabel-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["yticklabel"]["color"],  readonly=False, size=(15, 5), key=f"{key}-popup-yticklabel-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["yticklabel"]["weight"], readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["yticklabel"]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-yticklabel-style")],
-        [sg.Text("Legend", size=10, justification="left"),
-         sg.Combo(FONT_FAMILY,  default_value=font_dict["legend"]["family"],     readonly=True,  size=(10, 5), key=f"{key}-popup-legend-family"),
-         sg.Combo(FONT_SIZES,   default_value=font_dict["legend"]["size"],       readonly=False, size=(10, 5), key=f"{key}-popup-legend-size"),
-         sg.Combo(FONT_COLOURS, default_value=font_dict["legendcolor"]["color"], readonly=False, size=(15, 5), key=f"{key}-popup-legendcolor-color"),
-         sg.Combo(FONT_WEIGHTS, default_value=font_dict["legend"]["weight"],     readonly=True,  size=(10, 5), key=f"{key}-popup-legend-weight"),
-         sg.Combo(FONT_STYLES,  default_value=font_dict["legend"]["style"],      readonly=True,  size=(10, 5), key=f"{key}-popup-legend-style")],
+        font_styling_row("Title", "title", font_dict, key),
+        font_styling_row("Subtitle", "subtitle", font_dict, key),
+        font_styling_row("X label", "xlabel", font_dict, key),
+        font_styling_row("Y label", "ylabel", font_dict, key),
+        font_styling_row("Z label", "zlabel", font_dict, key),
+        font_styling_row("X ticks", "xticklabel", font_dict, key),
+        font_styling_row("Y ticks", "yticklabel", font_dict, key),
+        font_styling_row("Z ticks", "zticklabel", font_dict, key),
+        font_styling_row("Legend", "legend", font_dict, key),
         [sg.Button("Ok", key=f"{key}-popup-ok", enable_events=True),
          sg.Button("Cancel", key=f"{key}-popup-cancel", enable_events=True)]
     ]
@@ -598,7 +575,7 @@ layout_single_plot_control = \
          sg.Radio("Log", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_log"],
                   tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate."),
          sg.Push(),
-         sg.B("Fonts", enable_events=True, key=single_keys["plot_fonts"], tooltip="Change the font properties of the current plot")] #single_keys["plot_fonts"]
+         sg.B("Fonts", enable_events=True, key=single_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_single_right = \
@@ -621,7 +598,8 @@ layout_single = \
 # --- stack tab
 #
 #################################################################################################################
-stack_keys = {"x_axis": "stack_x_ordinate",
+stack_keys = {"x_axis": "stack_x_ordinate", #this must be first
+              "plot_fonts": "stack_plot_fonts",  # this entry must remain second
               "y_axis": "stack_y_ordinate",
               "offset_input": "stack_y_offset_input",
               "offset_value": "stack_y_offset_value",
@@ -688,7 +666,9 @@ layout_stack_plot_control = \
          sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_sqrt"],
                   tooltip="The displayed ordinate is equal to the square root of the actual ordinate."),
          sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_log"],
-                  tooltip="The displayed ordinate is equal to the base 10 logarithim of the actual ordinate.")]
+                  tooltip="The displayed ordinate is equal to the base 10 logarithim of the actual ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=stack_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_stack_right = \
@@ -710,7 +690,8 @@ layout_stack = \
 # # --- surface tab
 # #
 # #################################################################################################################
-surface_keys = {"x_axis": "surface_x_ordinate",
+surface_keys = {"x_axis": "surface_x_ordinate",  # this entry must remain first
+                "plot_fonts": "surface_plot_fonts",  # this entry must remain second
                 "y_axis": "surface_y_ordinate",
                 "z_axis": "surface_z_ordinate",
                 "temperature": "surface_temperature",
@@ -809,7 +790,9 @@ layout_surface_plot_control = \
          sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_sqrt"],
                   tooltip="The displayed z-ordinate is equal to the square root of the actual z-ordinate."),
          sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_log"],
-                  tooltip="The displayed z-ordinate is equal to the base 10 logarithim of the actual z-ordinate.")]
+                  tooltip="The displayed z-ordinate is equal to the base 10 logarithim of the actual z-ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=surface_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_surface_right = \
@@ -1010,6 +993,37 @@ def gui() -> None:
             replot_stack = True
             replot_surface = True
 
+
+
+
+        # --------------------------------------------------------------------------------------
+        #
+        #  Font events
+        #
+        # --------------------------------------------------------------------------------------
+
+        elif event in [single_keys["plot_fonts"], stack_keys["plot_fonts"], surface_keys["plot_fonts"]]:
+            debug(f"you did the font thing {event}")
+            font_styling_popup("Choose your font styles...", FONT_DICT, f"{event}-popupkey", window)
+
+        elif event in ["single_plot_fonts-popupkey-popup-ok", "stack_plot_fonts-popupkey-popup-ok", "surface_plot_fonts-popupkey-popup-ok"]:
+            debug("font popup: you clicked OK")
+
+            key = single_keys["plot_fonts"]
+            if event.startswith("single"):
+                key = single_keys["plot_fonts"]
+            elif event.startswith("stack"):
+                key = stack_keys["plot_fonts"]
+            elif event.startswith("surface"):
+                key = surface_keys["plot_fonts"]
+
+            for axis in FONT_DICT:
+                for thing in FONT_DICT[axis]:
+                    FONT_DICT[axis][thing] = values[event][f'{key}-popupkey-popup-{axis}-{thing}']
+            replot_surface = True
+            replot_stack = True
+            replot_single = True
+
         # --------------------------------------------------------------------------------------
         #
         #  single window things
@@ -1089,18 +1103,6 @@ def gui() -> None:
             plotcif.single_y_style[single_buttons_values[button]]["linewidth"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-size']
             replot_single = True
 
-        elif event == single_keys["plot_fonts"]:
-            debug("Single: you did the font thing")
-            font_styling_popup("Choose your font styles...", FONT_DICT, f"{event}-popupkey", window)
-
-        elif event == "single_plot_fonts-popupkey-popup-ok":
-            debug("single font popup: you clicked OK")
-            for axis in FONT_DICT:
-                for thing in FONT_DICT[axis]:
-                    FONT_DICT[axis][thing] = values["single_plot_fonts-popupkey-popup-ok"][f'{single_keys["plot_fonts"]}-popupkey-popup-{axis}-{thing}']
-            replot_single = True
-
-
 
         # --------------------------------------------------------------------------------------
         #  stack window things
@@ -1117,12 +1119,13 @@ def gui() -> None:
             update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
 
-        elif event in list(stack_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+        elif event in list(stack_keys.values())[2:]:  # ie if I click anything apart from the x-axis or font
             replot_stack = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
             update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
+
 
         # --------------------------------------------------------------------------------------
         #  surface window things
@@ -1180,7 +1183,7 @@ def gui() -> None:
                 update_surface_element_disables(values, window)
                 _, values = window.read(timeout=0)
 
-        elif event in list(surface_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+        elif event in list(surface_keys.values())[2:]:  # ie if I click anything apart from the x-axis or font
             replot_surface = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
@@ -1189,10 +1192,14 @@ def gui() -> None:
 
         elif event == "surface_z_ordinate_button":
             z_ordinate_styling_popup("Surface Z colour scale", plotcif.surface_z_color, "surface_z_color", window)
+
         elif event == "surface_z_color-popup-ok":
             plotcif.surface_z_color = values["surface_z_color-popup-ok"]['surface_z_color-popup-color']
             replot_surface = True
+
+        ############################################
         # end of window events
+        ############################################
 
         # at the bottom of the event loop, I pop into the replots for the three plots.
         # as there are multiple reasons to replot, I've put it down here so I only
@@ -1256,6 +1263,7 @@ def gui() -> None:
                                   plot_hkls,
                                   stack_norm_plot,
                                   stack_axis_scale,
+                                  FONT_DICT,
                                   window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
@@ -1285,6 +1293,7 @@ def gui() -> None:
                                     surface_norm_plot,
                                     surface_temp_pres_qpa,
                                     surface_axis_scale,
+                                    FONT_DICT,
                                     window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
