@@ -19,7 +19,8 @@ import traceback
 
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 
-DEBUG = False
+
+DEBUG = True
 
 # Potential themes that work for me.
 THEME_NUMBER = 2
@@ -109,6 +110,24 @@ LINE_STYLES = plot_cif.LINE_STYLES
 LINE_MARKER_SIZE = plot_cif.LINE_MARKER_SIZE
 SURFACE_COLOR_MAPS = plot_cif.SURFACE_COLOR_MAPS
 
+
+FONT_FAMILY = plot_cif.FONT_FAMILY
+FONT_SIZES = plot_cif.FONT_SIZES
+FONT_COLOURS = plot_cif.FONT_COLOURS
+FONT_WEIGHTS = plot_cif.FONT_WEIGHTS
+FONT_STYLES = plot_cif.FONT_STYLES
+
+FONT_DICT = {"title":       {"family": "sans-serif", "size": 16, "color": "black", "weight": "normal", "style": "normal"},
+             "subtitle":    {"family": "sans-serif", "size": 12, "color": "black", "weight": "normal", "style": "normal"},
+             "xlabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "ylabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "zlabel":      {"family": "sans-serif", "size": 14, "color": "black", "weight": "normal", "style": "normal"},
+             "xticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "yticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "zticklabel":  {"family": "sans-serif", "size": 10, "color": "black", "weight": "normal", "style": "normal"},
+             "legend":      {"family": "sans-serif", "size": 10,                   "weight": "normal", "style": "normal"},
+             "legendcolor": {                                    "color": "black"}}
+
 # these lists contain all the possible x and y ordinate data items that I want to worry about in this program
 # the last few entries in each list correspond to values that could potentially be calc'd from the given
 # information, but were not presented in the CIF.
@@ -152,13 +171,13 @@ def pretty(d, indent=0, print_values=True):
 
 def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
                        plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                       axis_scale: dict, window):
+                       axis_scale: dict, fontdict: dict, window):
     global single_figure_agg, single_fig, single_ax
 
     single_fig, single_ax, x_zoom, y_zoom = \
         plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
                                    plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
-                                   axis_scale, single_fig, single_ax)
+                                   axis_scale, fontdict, single_fig, single_ax)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
                                               window["single_matplotlib_controls"].TKCanvas,
@@ -168,19 +187,19 @@ def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
         single_ax.set_ylim(y_zoom)
 
 
-def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, fontdict: dict, window):
     global stack_figure_agg, stack_fig
 
-    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, stack_fig)
+    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, fontdict, stack_fig)
 
     stack_figure_agg = draw_figure_w_toolbar(window["stack_plot"].TKCanvas, stack_fig,
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, fontdict: dict, window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, fontdict, surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -233,6 +252,41 @@ def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, wi
         [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
         [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
          sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+    ]
+    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    event, values = win.read()
+    win.close()
+    window.write_event_value(event, values)
+
+
+def font_styling_row(label: str, axis: str, font_dict: dict, key: str):
+    axis2 = "legendcolor" if axis == "legend" else axis
+    return [sg.Text(label, size=10, justification="left"),
+            sg.Combo(FONT_FAMILY,  default_value=font_dict[axis]["family"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-family"),
+            sg.Combo(FONT_SIZES,   default_value=font_dict[axis]["size"],  readonly=False, size=(10, 5), key=f"{key}-popup-{axis}-size"),
+            sg.Combo(FONT_COLOURS, default_value=font_dict[axis2]["color"], readonly=False, size=(15, 5), key=f"{key}-popup-{axis2}-color"),
+            sg.Combo(FONT_WEIGHTS, default_value=font_dict[axis]["weight"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-weight"),
+            sg.Combo(FONT_STYLES,  default_value=font_dict[axis]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-style")]
+
+def font_styling_popup(window_title: str, font_dict: dict, key: str, window):
+    layout_def = [
+        [sg.Text("", size=10, justification="center"),
+         sg.Text("Font", size=10, justification="center"),
+         sg.Text("Size", size=10, justification="center"),
+         sg.Text("Colour", size=15, justification="center"),
+         sg.Text("Weight", size=10, justification="center"),
+         sg.Text("Style", size=10, justification="center")],
+        font_styling_row("Title", "title", font_dict, key),
+        font_styling_row("Subtitle", "subtitle", font_dict, key),
+        font_styling_row("X label", "xlabel", font_dict, key),
+        font_styling_row("Y label", "ylabel", font_dict, key),
+        font_styling_row("Z label", "zlabel", font_dict, key),
+        font_styling_row("X ticks", "xticklabel", font_dict, key),
+        font_styling_row("Y ticks", "yticklabel", font_dict, key),
+        font_styling_row("Z ticks", "zticklabel", font_dict, key),
+        font_styling_row("Legend", "legend", font_dict, key),
+        [sg.Button("Ok", key=f"{key}-popup-ok", enable_events=True),
+         sg.Button("Cancel", key=f"{key}-popup-cancel", enable_events=True)]
     ]
     win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
     event, values = win.read()
@@ -393,7 +447,8 @@ def checkbox_button_row(checkbox_text: str, button_text: str, default: Union[str
 # --- single tab
 #
 #################################################################################################################
-single_keys = {"data": "single_data_chooser",  # this entry must remain at the beginning
+single_keys = {"data": "single_data_chooser", # this entry must remain at the beginning
+               "plot_fonts": "single_plot_fonts",  # this entry must remain second
                "next_data": "single_next_data",
                "prev_data": "single_prev_data",
                "x_axis": "single_x_ordinate",
@@ -518,7 +573,9 @@ layout_single_plot_control = \
          sg.Radio("Sqrt", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_sqrt"],
                   tooltip="The displayed y-ordinate is equal to the square root of the actual y-ordinate."),
          sg.Radio("Log", "single_y_scale_radio", enable_events=True, key=single_keys["y_scale_log"],
-                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate.")]
+                  tooltip="The displayed y-ordinate is equal to the base 10 logarithim of the actual y-ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=single_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_single_right = \
@@ -541,7 +598,8 @@ layout_single = \
 # --- stack tab
 #
 #################################################################################################################
-stack_keys = {"x_axis": "stack_x_ordinate",
+stack_keys = {"x_axis": "stack_x_ordinate", #this must be first
+              "plot_fonts": "stack_plot_fonts",  # this entry must remain second
               "y_axis": "stack_y_ordinate",
               "offset_input": "stack_y_offset_input",
               "offset_value": "stack_y_offset_value",
@@ -608,7 +666,9 @@ layout_stack_plot_control = \
          sg.Radio("Sqrt", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_sqrt"],
                   tooltip="The displayed ordinate is equal to the square root of the actual ordinate."),
          sg.Radio("Log", "stack_y_scale_radio", enable_events=True, key=stack_keys["y_scale_log"],
-                  tooltip="The displayed ordinate is equal to the base 10 logarithim of the actual ordinate.")]
+                  tooltip="The displayed ordinate is equal to the base 10 logarithim of the actual ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=stack_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_stack_right = \
@@ -630,7 +690,8 @@ layout_stack = \
 # # --- surface tab
 # #
 # #################################################################################################################
-surface_keys = {"x_axis": "surface_x_ordinate",
+surface_keys = {"x_axis": "surface_x_ordinate",  # this entry must remain first
+                "plot_fonts": "surface_plot_fonts",  # this entry must remain second
                 "y_axis": "surface_y_ordinate",
                 "z_axis": "surface_z_ordinate",
                 "temperature": "surface_temperature",
@@ -729,7 +790,9 @@ layout_surface_plot_control = \
          sg.Radio("Sqrt", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_sqrt"],
                   tooltip="The displayed z-ordinate is equal to the square root of the actual z-ordinate."),
          sg.Radio("Log", "surface_z_scale_radio", enable_events=True, key=surface_keys["z_scale_log"],
-                  tooltip="The displayed z-ordinate is equal to the base 10 logarithim of the actual z-ordinate.")]
+                  tooltip="The displayed z-ordinate is equal to the base 10 logarithim of the actual z-ordinate."),
+         sg.Push(),
+         sg.B("Fonts", enable_events=True, key=surface_keys["plot_fonts"], tooltip="Change the font properties of the current plot")]
     ]
 
 layout_surface_right = \
@@ -848,12 +911,14 @@ def gui() -> None:
 
         # this is a big if/elif that controls the entire gui flow
         if event is None:
+            debug("Exiting the program.")
             break  # Exit the program
 
         # ----------
         # load file
         # ----------
         elif event == "file_string":
+            debug("Getting file string.")
             files_str = values['file_string']
             if files_str == "":
                 continue  # the file wasn't chosen, so just keep looping
@@ -928,15 +993,48 @@ def gui() -> None:
             replot_stack = True
             replot_surface = True
 
+
+
+
+        # --------------------------------------------------------------------------------------
+        #
+        #  Font events
+        #
+        # --------------------------------------------------------------------------------------
+
+        elif event in [single_keys["plot_fonts"], stack_keys["plot_fonts"], surface_keys["plot_fonts"]]:
+            debug(f"you did the font thing {event}")
+            font_styling_popup("Choose your font styles...", FONT_DICT, f"{event}-popupkey", window)
+
+        elif event in ["single_plot_fonts-popupkey-popup-ok", "stack_plot_fonts-popupkey-popup-ok", "surface_plot_fonts-popupkey-popup-ok"]:
+            debug("font popup: you clicked OK")
+
+            key = single_keys["plot_fonts"]
+            if event.startswith("single"):
+                key = single_keys["plot_fonts"]
+            elif event.startswith("stack"):
+                key = stack_keys["plot_fonts"]
+            elif event.startswith("surface"):
+                key = surface_keys["plot_fonts"]
+
+            for axis in FONT_DICT:
+                for thing in FONT_DICT[axis]:
+                    FONT_DICT[axis][thing] = values[event][f'{key}-popupkey-popup-{axis}-{thing}']
+            replot_surface = True
+            replot_stack = True
+            replot_single = True
+
         # --------------------------------------------------------------------------------------
         #
         #  single window things
         #
         # --------------------------------------------------------------------------------------
         elif event == "tab-change" and values[event] == "single_tab" and single_figure_agg is None:
+            debug("Changine to single tab")
             replot_single = True
 
         elif event in (single_keys["prev_data"], single_keys["next_data"]):
+            debug("Getting previous or next single data.")
             replot_single = True
             single_current_data: str = values[single_keys["data"]]
             single_current_data_list: List[str] = window[single_keys["data"]].Values
@@ -960,6 +1058,7 @@ def gui() -> None:
             _, values = window.read(timeout=0)
 
         elif event == single_keys["data"]:
+            debug("Getting single data")
             replot_single = True
             pattern = values[event]
             # because I'm changing the pattern I'm plotting, there may be different data available to plot
@@ -975,7 +1074,8 @@ def gui() -> None:
             update_single_element_disables(pattern, values, window)
             _, values = window.read(timeout=0)
 
-        elif event in list(single_keys.values())[1:]:  # ie if I click anything apart from the data chooser
+        elif event in list(single_keys.values())[2:]:  # ie if I click anything apart from the data chooser or font button
+            debug("Single: clicking something that is not the data chooser.")
             replot_single = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
@@ -983,6 +1083,7 @@ def gui() -> None:
             _, values = window.read(timeout=0)
 
         elif event in list(single_buttons_keys.values()):
+            debug("Single: you pushed a button")
             y_ordinate_styling_popup(f"{single_buttons_values[event]} styling",
                                      plotcif.single_y_style[single_buttons_values[event]]["color"],
                                      plotcif.single_y_style[single_buttons_values[event]]["marker"],
@@ -992,6 +1093,7 @@ def gui() -> None:
                                      window)
 
         elif event in [v + "-popupkey-popup-ok" for v in single_buttons_keys.values()]:
+            debug("single popup: you clicked OK")
             button = event.replace('-popupkey-popup-ok', '')
 
             # update the style values
@@ -1000,6 +1102,7 @@ def gui() -> None:
             plotcif.single_y_style[single_buttons_values[button]]["linestyle"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-linestyle']
             plotcif.single_y_style[single_buttons_values[button]]["linewidth"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-size']
             replot_single = True
+
 
         # --------------------------------------------------------------------------------------
         #  stack window things
@@ -1016,12 +1119,13 @@ def gui() -> None:
             update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
 
-        elif event in list(stack_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+        elif event in list(stack_keys.values())[2:]:  # ie if I click anything apart from the x-axis or font
             replot_stack = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
             update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
+
 
         # --------------------------------------------------------------------------------------
         #  surface window things
@@ -1079,7 +1183,7 @@ def gui() -> None:
                 update_surface_element_disables(values, window)
                 _, values = window.read(timeout=0)
 
-        elif event in list(surface_keys.values())[1:]:  # ie if I click anything apart from the x-axis
+        elif event in list(surface_keys.values())[2:]:  # ie if I click anything apart from the x-axis or font
             replot_surface = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
@@ -1088,10 +1192,14 @@ def gui() -> None:
 
         elif event == "surface_z_ordinate_button":
             z_ordinate_styling_popup("Surface Z colour scale", plotcif.surface_z_color, "surface_z_color", window)
+
         elif event == "surface_z_color-popup-ok":
             plotcif.surface_z_color = values["surface_z_color-popup-ok"]['surface_z_color-popup-color']
             replot_surface = True
+
+        ############################################
         # end of window events
+        ############################################
 
         # at the bottom of the event loop, I pop into the replots for the three plots.
         # as there are multiple reasons to replot, I've put it down here so I only
@@ -1125,6 +1233,7 @@ def gui() -> None:
                                    values[single_keys["cchi2"]],
                                    values[single_keys["norm_int"]],
                                    single_axis_scale,
+                                   FONT_DICT,
                                    window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
@@ -1154,6 +1263,7 @@ def gui() -> None:
                                   plot_hkls,
                                   stack_norm_plot,
                                   stack_axis_scale,
+                                  FONT_DICT,
                                   window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
@@ -1183,6 +1293,7 @@ def gui() -> None:
                                     surface_norm_plot,
                                     surface_temp_pres_qpa,
                                     surface_axis_scale,
+                                    FONT_DICT,
                                     window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
