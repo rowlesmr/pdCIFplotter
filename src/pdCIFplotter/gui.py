@@ -13,7 +13,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import matplotlib.figure as mf
 import matplotlib.axes as ma
 import matplotlib as mpl
-from typing import List, Union
+from typing import List, Union, Dict
 import sys
 import traceback
 
@@ -128,6 +128,9 @@ FONT_DICT = {"title":       {"family": "sans-serif", "size": 16, "color": "black
              "legend":      {"family": "sans-serif", "size": 10,                   "weight": "normal", "style": "normal"},
              "legendcolor": {                                    "color": "black"}}
 
+SUBPLOT_RATIOS = [4, 1]
+
+
 # these lists contain all the possible x and y ordinate data items that I want to worry about in this program
 # the last few entries in each list correspond to values that could potentially be calc'd from the given
 # information, but were not presented in the CIF.
@@ -170,8 +173,8 @@ def pretty(d, indent=0, print_values=True):
 
 
 def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
-                       plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                       axis_scale: dict, fontdict: dict, window):
+                       plot_hkls: Dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
+                       axis_scale: Dict, fontdict: Dict, window):
     global single_figure_agg, single_fig, single_ax
 
     single_fig, single_ax, x_zoom, y_zoom = \
@@ -187,7 +190,7 @@ def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
         single_ax.set_ylim(y_zoom)
 
 
-def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: dict, stack_norm_plot: dict, axis_scale: dict, fontdict: dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: Dict, stack_norm_plot: Dict, axis_scale: Dict, fontdict: Dict, window):
     global stack_figure_agg, stack_fig
 
     stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, fontdict, stack_fig)
@@ -196,10 +199,16 @@ def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, plot_hkls: bool, plot_norm: dict, plot_temp_pres_qpa: str, axis_scale: dict, fontdict: dict, window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str,
+                        plot_hkls: bool, plot_norm: Dict, plot_temp_pres_qpa: str,
+                        axis_scale: Dict, fontdict: Dict, subplot_ratios: List,
+                        window):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, plot_hkls, plot_norm, plot_temp_pres_qpa, axis_scale, fontdict, surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate,
+                                              plot_hkls, plot_norm, plot_temp_pres_qpa,
+                                              axis_scale, fontdict, subplot_ratios,
+                                              surface_fig)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -259,7 +268,20 @@ def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, wi
     window.write_event_value(event, values)
 
 
-def font_styling_row(label: str, axis: str, font_dict: dict, key: str):
+def subplot_width_popup(window_title: str, width_defaults: list, key: str, window):
+    layout_def = [
+        [sg.Text("Main plot width ratio: "), sg.Push(), sg.Combo([1,2,3,4,5,6,7,8,9,10], default_value=width_defaults[0], key=key + "-popup-main_width")],
+        [sg.Text("Sub plot width ratio: "), sg.Push(), sg.Combo([1,2,3,4,5,6,7,8,9,10], default_value=width_defaults[1], key=key + "-popup-sub_width")],
+        [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
+         sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+    ]
+    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    event, values = win.read()
+    win.close()
+    window.write_event_value(event, values)
+
+
+def font_styling_row(label: str, axis: str, font_dict: Dict, key: str):
     axis2 = "legendcolor" if axis == "legend" else axis
     return [sg.Text(label, size=10, justification="left"),
             sg.Combo(FONT_FAMILY,  default_value=font_dict[axis]["family"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-family"),
@@ -268,7 +290,8 @@ def font_styling_row(label: str, axis: str, font_dict: dict, key: str):
             sg.Combo(FONT_WEIGHTS, default_value=font_dict[axis]["weight"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-weight"),
             sg.Combo(FONT_STYLES,  default_value=font_dict[axis]["style"],  readonly=True,  size=(10, 5), key=f"{key}-popup-{axis}-style")]
 
-def font_styling_popup(window_title: str, font_dict: dict, key: str, window):
+
+def font_styling_popup(window_title: str, font_dict: Dict, key: str, window):
     layout_def = [
         [sg.Text("", size=10, justification="center"),
          sg.Text("Font", size=10, justification="center"),
@@ -334,11 +357,8 @@ def make_xy_dropdown_list(master_list: List[str], difpat: str, add_none: bool = 
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
-def cif_get_this_else_that(m_cif: dict, this: str, that: Union[List[str], str]):
-    if this in m_cif:
-        return m_cif[this]
-    else:
-        return that
+def cif_get_this_else_that(m_cif: Dict, this: str, that: Union[List[str], str]):
+    return m_cif.get(this, that)
 
 
 def initialise_pattern_and_dropdown_lists() -> None:
@@ -473,7 +493,7 @@ single_buttons_keys = {k: single_keys[k] + "_button" for k in single_keys_with_b
 single_buttons_values = {v: k for k, v in single_buttons_keys.items()}
 
 
-def update_single_element_disables(pattern: str, values: dict, window: sg.Window) -> None:
+def update_single_element_disables(pattern: str, values: Dict, window: sg.Window) -> None:
     if pattern == "":
         return
 
@@ -615,7 +635,7 @@ stack_keys = {"x_axis": "stack_x_ordinate", #this must be first
               "y_scale_log": "stack_y_scale_log"}
 
 
-def update_stack_element_disables(values: dict, window: sg.Window) -> None:
+def update_stack_element_disables(values: Dict, window: sg.Window) -> None:
     # enable all buttons and dropdowns
     for key in stack_keys.keys():
         window[stack_keys[key]].update(disabled=False)
@@ -692,6 +712,7 @@ layout_stack = \
 # #################################################################################################################
 surface_keys = {"x_axis": "surface_x_ordinate",  # this entry must remain first
                 "plot_fonts": "surface_plot_fonts",  # this entry must remain second
+                "subplot_width": "surface_subplot_width",
                 "y_axis": "surface_y_ordinate",
                 "z_axis": "surface_z_ordinate",
                 "temperature": "surface_temperature",
@@ -715,7 +736,7 @@ surface_buttons_keys = {k: surface_keys[k] + "_button" for k in surface_keys_wit
 surface_buttons_values = {v: (k, i) for i, (k, v) in enumerate(surface_buttons_keys.items())}
 
 
-def update_surface_element_disables(values: dict, window: sg.Window) -> None:
+def update_surface_element_disables(values: Dict, window: sg.Window) -> None:
     # enable all buttons and dropdowns
     for key in surface_keys.keys():
         window[surface_keys[key]].update(disabled=False)
@@ -739,6 +760,10 @@ def update_surface_element_disables(values: dict, window: sg.Window) -> None:
         window[surface_keys["pressure"]].update(disabled=True)
     if not cif_has_dataname("_pd_phase_mass_%", any_or_all=all):
         window[surface_keys["qpa"]].update(disabled=True)
+    if not cif_has_dataname("_refine_ls_goodness_of_fit_all", any_or_all=all):
+        window[surface_keys["gof"]].update(disabled=True)
+    if not cif_has_dataname("_pd_proc_ls_prof_wr_factor", any_or_all=all):
+        window[surface_keys["rwp"]].update(disabled=True)
 
 
 layout_surface_left = \
@@ -761,7 +786,9 @@ layout_surface_plot_control = \
         [sg.Checkbox("Show Rwp", enable_events=True, default=False, key=surface_keys["rwp"],
                      tooltip="Show the Rwp values on a secondary plot, if defined \nby _pd_proc_ls_prof_wr_factor.")],
         [sg.Checkbox("Show GoF", enable_events=True, default=False, key=surface_keys["gof"],
-                     tooltip="Show the GoF values on a secondary plot, if defined \nby _refine_ls_goodness_of_fit_all.")],
+                     tooltip="Show the GoF values on a secondary plot, if defined \nby _refine_ls_goodness_of_fit_all."),
+         sg.Push(),
+         sg.B(button_text="Options", key=surface_keys["subplot_width"], tooltip="Alter the subplot width ratios.")],
         # --
 
         [sg.T("")],
@@ -993,9 +1020,6 @@ def gui() -> None:
             replot_stack = True
             replot_surface = True
 
-
-
-
         # --------------------------------------------------------------------------------------
         #
         #  Font events
@@ -1103,7 +1127,6 @@ def gui() -> None:
             plotcif.single_y_style[single_buttons_values[button]]["linewidth"] = values[f"{button}-popupkey-popup-ok"][f'{button}-popupkey-popup-size']
             replot_single = True
 
-
         # --------------------------------------------------------------------------------------
         #  stack window things
         # --------------------------------------------------------------------------------------
@@ -1125,7 +1148,6 @@ def gui() -> None:
             _, values = window.read(timeout=0)
             update_stack_element_disables(values, window)
             _, values = window.read(timeout=0)
-
 
         # --------------------------------------------------------------------------------------
         #  surface window things
@@ -1183,7 +1205,7 @@ def gui() -> None:
                 update_surface_element_disables(values, window)
                 _, values = window.read(timeout=0)
 
-        elif event in list(surface_keys.values())[2:]:  # ie if I click anything apart from the x-axis or font
+        elif event in list(surface_keys.values())[3:]:  # ie if I click anything apart from the x-axis or font
             replot_surface = True
             # push all the window value updates and then update the enable/disable, and then push again
             _, values = window.read(timeout=0)
@@ -1195,6 +1217,14 @@ def gui() -> None:
 
         elif event == "surface_z_color-popup-ok":
             plotcif.surface_z_color = values["surface_z_color-popup-ok"]['surface_z_color-popup-color']
+            replot_surface = True
+
+        elif event == surface_keys["subplot_width"]:
+            subplot_width_popup("Main/sub plot width ratios", SUBPLOT_RATIOS, surface_keys["subplot_width"], window)
+
+        elif event == surface_keys["subplot_width"] + "-popup-ok":
+            SUBPLOT_RATIOS[0] = float(values[surface_keys["subplot_width"] + "-popup-ok"][surface_keys["subplot_width"] + "-popup-main_width"])
+            SUBPLOT_RATIOS[1] = float(values[surface_keys["subplot_width"] + "-popup-ok"][surface_keys["subplot_width"] + "-popup-sub_width"])
             replot_surface = True
 
         ############################################
@@ -1294,6 +1324,7 @@ def gui() -> None:
                                     surface_temp_pres_qpa,
                                     surface_axis_scale,
                                     FONT_DICT,
+                                    SUBPLOT_RATIOS,
                                     window)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)

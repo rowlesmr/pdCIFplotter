@@ -689,7 +689,7 @@ class ParseCIF:
                     continue
                 if dataname in self.OBSERVED_Y_LIST:
                     calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
-                elif dataname in ("_pd_phase_mass_%"):
+                elif dataname in ["_pd_phase_mass_%"]:
                     calc_dataname_and_err(cifpat, dataname, default_error="zero")  # for single phase, so there is no error on the wt%
                 else:
                     calc_dataname_and_err(cifpat, dataname, default_error="none")
