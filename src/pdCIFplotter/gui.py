@@ -128,7 +128,7 @@ FONT_DICT = {"title":       {"family": "sans-serif", "size": 16, "color": "black
              "legend":      {"family": "sans-serif", "size": 10,                   "weight": "normal", "style": "normal"},
              "legendcolor": {                                    "color": "black"}}
 
-SUBPLOT_RATIOS = [4, 1]
+SUBPLOT_RATIOS = [3.0, 1.0]
 
 
 # these lists contain all the possible x and y ordinate data items that I want to worry about in this program
@@ -238,6 +238,15 @@ def draw_figure_w_toolbar(canvas: tkinter.Canvas, figure: mf.Figure, canvas_tool
     return figure_canvas_agg
 
 
+def popup_default(window_title: str, layout_def: List, key: str, window):
+    button_row = [sg.Button("Ok", key=f"{key}-popup-ok", enable_events=True, bind_return_key=True),
+                  sg.Button("Cancel", key=f"{key}-popup-cancel", enable_events=True)]
+    win = sg.Window(window_title, layout_def + [button_row], modal=True, grab_anywhere=True, enable_close_attempted_event=True)
+    event, values = win.read()
+    win.close()
+    window.write_event_value(event, values)
+
+
 def y_ordinate_styling_popup(window_title: str, color_default: str, marker_styles_default: str, line_style_default: str, size_default: str, key: str, window):
     layout_def = \
         [
@@ -245,40 +254,25 @@ def y_ordinate_styling_popup(window_title: str, color_default: str, marker_style
             [sg.Combo(LINE_MARKER_COLORS, default_value=color_default, key=key + "-popup-color"),
              sg.Combo(MARKER_STYLES, default_value=marker_styles_default, key=key + "-popup-markerstyle"),
              sg.Combo(LINE_STYLES, default_value=line_style_default, key=key + "-popup-linestyle"),
-             sg.Combo(LINE_MARKER_SIZE, default_value=size_default, key=key + "-popup-size")],
-            [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
-             sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+             sg.Combo(LINE_MARKER_SIZE, default_value=size_default, key=key + "-popup-size")]
         ]
-    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
-    event, values = win.read()
-    win.close()
-    window.write_event_value(event, values)
+    popup_default(window_title, layout_def, key, window)
 
 
 def z_ordinate_styling_popup(window_title: str, color_default: str, key: str, window):
     layout_def = [
         [sg.Text("What surface colour do you want?")],
-        [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")],
-        [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
-         sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+        [sg.Combo(SURFACE_COLOR_MAPS, default_value=color_default, key=key + "-popup-color")]
     ]
-    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
-    event, values = win.read()
-    win.close()
-    window.write_event_value(event, values)
+    popup_default(window_title, layout_def, key, window)
 
 
 def subplot_width_popup(window_title: str, width_defaults: list, key: str, window):
     layout_def = [
         [sg.Text("Main plot width ratio: "), sg.Push(), sg.Combo([1,2,3,4,5,6,7,8,9,10], default_value=width_defaults[0], key=key + "-popup-main_width")],
-        [sg.Text("Sub plot width ratio: "), sg.Push(), sg.Combo([1,2,3,4,5,6,7,8,9,10], default_value=width_defaults[1], key=key + "-popup-sub_width")],
-        [sg.Button("Ok", key=key + "-popup-ok", enable_events=True),
-         sg.Button("Cancel", key=key + "-popup-cancel", enable_events=True)]
+        [sg.Text("Sub plot width ratio: "), sg.Push(), sg.Combo([1,2,3,4,5,6,7,8,9,10], default_value=width_defaults[1], key=key + "-popup-sub_width")]
     ]
-    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
-    event, values = win.read()
-    win.close()
-    window.write_event_value(event, values)
+    popup_default(window_title, layout_def, key, window)
 
 
 def font_styling_row(label: str, axis: str, font_dict: Dict, key: str):
@@ -307,14 +301,9 @@ def font_styling_popup(window_title: str, font_dict: Dict, key: str, window):
         font_styling_row("X ticks", "xticklabel", font_dict, key),
         font_styling_row("Y ticks", "yticklabel", font_dict, key),
         font_styling_row("Z ticks", "zticklabel", font_dict, key),
-        font_styling_row("Legend", "legend", font_dict, key),
-        [sg.Button("Ok", key=f"{key}-popup-ok", enable_events=True),
-         sg.Button("Cancel", key=f"{key}-popup-cancel", enable_events=True)]
+        font_styling_row("Legend", "legend", font_dict, key)
     ]
-    win = sg.Window(window_title, layout_def, modal=True, grab_anywhere=True, enable_close_attempted_event=True)
-    event, values = win.read()
-    win.close()
-    window.write_event_value(event, values)
+    popup_default(window_title, layout_def, key, window)
 
 
 ######################################################################################################
@@ -357,8 +346,8 @@ def make_xy_dropdown_list(master_list: List[str], difpat: str, add_none: bool = 
     return make_list_for_ordinate_dropdown(master_list, cif[difpat].keys(), add_none=add_none)
 
 
-def cif_get_this_else_that(m_cif: Dict, this: str, that: Union[List[str], str]):
-    return m_cif.get(this, that)
+# def cif_get_this_else_that(m_cif: Dict, this: str, that: Union[List[str], str]):
+#     return m_cif.get(this, that)
 
 
 def initialise_pattern_and_dropdown_lists() -> None:

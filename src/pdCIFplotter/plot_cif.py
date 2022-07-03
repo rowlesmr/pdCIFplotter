@@ -321,10 +321,7 @@ class PlotCIF:
                 continue
             # now the cifpat has both x and y
             y = cifpat[y_ordinate]
-            if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y * cifpat["_pd_proc_ls_weight"]
-            else:
-                y_norm = y / cifpat[y_ordinate + "_err"] ** 2
+            y_norm = y * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else y / cifpat[y_ordinate + "_err"] ** 2
             y_norms.append(y_norm)
         return y_norms
 
@@ -407,10 +404,7 @@ class PlotCIF:
             if "str" not in cifpat:
                 continue
             for phase in cifpat["str"]:
-                try:
-                    qpa = cifpat["str"][phase]["_pd_phase_mass_%"]
-                except KeyError:
-                    qpa = None
+                qpa = cifpat["str"][phase].get("_pd_phase_mass_%", None)
                 phase_name = cifpat["str"][phase]["_pd_phase_name"]
                 d[phase_name].append(qpa)
             for phase, qpa_list in d.items():
@@ -442,18 +436,15 @@ class PlotCIF:
 
         if plot_norm_int and y_ordinates[0] != "None":
             y = cifpat[y_ordinates[0]]
-            if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y * np.maximum(cifpat["_pd_proc_ls_weight"], 1e-6)
-            else:
-                y_norm = y / cifpat[y_ordinates[0] + "_err"] ** 2
+            y_norm = y * np.maximum(cifpat["_pd_proc_ls_weight"], 1e-6) if "_pd_proc_ls_weight" in cifpat else y / cifpat[y_ordinates[0] + "_err"] ** 2
         else:
             y_norm = np.ones(len(x))
 
         for y in y_ordinates:
-            if y != "None":
-                ys.append(_scale_y_ordinate(cifpat[y] * y_norm, axis_scale))
-            else:
+            if y == "None":
                 ys.append(None)
+            else:
+                ys.append(_scale_y_ordinate(cifpat[y] * y_norm, axis_scale))
 
         # need to calculate diff after the y axis transforms to get the right magnitudes
         if plot_diff:
@@ -497,8 +488,7 @@ class PlotCIF:
         if plot_cchi2:
             flip_cchi2 = x_ordinate in {"d", "_pd_proc_d_spacing"}
             ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, fontdict, ax)
-
-        if not plot_cchi2:
+        else:
             ax.legend(frameon=False, loc='upper right', prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])  # loc='best')
 
         if plot_norm_int:
@@ -609,7 +599,6 @@ class PlotCIF:
 
         return fig, ax, zoomed_x_lim, zoomed_y_lim
 
-
     def plot_hkls(self, plot_below: bool, cifpat: Dict, x_ordinate: str, x, ys,
                   axis_scale: Dict, y_min: float, y_max: float, hkl_y_offset: float,
                   single_plot: bool,
@@ -650,16 +639,16 @@ class PlotCIF:
                 else:
                     hkl_y = np.maximum(interp(hkl_x, x, ycalc), interp(hkl_x, x, yobs))
 
-            phase_wt_pct = f'– {cifpat["str"][phase]["_pd_phase_mass_%"]} wt%' if "_pd_phase_mass_%" in cifpat["str"][phase] else ""
+            phase_wt_pct = f'– {cifpat["str"][phase].get("_pd_phase_mass_%", "")} wt%'
 
             hkl_y = hkl_y * scalar + hkl_y_offset
             idx = i % len(TABLEAU_COLOR_VALUES)
-            phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+            phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
             hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
                                 color=TABLEAU_COLOR_VALUES[idx])
             hkl_artists.append(hkl_tick)
             if "refln_hovertext" in cifpat["str"][phase]:
-                phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
                 hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                 hovertexts.append(hovertext)
             else:
@@ -696,9 +685,6 @@ class PlotCIF:
             ynew[0] = cchi2[-1]
             for i in range(1, len(ynew)):
                 ynew[i] = ynew[i - 1] - ylag[i]
-            # for i in range(len(ynew)-1,0):
-            #     ynew[i] = ynew[i - 1] - ylag[i]
-
             cchi2 = ynew
 
         ax2 = ax1.twinx()
@@ -741,10 +727,7 @@ class PlotCIF:
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
 
-        if plot_norm_int["norm_int"]:
-            y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
-        else:
-            y_norms = [np.ones(len(xi)) for xi in xs]
+        y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"]) if plot_norm_int["norm_int"] else [np.ones(len(xi)) for xi in xs]
 
         # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
@@ -850,10 +833,7 @@ class PlotCIF:
             self.surface_plot_data["plot_list"] = plot_list
         # end of if
 
-        if plot_norm_int["norm_int"]:
-            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz * znorm, axis_scale)
-        else:
-            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
+        xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz * znorm, axis_scale) if plot_norm_int["norm_int"] else _scale_xyz_ordinates(xx, yy, zz, axis_scale)
 
         pcm = ax.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
@@ -883,7 +863,7 @@ class PlotCIF:
                     hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt, color=TABLEAU_COLOR_VALUES[idx])
                     surface_hkl_artists.append(hkl_tick)
                     if "refln_hovertext" in cifpat["str"][phase]:
-                        phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                        phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
                         hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                         surface_hovertexts.append(hovertext)
                     else:
