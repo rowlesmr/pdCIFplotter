@@ -91,18 +91,6 @@ def grouped_blocknames(cif: Union[CifFile, dict]) -> dict:
     return {"patterns": pattern_datanames, "structures": structure_datanames, "others": other_datanames}
 
 
-def get_from_cif(cif: Union[dict, CifFile], itemname: str, default: Any = None):
-    """
-    Given a cif and a itemname, return the value associated with that blockname if it exists.
-    If not, return None.
-    :param cif: cif as dictionary or PyCIFRW
-    :param itemname: string representing blockname
-    :param default: what to return if the itemname doesn't exist in the cif
-    :return: whatever is in the blockname, or None if it doesn't exist.
-    """
-    return cif[itemname] if itemname in cif else default
-
-
 def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     """
     Given a cif block representing a structure, get the h,k,l, and d values of the reflections
@@ -111,11 +99,11 @@ def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     :param structure: a cif dictionary or PyCIFRW
     :return: a dictionary containing hkld values, or None is '_refln_d_spacing' doesn't exist
     """
-    h_local = get_from_cif(structure, '_refln_index_h')
-    k_local = get_from_cif(structure, '_refln_index_k')
-    l_local = get_from_cif(structure, '_refln_index_l')
-    d_local = get_from_cif(structure, '_refln_d_spacing')
-    id_local = get_from_cif(structure, '_pd_refln_phase_id')
+    h_local = structure.get('_refln_index_h')
+    k_local = structure.get('_refln_index_k')
+    l_local = structure.get('_refln_index_l')
+    d_local = structure.get('_refln_d_spacing')
+    id_local = structure.get('_pd_refln_phase_id')
 
     if d_local is None:
         return {}
@@ -234,10 +222,7 @@ def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> 
         vals.append(v)
         errs.append(e)
 
-    if isList:
-        return vals, errs
-    else:
-        return vals[0], errs[0]
+    return (vals, errs) if isList else (vals[0], errs[0])
 
 
 def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
@@ -287,11 +272,8 @@ def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return -1
-    if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
-        yweight = cifpat["_pd_proc_ls_weight"]
-    else:
-        yobs_dataname_err = yobs_dataname + "_err"
-        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+
+    yweight = cifpat["_pd_proc_ls_weight"] if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
 
     top = np.nansum(yweight * ((yobs - ycalc) ** 2))
     bottom = np.nansum(yweight * (yobs ** 2))
@@ -317,11 +299,8 @@ def calc_rexp_approx(cifpat: dict, yobs_dataname: str, yobs_dataname_err: str = 
     if ymod_dataname:  # I don't know what ymod means yet...
         return -1
 
-    if not yobs_dataname_err and "_pd_proc_ls_weight" in cifpat:
-        yweight = cifpat["_pd_proc_ls_weight"]
-    else:
-        yobs_dataname_err = yobs_dataname + "_err"
-        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+    yweight = cifpat["_pd_proc_ls_weight"]if not yobs_dataname_err and "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
+
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(N / bottom)
 
@@ -488,7 +467,6 @@ class ParseCIF:
         self.ncif: dict = {}  # this will be the cif file with pattern information only
         self.cif: dict = {}
 
-
         if self.ciffile is None:
             raise ValueError("CIF file is empty.")
 
@@ -583,7 +561,7 @@ class ParseCIF:
                 for dataname in remove_these:
                     cifpat.RemoveItem(dataname)
             # update the block_id so you know it's been unrolled
-            cifpat["_pd_block_id"] = "L0_|" + get_from_cif(cifpat, "_pd_block_id", pattern)
+            cifpat["_pd_block_id"] = "L0_|" + cifpat.get("_pd_block_id", pattern)
 
             # repeat the previous step as needed to copy in all the dataloops
             for i in range(1, len(keys_of_loops)):
@@ -597,7 +575,7 @@ class ParseCIF:
                 new_block_prefix = f"L{i}_|"
                 new_pattern_name = new_block_prefix + pattern
                 self.ciffile.NewBlock(new_pattern_name, insert_me)
-                self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + get_from_cif(self.ciffile[new_pattern_name], "_pd_block_id", new_pattern_name)
+                self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + self.ciffile[new_pattern_name].get("_pd_block_id", new_pattern_name)
 
     def _get_hkl_ticks(self) -> None:
         """
@@ -649,7 +627,7 @@ class ParseCIF:
                     continue
                 cifpat["str"] = {"1": {}}
                 add_hklds_to_cifpatstr(cifpat["str"]["1"], hkld_dict)
-                cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
+                cifpat["str"]["1"]["_pd_phase_name"] = cifpat.get("_pd_phase_name", "1")
 
     def _get_nice_to_have_information(self) -> None:
         """

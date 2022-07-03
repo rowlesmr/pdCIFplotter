@@ -3,6 +3,7 @@ import numpy as np
 import math
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+import matplotlib.ticker as mticker
 
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
@@ -498,7 +499,7 @@ class PlotCIF:
         else:
             y_axis_title = "Counts"
 
-        wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
+        wavelength = cifpat.get("wavelength")
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
         ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
@@ -775,9 +776,9 @@ class PlotCIF:
             y_axis_title = "Counts"
 
         # check that the wavelength for all patterns is the same
-        wavelength = parse_cif.get_from_cif(self.cif[plot_list[0]], "wavelength")
+        wavelength = self.cif[plot_list[0]].get("wavelength")
         for pattern in plot_list:
-            if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
+            if wavelength != self.cif[pattern].get("wavelength"):
                 wavelength = None
                 break
 
@@ -806,6 +807,7 @@ class PlotCIF:
             ax = fig.subplots(1, 1)
         fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
 
         # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
         #  and I can just use what I already have.
@@ -876,9 +878,9 @@ class PlotCIF:
         # end hkl if
 
         # check that the wavelength for all patterns is the same
-        wavelength = parse_cif.get_from_cif(self.cif[plot_list[0]], "wavelength")
+        wavelength = self.cif[plot_list[0]].get("wavelength")
         for pattern in plot_list:
-            if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
+            if wavelength != self.cif[pattern].get("wavelength"):
                 wavelength = None
                 break
 
