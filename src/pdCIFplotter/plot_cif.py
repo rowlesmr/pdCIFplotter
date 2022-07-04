@@ -558,10 +558,6 @@ class PlotCIF:
             reset_zoomed_to_plt_y_min = True
 
         if self.previous_single_plot_state["plot_norm_int"] != plot_norm_int:
-            # _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
-            # yrange = (ymax - ymin)
-            # ymid = yrange / 2
-            # yrange = (yrange * 1.07) / 2
             zoomed_y_lim = data_y_lim
         if self.previous_single_plot_state["axis_scale"] not in [axis_scale, {}]:
             ordinate, _ = get_first_different_kv_pair(self.previous_single_plot_state["axis_scale"], axis_scale)
