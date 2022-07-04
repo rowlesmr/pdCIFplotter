@@ -687,8 +687,8 @@ class ParseCIF:
                 cifpat["q"] = calc_dq_from_qd(cifpat["_pd_proc_d_spacing"])
 
             lam = None
-            if '_diffrn_radiation_wavelength' in cifpat or "_cell_measurement_wavelength" in cifpat:
-                lam = cifpat.get("_diffrn_radiation_wavelength", cifpat["_cell_measurement_wavelength"])
+            if any(k in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
+                lam = cifpat.get("_diffrn_radiation_wavelength", cifpat.get("_cell_measurement_wavelength"))
                 cifpat["wavelength"] = lam
                 if all (k not in cifpat for k in ("_pd_proc_d_spacing", "d")):
                     for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
