@@ -172,15 +172,10 @@ def pretty(d, indent=0, print_values=True):
             print('\t' * (indent + 1) + str(value))
 
 
-def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
-                       plot_hkls: Dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                       axis_scale: Dict, fontdict: Dict, window):
+def single_update_plot(pattern, x_ordinate: str, y_ordinates: List[str], window, **kwargs):
     global single_figure_agg, single_fig, single_ax
 
-    single_fig, single_ax, x_zoom, y_zoom = \
-        plotcif.single_update_plot(pattern, x_ordinate, y_ordinates,
-                                   plot_hkls, plot_diff, plot_cchi2, plot_norm_int,
-                                   axis_scale, fontdict, single_fig, single_ax)
+    single_fig, single_ax, x_zoom, y_zoom = plotcif.single_update_plot(pattern, x_ordinate, y_ordinates, single_fig, single_ax, **kwargs)
 
     single_figure_agg = draw_figure_w_toolbar(window["single_plot"].TKCanvas, single_fig,
                                               window["single_matplotlib_controls"].TKCanvas,
@@ -190,25 +185,19 @@ def single_update_plot(pattern, x_ordinate: str, y_ordinates: List,
         single_ax.set_ylim(y_zoom)
 
 
-def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, plot_hkls: Dict, stack_norm_plot: Dict, axis_scale: Dict, fontdict: Dict, window):
+def stack_update_plot(x_ordinate: str, y_ordinate: str, offset: float, window, **kwargs): # plot_hkls: Dict, stack_norm_plot: Dict, axis_scale: Dict, fontdict: Dict):
     global stack_figure_agg, stack_fig
 
-    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, plot_hkls, stack_norm_plot, axis_scale, fontdict, stack_fig)
+    stack_fig = plotcif.stack_update_plot(x_ordinate, y_ordinate, offset, stack_fig, **kwargs) # plot_hkls, stack_norm_plot, axis_scale, fontdict)
 
     stack_figure_agg = draw_figure_w_toolbar(window["stack_plot"].TKCanvas, stack_fig,
                                              window["stack_matplotlib_controls"].TKCanvas)
 
 
-def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                        plot_hkls: bool, plot_norm: Dict, plot_temp_pres_qpa: str,
-                        axis_scale: Dict, fontdict: Dict, subplot_ratios: List,
-                        window):
+def surface_update_plot(x_ordinate: str, y_ordinate: str, z_ordinate: str, window, **kwargs):
     global surface_figure_agg, surface_fig
 
-    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate,
-                                              plot_hkls, plot_norm, plot_temp_pres_qpa,
-                                              axis_scale, fontdict, subplot_ratios,
-                                              surface_fig)
+    surface_fig = plotcif.surface_update_plot(x_ordinate, y_ordinate, z_ordinate, surface_fig, **kwargs)
 
     surface_figure_agg = draw_figure_w_toolbar(window["surface_plot"].TKCanvas, surface_fig,
                                                window["surface_matplotlib_controls"].TKCanvas)
@@ -1247,13 +1236,13 @@ def gui() -> None:
                 single_update_plot(pattern,
                                    x_ordinate,
                                    [yobs, ycalc, ybkg],
-                                   plot_hkls,
-                                   values[single_keys["ydiff"]],
-                                   values[single_keys["cchi2"]],
-                                   values[single_keys["norm_int"]],
-                                   single_axis_scale,
-                                   FONT_DICT,
-                                   window)
+                                   window,
+                                   plot_hkls=plot_hkls,
+                                   plot_diff=values[single_keys["ydiff"]],
+                                   plot_cchi2=values[single_keys["cchi2"]],
+                                   plot_norm_int=values[single_keys["norm_int"]],
+                                   axis_scale=single_axis_scale,
+                                   font_dict=FONT_DICT)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
@@ -1279,11 +1268,11 @@ def gui() -> None:
                 stack_update_plot(x_ordinate,
                                   y_ordinate,
                                   offset,
-                                  plot_hkls,
-                                  stack_norm_plot,
-                                  stack_axis_scale,
-                                  FONT_DICT,
-                                  window)
+                                  window,
+                                  plot_hkls=plot_hkls,
+                                  plot_norm_int=stack_norm_plot,
+                                  axis_scale=stack_axis_scale,
+                                  font_dict=FONT_DICT)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
@@ -1308,13 +1297,13 @@ def gui() -> None:
                 surface_update_plot(x_ordinate,
                                     "Pattern number",
                                     z_ordinate,
-                                    plot_hkls,
-                                    surface_norm_plot,
-                                    surface_temp_pres_qpa,
-                                    surface_axis_scale,
-                                    FONT_DICT,
-                                    SUBPLOT_RATIOS,
-                                    window)
+                                    window,
+                                    plot_hkls=plot_hkls,
+                                    plot_norm_int=surface_norm_plot,
+                                    plot_metadata=surface_temp_pres_qpa,
+                                    axis_scale=surface_axis_scale,
+                                    font_dict=FONT_DICT,
+                                    subplot_ratios=SUBPLOT_RATIOS)
             except (IndexError, ValueError) as e:
                 print(e)  # sg.popup(traceback.format_exc(), title="ERROR!", keep_on_top=True)
 
