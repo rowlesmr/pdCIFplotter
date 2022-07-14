@@ -3,11 +3,12 @@ import numpy as np
 import math
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+import matplotlib.ticker as mticker
 
 import matplotlib.colors as mc  # a lot of colour choices in here to use
 # from timeit import default_timer as timer  # use as start = timer() ...  end = timer()
 import mplcursors
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Dict
 
 DEBUG = False
 
@@ -72,7 +73,7 @@ def _x_axis_title(x_ordinate: str, wavelength: float = None) -> str:
     return X_AXIS_TITLES[x_ordinate]
 
 
-def _scale_ordinate(axis_scale: dict, val, ordinate: str):
+def _scale_ordinate(axis_scale: Dict, val, ordinate: str):
     if axis_scale[ordinate] == "log":
         val = np.log10(val)
     elif axis_scale[ordinate] == "sqrt":
@@ -80,27 +81,27 @@ def _scale_ordinate(axis_scale: dict, val, ordinate: str):
     return val
 
 
-def _scale_x_ordinate(x, axis_scale: dict):
+def _scale_x_ordinate(x, axis_scale: Dict):
     return _scale_ordinate(axis_scale, x, "x")
 
 
-def _scale_y_ordinate(y, axis_scale: dict):
+def _scale_y_ordinate(y, axis_scale: Dict):
     return _scale_ordinate(axis_scale, y, "y")
 
 
-def _scale_z_ordinate(z, axis_scale: dict):
+def _scale_z_ordinate(z, axis_scale: Dict):
     return _scale_ordinate(axis_scale, z, "z")
 
 
-def _scale_xy_ordinates(x, y, axis_scale: dict):
+def _scale_xy_ordinates(x, y, axis_scale: Dict):
     return _scale_x_ordinate(x, axis_scale), _scale_y_ordinate(y, axis_scale)
 
 
-def _scale_xyz_ordinates(x, y, z, axis_scale: dict):
+def _scale_xyz_ordinates(x, y, z, axis_scale: Dict):
     return _scale_x_ordinate(x, axis_scale), _scale_y_ordinate(y, axis_scale), _scale_z_ordinate(z, axis_scale)
 
 
-def _scale_title(axis_scale: dict, title: str, ordinate: str) -> str:
+def _scale_title(axis_scale: Dict, title: str, ordinate: str) -> str:
     if axis_scale[ordinate] == "log":
         title = f"Log10[{title}]"
     elif axis_scale[ordinate] == "sqrt":
@@ -108,23 +109,23 @@ def _scale_title(axis_scale: dict, title: str, ordinate: str) -> str:
     return title
 
 
-def _scale_x_title(title: str, axis_scale: dict) -> str:
+def _scale_x_title(title: str, axis_scale: Dict) -> str:
     return _scale_title(axis_scale, title, "x")
 
 
-def _scale_y_title(title: str, axis_scale: dict) -> str:
+def _scale_y_title(title: str, axis_scale: Dict) -> str:
     return _scale_title(axis_scale, title, "y")
 
 
-def _scale_z_title(title: str, axis_scale: dict) -> str:
+def _scale_z_title(title: str, axis_scale: Dict) -> str:
     return _scale_title(axis_scale, title, "z")
 
 
-def _scale_xy_title(xtitle: str, ytitle: str, axis_scale: dict) -> Tuple[str, str]:
+def _scale_xy_title(xtitle: str, ytitle: str, axis_scale: Dict) -> Tuple[str, str]:
     return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale)
 
 
-def _scale_xyz_title(xtitle: str, ytitle: str, ztitle: str, axis_scale: dict) -> Tuple[str, str, str]:
+def _scale_xyz_title(xtitle: str, ytitle: str, ztitle: str, axis_scale: Dict) -> Tuple[str, str, str]:
     return _scale_x_title(xtitle, axis_scale), _scale_y_title(ytitle, axis_scale), _scale_z_title(ztitle, axis_scale)
 
 
@@ -146,7 +147,7 @@ def array_strictly_decreasing_or_equal(a):
     return np.all(a[1:] <= a[:-1])
 
 
-def rescale_val(val: float, old_scale: dict, new_scale: dict, ordinate: str):
+def rescale_val(val: float, old_scale: Dict, new_scale: Dict, ordinate: str):
     if old_scale[ordinate] == "log":
         val = math.copysign(1, val) * 10 ** abs(val)
     elif old_scale[ordinate] == "sqrt":
@@ -154,7 +155,7 @@ def rescale_val(val: float, old_scale: dict, new_scale: dict, ordinate: str):
     return _scale_ordinate(new_scale, val, ordinate)
 
 
-def get_first_different_kv_pair(old_dict: dict, new_dict: dict):
+def get_first_different_kv_pair(old_dict: Dict, new_dict: Dict):
     for k, v in old_dict.items():
         if new_dict[k] != v:
             return k, v
@@ -234,7 +235,7 @@ class PlotCIF:
     hkl_x_ordinate_mapping = {"_pd_proc_d_spacing": "_refln_d_spacing", "d": "_refln_d_spacing", "q": "refln_q", "_pd_meas_2theta_scan": "refln_2theta",
                               "_pd_proc_2theta_corrected": "refln_2theta"}
 
-    def __init__(self, cif: dict, canvas_x: int, canvas_y: int):
+    def __init__(self, cif: Dict, canvas_x: int, canvas_y: int):
         self.canvas_x = canvas_x
         self.canvas_y = canvas_y
 
@@ -257,7 +258,7 @@ class PlotCIF:
                                            "data_x_lim": None, "data_y_lim": None,
                                            "zoomed_x_lim": None, "zoomed_y_lim": None}
 
-        self.cif: dict = cif
+        self.cif: Dict = cif
         self.dpi = 100
 
         self.qpa = self.get_all_qpa()
@@ -284,7 +285,7 @@ class PlotCIF:
             plot_list.append(pattern)
         return xs, ys, plot_list
 
-    def get_all_scaled_xy_data(self, x_ordinate: str, y_ordinate: str, axis_scale: dict) -> Tuple[List, List, List[str]]:
+    def get_all_scaled_xy_data(self, x_ordinate: str, y_ordinate: str, axis_scale: Dict) -> Tuple[List, List, List[str]]:
         """
         Give an x and y-ordinate, return arrays holding all x ad y data from all patterns in the cif
         that have both of those ordinates. Also return a list of the pattern names which where included
@@ -321,10 +322,7 @@ class PlotCIF:
                 continue
             # now the cifpat has both x and y
             y = cifpat[y_ordinate]
-            if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y * cifpat["_pd_proc_ls_weight"]
-            else:
-                y_norm = y / cifpat[y_ordinate + "_err"] ** 2
+            y_norm = y * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else y / cifpat[y_ordinate + "_err"] ** 2
             y_norms.append(y_norm)
         return y_norms
 
@@ -407,10 +405,7 @@ class PlotCIF:
             if "str" not in cifpat:
                 continue
             for phase in cifpat["str"]:
-                try:
-                    qpa = cifpat["str"][phase]["_pd_phase_mass_%"]
-                except KeyError:
-                    qpa = None
+                qpa = cifpat["str"][phase].get("_pd_phase_mass_%", None)
                 phase_name = cifpat["str"][phase]["_pd_phase_name"]
                 d[phase_name].append(qpa)
             for phase, qpa_list in d.items():
@@ -418,10 +413,17 @@ class PlotCIF:
                     d[phase].append(np.nan)
         return d
 
-    def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str],
-                           plot_hkls: dict, plot_diff: bool, plot_cchi2: bool, plot_norm_int: bool,
-                           axis_scale: dict, fontdict: dict,
-                           fig: Figure, ax: Axes) -> Tuple[Figure, Axes, Tuple, Tuple]:
+    def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str], fig: Figure, ax: Axes, **kwargs) \
+        -> Tuple[Figure, Axes, Tuple[float, float], Tuple[float,float]]:
+
+        # Unpack all the kwargs to make it all neater down below:
+        plot_hkls = kwargs.get("plot_hkls")
+        plot_diff = kwargs.get("plot_diff")
+        plot_cchi2 = kwargs.get("plot_cchi2")
+        plot_norm_int = kwargs.get("plot_norm_int")
+        axis_scale = kwargs.get("axis_scale")
+        font_dict = kwargs.get("font_dict")
+
         # todo: look at https://stackoverflow.com/a/63152341/36061 for idea on zooming
         single_height_px = fig.get_size_inches()[1] * self.dpi if fig is not None else 382  # this is needed for the hkl position calculations
         # if single_fig is None or single_ax is None:
@@ -442,18 +444,15 @@ class PlotCIF:
 
         if plot_norm_int and y_ordinates[0] != "None":
             y = cifpat[y_ordinates[0]]
-            if "_pd_proc_ls_weight" in cifpat:
-                y_norm = y * np.maximum(cifpat["_pd_proc_ls_weight"], 1e-6)
-            else:
-                y_norm = y / cifpat[y_ordinates[0] + "_err"] ** 2
+            y_norm = y * np.maximum(cifpat["_pd_proc_ls_weight"], 1e-6) if "_pd_proc_ls_weight" in cifpat else y / cifpat[y_ordinates[0] + "_err"] ** 2
         else:
             y_norm = np.ones(len(x))
 
         for y in y_ordinates:
-            if y != "None":
-                ys.append(_scale_y_ordinate(cifpat[y] * y_norm, axis_scale))
-            else:
+            if y == "None":
                 ys.append(None)
+            else:
+                ys.append(_scale_y_ordinate(cifpat[y] * y_norm, axis_scale))
 
         # need to calculate diff after the y axis transforms to get the right magnitudes
         if plot_diff:
@@ -496,10 +495,9 @@ class PlotCIF:
 
         if plot_cchi2:
             flip_cchi2 = x_ordinate in {"d", "_pd_proc_d_spacing"}
-            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, fontdict, ax)
-
-        if not plot_cchi2:
-            ax.legend(frameon=False, loc='upper right', prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])  # loc='best')
+            ax2 = self.single_plot_cchi2(cifpat, x, [y_ordinates[0], y_ordinates[1]], axis_scale, cchi2_zero, flip_cchi2, font_dict, ax)
+        else:
+            ax.legend(frameon=False, loc='upper right', prop=font_dict["legend"], labelcolor=font_dict["legendcolor"]["color"])  # loc='best')
 
         if plot_norm_int:
             y_axis_title = "Normalised counts"
@@ -508,22 +506,22 @@ class PlotCIF:
         else:
             y_axis_title = "Counts"
 
-        wavelength = parse_cif.get_from_cif(cifpat, "wavelength")
+        wavelength = cifpat.get("wavelength")
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
 
-        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
-        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
-        fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left", fontproperties={"size": fontdict["title"]["size"]}, fontdict=fontdict["title"])
+        ax.set_xlabel(x_axis_title, fontdict=font_dict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=font_dict["ylabel"])
+        fig.suptitle(pattern, x=fig.subplotpars.left, horizontalalignment="left", fontproperties={"size": font_dict["title"]["size"]}, fontdict=font_dict["title"])
         fig.subplots_adjust(top=0.9)
 
         subtitle = make_subtitle_string(cifpat, yobs=y_ordinates[0], ycalc=y_ordinates[1])
         if subtitle:
-            ax.set_title(subtitle, loc="left", fontdict=fontdict["subtitle"])
+            ax.set_title(subtitle, loc="left", fontdict=font_dict["subtitle"])
 
         for label in ax.get_xticklabels():
-            label.update(fontdict["xticklabel"])
+            label.update(font_dict["xticklabel"])
         for label in ax.get_yticklabels():
-            label.update(fontdict["yticklabel"])
+            label.update(font_dict["yticklabel"])
 
         if x_ordinate in {"d", "_pd_proc_d_spacing"}:
             ax.invert_xaxis()
@@ -567,10 +565,6 @@ class PlotCIF:
             reset_zoomed_to_plt_y_min = True
 
         if self.previous_single_plot_state["plot_norm_int"] != plot_norm_int:
-            # _, (ymin, ymax) = get_zoomed_data_min_max(ax, zoomed_x_lim, data_y_lim)
-            # yrange = (ymax - ymin)
-            # ymid = yrange / 2
-            # yrange = (yrange * 1.07) / 2
             zoomed_y_lim = data_y_lim
         if self.previous_single_plot_state["axis_scale"] not in [axis_scale, {}]:
             ordinate, _ = get_first_different_kv_pair(self.previous_single_plot_state["axis_scale"], axis_scale)
@@ -609,9 +603,8 @@ class PlotCIF:
 
         return fig, ax, zoomed_x_lim, zoomed_y_lim
 
-
-    def plot_hkls(self, plot_below: bool, cifpat: dict, x_ordinate: str, x, ys,
-                  axis_scale: dict, y_min: float, y_max: float, hkl_y_offset: float,
+    def plot_hkls(self, plot_below: bool, cifpat: Dict, x_ordinate: str, x, ys,
+                  axis_scale: Dict, y_min: float, y_max: float, hkl_y_offset: float,
                   single_plot: bool,
                   dpi: int, single_height_px: int, ax: Axes):
 
@@ -639,7 +632,7 @@ class PlotCIF:
                 markerstyle = 3
                 scalar = 1.0
             else:  # plot above
-                markerstyle = 7  # a pointing-down triangle with the down tip being the point described by th x,y coordinate
+                markerstyle = 7  # a pointing-down triangle with the down tip being the point described by the x,y coordinate
                 scalar = 1.04
                 yobs = ys[0]  # ys is already scaled to the y-axis scale
                 ycalc = ys[1]
@@ -650,16 +643,20 @@ class PlotCIF:
                 else:
                     hkl_y = np.maximum(interp(hkl_x, x, ycalc), interp(hkl_x, x, yobs))
 
-            phase_wt_pct = f'– {cifpat["str"][phase]["_pd_phase_mass_%"]} wt%' if "_pd_phase_mass_%" in cifpat["str"][phase] else ""
+            if "_pd_phase_mass_%" in cifpat["str"][phase]:
+                phase_wt_pct = f'– {cifpat["str"][phase]["_pd_phase_mass_%"]} wt%'
+            else:
+                phase_wt_pct = ""
 
             hkl_y = hkl_y * scalar + hkl_y_offset
             idx = i % len(TABLEAU_COLOR_VALUES)
-            phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
-            hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+            phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
+            hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle,
+                                linestyle="none", markersize=hkl_markersize_pt,
                                 color=TABLEAU_COLOR_VALUES[idx])
             hkl_artists.append(hkl_tick)
             if "refln_hovertext" in cifpat["str"][phase]:
-                phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
                 hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                 hovertexts.append(hovertext)
             else:
@@ -667,8 +664,9 @@ class PlotCIF:
 
         return hovertexts, hkl_artists
 
-    def single_plot_cchi2(self, cifpat: dict, x, cchi2_y_ordinates: List[str], axis_scale: dict, cchi2_zero: float, flip_cchi2: bool,
-                          fontdict: dict, ax1: Axes) -> Axes:
+    def single_plot_cchi2(self, cifpat: Dict, x: np.ndarray, cchi2_y_ordinates: List[str],
+                          axis_scale: Dict, cchi2_zero: float, flip_cchi2: bool,
+                          fontdict: Dict, ax1: Axes) -> Axes:
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -681,16 +679,11 @@ class PlotCIF:
 
         cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
 
-        if array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2):
-            flip_cchi2 = True
-        else:
-            pass
+        flip_cchi2 = (array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2)) or flip_cchi2
 
         if flip_cchi2:
-            # this keeps the differences between datapoints, but inverts their sign, so
-            #  the list ends up changing from increasing to decreasing, or vice versa.
-            #  This is done to counteract an inverted plotting axis so I can keep the
-            #  cchi2 plot increasing from left to right
+            # this keeps the differences between datapoints, but inverts their sign, so the list ends up changing from increasing to decreasing, or vice versa.
+            #  This is done to counteract an inverted plotting axis so I can keep the cchi2 plot increasing from left to right
             ylag = np.diff(cchi2, prepend=cchi2[0])
             ynew = np.zeros(len(cchi2))
             ynew[0] = cchi2[-1]
@@ -709,7 +702,7 @@ class PlotCIF:
         ax2.set_yticklabels([])
         ax2.set_yticks([])
         ax2.margins(x=0)
-        ax2.set_ylabel("c\u03C7\u00b2")
+        ax2.set_ylabel("c\u03C7\u00b2", fontdict=fontdict["ylabel"])
         align_cchi2(ax1, cchi2_zero, ax2)
 
         # organise legends:
@@ -721,11 +714,12 @@ class PlotCIF:
 
         return ax2
 
-    def stack_update_plot(self,
-                          x_ordinate: str, y_ordinate: str, offset: float,
-                          plot_hkls: dict, plot_norm_int: dict,
-                          axis_scale: dict, fontdict: dict,
-                          fig: Figure) -> Figure:
+    def stack_update_plot(self, x_ordinate: str, y_ordinate: str, offset: float, fig: Figure, **kwargs) -> Figure:
+        # Unpack the kwargs to simplify code further down
+        plot_hkls = kwargs.get("plot_hkls")
+        plot_norm_int = kwargs.get("plot_norm_int")
+        axis_scale = kwargs.get("axis_scale")
+        font_dict = kwargs.get("font_dict")
 
         if fig:
             fig.clear()
@@ -738,10 +732,7 @@ class PlotCIF:
         xs, ys, plot_list = self.get_all_xy_data(x_ordinate, y_ordinate)
         offset = _scale_y_ordinate(offset, axis_scale)
 
-        if plot_norm_int["norm_int"]:
-            y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"])
-        else:
-            y_norms = [np.ones(len(xi)) for xi in xs]
+        y_norms = self.get_xy_ynorm_data(x_ordinate, plot_norm_int["y_ordinate_for_norm"]) if plot_norm_int["norm_int"] else [np.ones(len(xi)) for xi in xs]
 
         # compile all the patterns' data
         # need to loop backwards so that the data comes out in the correct order for plotting
@@ -789,37 +780,42 @@ class PlotCIF:
             y_axis_title = "Counts"
 
         # check that the wavelength for all patterns is the same
-        wavelength = parse_cif.get_from_cif(self.cif[plot_list[0]], "wavelength")
+        wavelength = self.cif[plot_list[0]].get("wavelength")
         for pattern in plot_list:
-            if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
+            if wavelength != self.cif[pattern].get("wavelength"):
                 wavelength = None
                 break
 
         x_axis_title, y_axis_title = _scale_xy_title(_x_axis_title(x_ordinate, wavelength), y_axis_title, axis_scale)
-        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
-        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
+        ax.set_xlabel(x_axis_title, fontdict=font_dict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=font_dict["ylabel"])
 
         for label in ax.get_xticklabels():
-            label.update(fontdict["xticklabel"])
+            label.update(font_dict["xticklabel"])
         for label in ax.get_yticklabels():
-            label.update(fontdict["yticklabel"])
+            label.update(font_dict["yticklabel"])
 
         return fig
 
-    def surface_update_plot(self,
-                            x_ordinate: str, y_ordinate: str, z_ordinate: str,
-                            plot_hkls: bool, plot_norm_int: dict, plot_metadata: str,
-                            axis_scale: dict, fontdict: dict,
-                            fig: Figure) -> Figure:
+    def surface_update_plot(self, x_ordinate: str, y_ordinate: str, z_ordinate: str, fig: Figure, **kwargs) -> Figure:
+        # Unpack the kwargs to make life easier down there
+        plot_hkls = kwargs.get("plot_hkls")
+        plot_norm_int = kwargs.get("plot_norm_int")
+        plot_metadata = kwargs.get("plot_metadata")
+        axis_scale = kwargs.get("axis_scale")
+        font_dict = kwargs.get("font_dict")
+        subplot_ratios = kwargs.get("subplot_ratios")
+
         if fig:
             fig.clear()
         fig = Figure(figsize=(6, 3), dpi=self.dpi)
         if plot_metadata:
-            ax, ax1 = fig.subplots(1, 2, gridspec_kw={'width_ratios': [2, 1]}, sharey=True)
+            ax, ax1 = fig.subplots(1, 2, gridspec_kw={'width_ratios': [subplot_ratios[0], subplot_ratios[1]]}, sharey=True)
         else:
             ax = fig.subplots(1, 1)
         fig.set_tight_layout(True)  # https://github.com/matplotlib/matplotlib/issues/21970 https://github.com/matplotlib/matplotlib/issues/11059
         ax.margins(x=0)
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
 
         # am I plotting the data I already have? If all the ordinates are the same, then I don't need to regrab all of the data
         #  and I can just use what I already have.
@@ -847,10 +843,7 @@ class PlotCIF:
             self.surface_plot_data["plot_list"] = plot_list
         # end of if
 
-        if plot_norm_int["norm_int"]:
-            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz * znorm, axis_scale)
-        else:
-            xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz, axis_scale)
+        xx, yy, zz = _scale_xyz_ordinates(xx, yy, zz * znorm, axis_scale) if plot_norm_int["norm_int"] else _scale_xyz_ordinates(xx, yy, zz, axis_scale)
 
         pcm = ax.pcolormesh(xx, yy, zz, shading='nearest', cmap=self.surface_z_color)
 
@@ -880,7 +873,7 @@ class PlotCIF:
                     hkl_tick, = ax.plot(hkl_x, hkl_y, label=" " + phase, marker="|", linestyle="none", markersize=hkl_markersize_pt, color=TABLEAU_COLOR_VALUES[idx])
                     surface_hkl_artists.append(hkl_tick)
                     if "refln_hovertext" in cifpat["str"][phase]:
-                        phasename = cifpat["str"][phase]["_pd_phase_name"] if "_pd_phase_name" in cifpat["str"][phase] else phase
+                        phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
                         hovertext = [f'{phasename}: {hkls}' for hkls in cifpat["str"][phase]["refln_hovertext"]]
                         surface_hovertexts.append(hovertext)
                     else:
@@ -893,9 +886,9 @@ class PlotCIF:
         # end hkl if
 
         # check that the wavelength for all patterns is the same
-        wavelength = parse_cif.get_from_cif(self.cif[plot_list[0]], "wavelength")
+        wavelength = self.cif[plot_list[0]].get("wavelength")
         for pattern in plot_list:
-            if wavelength != parse_cif.get_from_cif(self.cif[pattern], "wavelength"):
+            if wavelength != self.cif[pattern].get("wavelength"):
                 wavelength = None
                 break
 
@@ -907,38 +900,35 @@ class PlotCIF:
             z_axis_title = "Counts"
         x_axis_title, y_axis_title, z_axis_title = _scale_xyz_title(_x_axis_title(x_ordinate, wavelength), "Pattern number", z_axis_title, axis_scale)
 
-        ax.set_xlabel(x_axis_title, fontdict=fontdict["xlabel"])
-        ax.set_ylabel(y_axis_title, fontdict=fontdict["ylabel"])
+        ax.set_xlabel(x_axis_title, fontdict=font_dict["xlabel"])
+        ax.set_ylabel(y_axis_title, fontdict=font_dict["ylabel"])
 
         for label in ax.get_xticklabels():
-            label.update(fontdict["xticklabel"])
+            label.update(font_dict["xticklabel"])
         for label in ax.get_yticklabels():
-            label.update(fontdict["yticklabel"])
+            label.update(font_dict["yticklabel"])
 
         # make second subplot here
+        plot_metadata_dict = {"temp": {"pd_col": "_diffrn_ambient_temperature", "label": "Temperature (K)"},
+                              "pres": {"pd_col": "_diffrn_ambient_pressure", "label": "Pressure (kPa)"},
+                              "rwp":  {"pd_col": "_pd_proc_ls_prof_wr_factor", "label": "Rwp (%)"},
+                              "gof":  {"pd_col": "_refine_ls_goodness_of_fit_all", "label": "GoF"}}
         if plot_metadata:  # string == "temp", "pres", "qpa"
             y = [_scale_y_ordinate(i + 1, axis_scale) for i in range(len(self.cif))]
             if plot_metadata != "qpa":
                 second_plot = []
                 for pattern in self.cif:
                     cifpat = self.cif[pattern]
-                    if plot_metadata == "temp":
-                        second_data = get_dict_value(cifpat, "_diffrn_ambient_temperature")
-                        ax1_label = "Temperature (K)"
-                    elif plot_metadata == "pres":
-                        second_data = get_dict_value(cifpat, "_diffrn_ambient_pressure")
-                        ax1_label = "Pressure (kPa)"
-                    elif plot_metadata == "rwp":
-                        second_data = get_dict_value(cifpat, "_pd_proc_ls_prof_wr_factor") * 100
-                        ax1_label = "Rwp (%)"
-                    elif plot_metadata == "gof":
-                        second_data = get_dict_value(cifpat, "_refine_ls_goodness_of_fit_all")
-                        ax1_label = "GoF"
+                    second_data = get_dict_value(cifpat, plot_metadata_dict[plot_metadata]["pd_col"])
+                    ax1_label = plot_metadata_dict[plot_metadata]["label"]
+
+                    if plot_metadata == "rwp" and second_data is not None:
+                        second_data *= 100
 
                     second_plot.append(second_data)
-                    ax1.set_xlabel(ax1_label, fontdict=fontdict["xlabel"])
+                    ax1.set_xlabel(ax1_label, fontdict=font_dict["xlabel"])
                     for label in ax1.get_xticklabels():
-                        label.update(fontdict["xticklabel"])
+                        label.update(font_dict["xticklabel"])
 
                 ax1.plot(second_plot, y, marker="o")
             else:
@@ -950,16 +940,16 @@ class PlotCIF:
                     ax1.plot(amor_qpa, y, label="Unknown", color="black", linestyle='dashed')
                 surface_qpa_artists = ax1.get_children()
                 mplcursors.cursor(surface_qpa_artists, hover=mplcursors.HoverMode.Transient).connect("add", lambda sel: sel.annotation.set_text(sel.artist.get_label()))
-                ax1.set_xlabel("Weight percent (wt%)", fontdict=fontdict["xlabel"])
-                ax1.legend(prop=fontdict["legend"], labelcolor=fontdict["legendcolor"]["color"])
+                ax1.set_xlabel("Weight percent (wt%)", fontdict=font_dict["xlabel"])
+                ax1.legend(prop=font_dict["legend"], labelcolor=font_dict["legendcolor"]["color"])
                 for label in ax1.get_xticklabels():
-                    label.update(fontdict["xticklabel"])
+                    label.update(font_dict["xticklabel"])
             ax1.grid(True, color='lightgrey')
             cb = fig.colorbar(pcm, ax=ax1)  # this is the code that adds the colour bar.
         else:
             cb = fig.colorbar(pcm, ax=ax)
 
-        cb.set_label(z_axis_title, **fontdict["zlabel"])
+        cb.set_label(z_axis_title, **font_dict["zlabel"])
         for label in cb.ax.get_yticklabels():
-            label.update(fontdict["zticklabel"])
+            label.update(font_dict["zticklabel"])
         return fig

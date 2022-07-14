@@ -4,7 +4,7 @@ import math
 import copy
 # from timeit import default_timer as timer   # use as start = timer() ...  end = timer()
 from CifFile import CifFile, ReadCif, StarFile, CifBlock
-from typing import List, Tuple, Union, Any
+from typing import List, Tuple, Union, Any, Dict
 
 DEBUG = False
 
@@ -23,7 +23,7 @@ def debug(*args):
         print(*args)
 
 
-def convert_cif_to_dict(cif: CifFile) -> dict:
+def convert_cif_to_dict(cif: CifFile) -> Dict:
     """
     Converts a PyCIFRW CifFile into a normal Python dictionary
     :param cif:
@@ -41,7 +41,7 @@ def convert_cif_to_dict(cif: CifFile) -> dict:
     return cif_dict
 
 
-def blockname_lookupdict_from_blockid(cif: Union[dict, CifFile]) -> dict:
+def blockname_lookupdict_from_blockid(cif: Union[Dict, CifFile]) -> Dict:
     """
     To get information from a CIF, you need to know the name of the block (data_'blocknamegoeshere'), but when linking
     between blocks, a block id is used. This function creates a dictionary, which, when given a blockid, returns a
@@ -53,7 +53,7 @@ def blockname_lookupdict_from_blockid(cif: Union[dict, CifFile]) -> dict:
     return {cif[blockname]["_pd_block_id"]: blockname for blockname in keys if "_pd_block_id" in cif[blockname]}
 
 
-def get_blockname_from_block_id(lookup_dict: dict, block_id: str) -> str:
+def get_blockname_from_block_id(lookup_dict: Dict, block_id: str) -> str:
     """
     Pycifrw makes datablock names all lower case. When I make up a pd_block_id from a dataname, sometimes the user has a
     case-dependent reference somewhere in their CIF, and so I can't find the datablock. This looks in my lookup dictionary
@@ -68,9 +68,9 @@ def get_blockname_from_block_id(lookup_dict: dict, block_id: str) -> str:
         return lookup_dict[block_id.lower()]
 
 
-def grouped_blocknames(cif: Union[CifFile, dict]) -> dict:
+def grouped_blocknames(cif: Union[CifFile, Dict]) -> Dict:
     """
-    Looks at all the datablocks in a cif and categorieses them into those that have diffraction pattern information,
+    Looks at all the datablocks in a cif and categorises them into those that have diffraction pattern information,
     those with crystal structure information, and the others.
     :param cif: a PyCIFRW readcif object
     :return: a dictionary containing lists of datablock names corresponding to "patterns", "structures", and "others". They are order according to appearance in the file
@@ -91,19 +91,7 @@ def grouped_blocknames(cif: Union[CifFile, dict]) -> dict:
     return {"patterns": pattern_datanames, "structures": structure_datanames, "others": other_datanames}
 
 
-def get_from_cif(cif: Union[dict, CifFile], itemname: str, default: Any = None):
-    """
-    Given a cif and a itemname, return the value associated with that blockname if it exists.
-    If not, return None.
-    :param cif: cif as dictionary or PyCIFRW
-    :param itemname: string representing blockname
-    :param default: what to return if the itemname doesn't exist in the cif
-    :return: whatever is in the blockname, or None if it doesn't exist.
-    """
-    return cif[itemname] if itemname in cif else default
-
-
-def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
+def get_hkld_ids(structure: Union[Dict, CifFile]) -> Dict:
     """
     Given a cif block representing a structure, get the h,k,l, and d values of the reflections
     and return them in a dictionary. or returns None if '_refln_d_spacing' doesn't exist
@@ -111,11 +99,11 @@ def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     :param structure: a cif dictionary or PyCIFRW
     :return: a dictionary containing hkld values, or None is '_refln_d_spacing' doesn't exist
     """
-    h_local = get_from_cif(structure, '_refln_index_h')
-    k_local = get_from_cif(structure, '_refln_index_k')
-    l_local = get_from_cif(structure, '_refln_index_l')
-    d_local = get_from_cif(structure, '_refln_d_spacing')
-    id_local = get_from_cif(structure, '_pd_refln_phase_id')
+    h_local = structure.get('_refln_index_h')
+    k_local = structure.get('_refln_index_k')
+    l_local = structure.get('_refln_index_l')
+    d_local = structure.get('_refln_d_spacing')
+    id_local = structure.get('_pd_refln_phase_id')
 
     if d_local is None:
         return {}
@@ -133,7 +121,7 @@ def get_hkld_ids(structure: Union[dict, CifFile]) -> dict:
     return {"h": h_local, "k": k_local, "l": l_local, "d": d_local, "id": id_local}
 
 
-def get_dataname_into_pattern(cif: Union[dict, CifFile], pattern: str, dataname: str, structures: List[str], others) -> None:
+def get_dataname_into_pattern(cif: Union[Dict, CifFile], pattern: str, dataname: str, structures: List[str], others) -> None:
     """
     Search the given structures and others in the cif for a given dataname
     and copy it into the given pattern. Priority is given to the structures
@@ -159,7 +147,7 @@ def get_dataname_into_pattern(cif: Union[dict, CifFile], pattern: str, dataname:
                 break  # only want to get one value
 
 
-def get_hkld_from_matching_id(hkld_ids: dict) -> dict:
+def get_hkld_from_matching_id(hkld_ids: Dict) -> Dict:
     """
     given a list of h,k,l, or d values from a place where the list contains values from multiple phases,
     return only those values corresponding to the given phase id
@@ -234,18 +222,23 @@ def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> 
         vals.append(v)
         errs.append(e)
 
-    if isList:
-        return vals, errs
+    return (vals, errs) if isList else (vals[0], errs[0])
+
+
+def get_weights_for_yobs(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = None) -> List[float]:
+    if yobs_dataname_err is None:
+        y_weights = cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
     else:
-        return vals[0], errs[0]
+        y_weights = 1 / (cifpat[yobs_dataname_err] ** 2)
+    return y_weights
 
 
-def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
     """
     Calculate the cumulative chi-squared statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     This is an indication of the value of chi2 taking into account only the data with the x-ordinate <= the current
     x-ordinate. It shows where there are large deviations contributing to the overall chi2
-    see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." Journal of Research of the National Institute of Standards and Technology 109 (1): 107-23.
+    see eqn 8 - David, W.I. 2004. "Powder Diffraction: Least-Squares and Beyond." J. Res. Natl Inst. Standards Technol. 109 (1): 107-23.
     https://doi.org/10.6028/jres.008.
 
     chi^2 = (Rwp / Rexp)^2 = gof^2
@@ -263,15 +256,13 @@ def calc_cumchi2(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return [-1] * len(yobs)
-    if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
-        yweight = cifpat["_pd_proc_ls_weight"]
-    else:
-        yobs_dataname_err = yobs_dataname + "_err"
-        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
+
     return np.nancumsum(yweight * ((yobs - ycalc) ** 2)) / N  # treats nan as 0
 
 
-def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None) -> float:
+def calc_rwp(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None) -> float:
     """
     Calculate the Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -287,18 +278,15 @@ def calc_rwp(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
 
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return -1
-    if yobs_dataname_err is None and "_pd_proc_ls_weight" in cifpat:
-        yweight = cifpat["_pd_proc_ls_weight"]
-    else:
-        yobs_dataname_err = yobs_dataname + "_err"
-        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
 
     top = np.nansum(yweight * ((yobs - ycalc) ** 2))
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(top / bottom)
 
 
-def calc_rexp_approx(cifpat: dict, yobs_dataname: str, yobs_dataname_err: str = "", ymod_dataname: str = "") -> float:
+def calc_rexp_approx(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = "", ymod_dataname: str = "") -> float:
     """
     Calculate the Rexp statistic using the given yobs, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -317,16 +305,13 @@ def calc_rexp_approx(cifpat: dict, yobs_dataname: str, yobs_dataname_err: str = 
     if ymod_dataname:  # I don't know what ymod means yet...
         return -1
 
-    if not yobs_dataname_err and "_pd_proc_ls_weight" in cifpat:
-        yweight = cifpat["_pd_proc_ls_weight"]
-    else:
-        yobs_dataname_err = yobs_dataname + "_err"
-        yweight = 1 / (cifpat[yobs_dataname_err] ** 2)
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
+
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(N / bottom)
 
 
-def calc_gof_approx(cifpat: dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+def calc_gof_approx(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
     """
     Calculate the goodness-of-fit statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -356,19 +341,17 @@ def theta2_min_max_inc_expand(cifpat: CifBlock, val: str = "meas") -> None:
     MEAS_VALS = ["_pd_meas_2theta_range_min", "_pd_meas_2theta_scan", "_pd_meas_2theta_range_min", "_pd_meas_2theta_range_inc", "_pd_meas_2theta_range_max"]
     PROC_VALS = ["_pd_proc_2theta_range_min", "_pd_proc_2theta_corrected", "_pd_proc_2theta_range_min", "_pd_proc_2theta_range_inc", "_pd_proc_2theta_range_max"]
 
+    test_cols = MEAS_COL + PROC_COL
     if val == "meas":
         mincheck, x_ordinate, minval, incval, maxval = MEAS_VALS
-        test_cols = MEAS_COL + PROC_COL
     else:  # if val == "proc":
         mincheck, x_ordinate, minval, incval, maxval = PROC_VALS
-        test_cols = PROC_COL + MEAS_COL
 
     if mincheck in cifpat and x_ordinate not in cifpat:
         th2_scan = theta2_from_min_max_inc(float(cifpat[minval]),
                                            float(cifpat[incval]),
                                            float(cifpat[maxval]))
-        # chooses the best place to put it. The list I'm checking against
-        #  is in order of preference
+        # chooses the best place to put it. The list I'm checking against is in order of preference
         for y in test_cols:
             if y not in cifpat:
                 continue
@@ -379,17 +362,19 @@ def theta2_min_max_inc_expand(cifpat: CifBlock, val: str = "meas") -> None:
     cifpat.RemoveItem(maxval)
 
 
-def get_linked_structures_and_phase_ids(cifpat: CifFile, blockname_dict: dict) -> Tuple[List[str], List[str]]:
-    pd_phase_ids = []
-    structures = []
-    if "_pd_phase_block_id" in cifpat:  # then it is linked to other structures
-        phase_block_ids = cifpat["_pd_phase_block_id"] if not isinstance(cifpat["_pd_phase_block_id"], str) else [cifpat["_pd_phase_block_id"]]
-        structures = [get_blockname_from_block_id(blockname_dict, phase_id) for phase_id in phase_block_ids]
-        if "_pd_phase_id" not in cifpat:
-            pd_phase_ids = [str(i) for i in list(range(1, len(structures) + 1))]  # keep it as a string, just like pycifrw does
-            cifpat["_pd_phase_id"] = pd_phase_ids
-        else:
-            pd_phase_ids = cifpat["_pd_phase_id"]
+def get_linked_structures_and_phase_ids(cifpat: CifFile, blockname_dict: Dict) -> Tuple[List[str], List[str]]:
+    if "_pd_phase_block_id" not in cifpat:  # then it is not linked to other structures
+        return [], []
+
+    phase_block_ids = cifpat["_pd_phase_block_id"] if isinstance(cifpat["_pd_phase_block_id"], list) else [cifpat["_pd_phase_block_id"]]
+    structures = [get_blockname_from_block_id(blockname_dict, phase_id) for phase_id in phase_block_ids]
+
+    if "_pd_phase_id" in cifpat:
+        pd_phase_ids = cifpat["_pd_phase_id"]
+    else:
+        pd_phase_ids = [str(i) for i in list(range(1, len(structures) + 1))]  # keep it as a string, just like pycifrw does
+        cifpat["_pd_phase_id"] = pd_phase_ids
+
     return structures, pd_phase_ids
 
 
@@ -409,7 +394,7 @@ def calc_2theta_from_d(lam: float, d):
     return 2. * np.arcsin(lam / (2. * d)) * 180. / np.pi
 
 
-def add_hklds_to_cifpatstr(cifpatstr: dict, hkld_dict: dict) -> None:
+def add_hklds_to_cifpatstr(cifpatstr: Dict, hkld_dict: Dict) -> None:
     """
     adds hkld information to a phase in the "str" section of a cif dictionary
     :param cifpatstr:  a dictionary of the form: cifpat["str"][phase_id]
@@ -420,7 +405,7 @@ def add_hklds_to_cifpatstr(cifpatstr: dict, hkld_dict: dict) -> None:
         cifpatstr[refln] = hkld_dict[idx]
 
 
-def calc_dataname_and_err(cifpat: dict, dataname: str, default_error: str = "zero") -> None:
+def calc_dataname_and_err(cifpat: Dict, dataname: str, default_error: str = "zero") -> None:
     """
     gets a single value-as-string or list of values-as-strings and correctly turns them in to a float or lists of floats
     with an error term, if applicable
@@ -440,7 +425,7 @@ def calc_dataname_and_err(cifpat: dict, dataname: str, default_error: str = "zer
 
     cifpat[dataname] = np.asarray(val, dtype=float)
     if default_error in {"sqrt", "zero"} or do_errors:
-        cifpat[dataname + "_err"] = np.asarray(err, dtype=float)
+        cifpat[f"{dataname}_err"] = np.asarray(err, dtype=float)
 
 
 class ParseCIF:
@@ -485,9 +470,8 @@ class ParseCIF:
     def __init__(self, ciffilename, scantype="flex", grammar="1.1", scoping="dictionary", permissive=False):
         print(f"Now reading {ciffilename}. This may take a while.")
         self.ciffile: CifFile = ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
-        self.ncif: dict = {}  # this will be the cif file with pattern information only
-        self.cif: dict = {}
-
+        self.ncif: Dict = {}  # this will be the cif file with pattern information only
+        self.cif: Dict = {}
 
         if self.ciffile is None:
             raise ValueError("CIF file is empty.")
@@ -583,7 +567,7 @@ class ParseCIF:
                 for dataname in remove_these:
                     cifpat.RemoveItem(dataname)
             # update the block_id so you know it's been unrolled
-            cifpat["_pd_block_id"] = "L0_|" + get_from_cif(cifpat, "_pd_block_id", pattern)
+            cifpat["_pd_block_id"] = f'L0_|{cifpat.get("_pd_block_id", pattern)}'
 
             # repeat the previous step as needed to copy in all the dataloops
             for i in range(1, len(keys_of_loops)):
@@ -597,7 +581,7 @@ class ParseCIF:
                 new_block_prefix = f"L{i}_|"
                 new_pattern_name = new_block_prefix + pattern
                 self.ciffile.NewBlock(new_pattern_name, insert_me)
-                self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + get_from_cif(self.ciffile[new_pattern_name], "_pd_block_id", new_pattern_name)
+                self.ciffile[new_pattern_name]["_pd_block_id"] = new_block_prefix + self.ciffile[new_pattern_name].get("_pd_block_id", new_pattern_name)
 
     def _get_hkl_ticks(self) -> None:
         """
@@ -624,7 +608,7 @@ class ParseCIF:
                 # look for phase names
                 for phase_id, structure in zip(pd_phase_ids, structures):
                     cifstr = self.cif[structure]
-                    phase_name = cifstr["_pd_phase_name"] if "_pd_phase_name" in cifstr else phase_id
+                    phase_name = cifstr.get("_pd_phase_name", phase_id)
                     cifpat["str"][phase_id]["_pd_phase_name"] = phase_name
                 # look for hkld values
                 if '_refln_d_spacing' not in cifpat:  # then it is OK to look for them in other places
@@ -649,7 +633,7 @@ class ParseCIF:
                     continue
                 cifpat["str"] = {"1": {}}
                 add_hklds_to_cifpatstr(cifpat["str"]["1"], hkld_dict)
-                cifpat["str"]["1"]["_pd_phase_name"] = get_from_cif(cifpat, "_pd_phase_name", default="1")
+                cifpat["str"]["1"]["_pd_phase_name"] = cifpat.get("_pd_phase_name", "1")
 
     def _get_nice_to_have_information(self) -> None:
         """
@@ -689,7 +673,7 @@ class ParseCIF:
                     continue
                 if dataname in self.OBSERVED_Y_LIST:
                     calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
-                elif dataname in ("_pd_phase_mass_%"):
+                elif dataname in ["_pd_phase_mass_%"]:
                     calc_dataname_and_err(cifpat, dataname, default_error="zero")  # for single phase, so there is no error on the wt%
                 else:
                     calc_dataname_and_err(cifpat, dataname, default_error="none")
@@ -703,15 +687,15 @@ class ParseCIF:
                 cifpat["q"] = calc_dq_from_qd(cifpat["_pd_proc_d_spacing"])
 
             lam = None
-            if '_diffrn_radiation_wavelength' in cifpat or "_cell_measurement_wavelength" in cifpat:
-                lam = cifpat["_diffrn_radiation_wavelength"] if '_diffrn_radiation_wavelength' in cifpat else cifpat["_cell_measurement_wavelength"]
+            if any(k in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
+                lam = cifpat.get("_diffrn_radiation_wavelength", cifpat.get("_cell_measurement_wavelength"))
                 cifpat["wavelength"] = lam
-                if "_pd_proc_d_spacing" not in cifpat and "d" not in cifpat:
+                if all (k not in cifpat for k in ("_pd_proc_d_spacing", "d")):
                     for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
                         if th2 in cifpat:
                             cifpat["d"] = calc_d_from_2theta(lam, cifpat[th2])
                             break  # only want to do a single d-from-2th calculation
-                if "_pd_proc_recip_len_Q" not in cifpat and "q" not in cifpat:
+                if all(k not in cifpat for k in ("_pd_proc_recip_len_Q", "q")):
                     for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
                         if th2 in cifpat:
                             cifpat["q"] = calc_q_from_2theta(lam, cifpat[th2])
@@ -725,13 +709,12 @@ class ParseCIF:
                         cifstr["refln_q"] = calc_dq_from_qd(cifstr["_refln_d_spacing"])
                         if lam:
                             cifstr["refln_2theta"] = calc_2theta_from_d(lam, cifstr["_refln_d_spacing"])
-                        cifstr["refln_hovertext"] = [f"{h} {k} {l}" for h, k, l in
-                                                     zip(cifstr['_refln_index_h'], cifstr['_refln_index_k'], cifstr["_refln_index_l"])]
+                        cifstr["refln_hovertext"] = [f"{h} {k} {l}" for h, k, l in zip(cifstr['_refln_index_h'], cifstr['_refln_index_k'], cifstr["_refln_index_l"])]
 
     def _put_phase_mass_pct_in_strs(self) -> None:
         for pattern in self.ncif:
             cifpat = self.ncif[pattern]
-            if "_pd_phase_mass_%" not in cifpat or "str" not in cifpat:
+            if any(k not in cifpat for k in ("_pd_phase_mass_%", "str")):
                 continue
             phase_ids = cifpat["_pd_phase_id"]
             qpas = cifpat["_pd_phase_mass_%"]
