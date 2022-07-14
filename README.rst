@@ -60,7 +60,7 @@ Pre-installation
 
 If you are on Windows, you must read this step. If you are on Linux, you can continue.
 
-``pdCIFplotter`` requires ``PyCifRW >= 4.4.3``. If you install ``PyCifRW`` from `PyPI <https://pypi.org/>`_ via ``pip``, then you will also need to compile the included C modules. To do so requires `Microsoft Visual C++ 14.0 or greater <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_. If you don't have this installed, or do not wish to install it, `precompiled wheel files are available <https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycifrw>`_. You must download the wheel file corresponding to your Python installation.
+``pdCIFplotter`` requires ``PyCifRW == 4.4.3``. If you install ``PyCifRW`` from `PyPI <https://pypi.org/>`_ via ``pip``, then you will also need to compile the included C modules. To do so requires `Microsoft Visual C++ 14.0 or greater <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`_. If you don't have this installed, or do not wish to install it, `precompiled wheel files are available <https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycifrw>`_. You must download the wheel file corresponding to your Python installation.
 
 To obtain information about your Python installation, run the command::
 
@@ -92,11 +92,7 @@ Quick usage
 
 To run pdCIFplotter as a standalone program::
 
-    python -m pdCIFplotter
-
-or::
-
-	pdcifplotter
+    pdcifplotter
 
 
 When you first open ``pdCIFplotter``, you are met with an empty window
@@ -114,28 +110,4 @@ Documentation
 
 https://pdCIFplotter.readthedocs.io/en/latest/
 
-Development
-===========
 
-This isn't fully implemented yet.
-
-To run all the tests run::
-
-    tox
-
-Note, to combine the coverage data from all the tox environments run:
-
-.. list-table::
-    :widths: 10 90
-    :stub-columns: 1
-
-    - - Windows
-      - ::
-
-            set PYTEST_ADDOPTS=--cov-append
-            tox
-
-    - - Other
-      - ::
-
-            PYTEST_ADDOPTS=--cov-append tox
