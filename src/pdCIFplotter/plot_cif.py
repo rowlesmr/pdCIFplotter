@@ -632,7 +632,7 @@ class PlotCIF:
                 markerstyle = 3
                 scalar = 1.0
             else:  # plot above
-                markerstyle = 7  # a pointing-down triangle with the down tip being the point described by th x,y coordinate
+                markerstyle = 7  # a pointing-down triangle with the down tip being the point described by the x,y coordinate
                 scalar = 1.04
                 yobs = ys[0]  # ys is already scaled to the y-axis scale
                 ycalc = ys[1]
@@ -651,7 +651,8 @@ class PlotCIF:
             hkl_y = hkl_y * scalar + hkl_y_offset
             idx = i % len(TABLEAU_COLOR_VALUES)
             phasename = cifpat["str"][phase].get("_pd_phase_name", phase)
-            hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle, linestyle="none", markersize=hkl_markersize_pt,
+            hkl_tick, = ax.plot(hkl_x, hkl_y, label=f" {phasename} {phase_wt_pct}", marker=markerstyle,
+                                linestyle="none", markersize=hkl_markersize_pt,
                                 color=TABLEAU_COLOR_VALUES[idx])
             hkl_artists.append(hkl_tick)
             if "refln_hovertext" in cifpat["str"][phase]:
@@ -663,20 +664,9 @@ class PlotCIF:
 
         return hovertexts, hkl_artists
 
-    def single_plot_cchi2(self, cifpat: Dict, x: np.ndarray, cchi2_y_ordinates: List[str], axis_scale: Dict, cchi2_zero: float, flip_cchi2: bool,
+    def single_plot_cchi2(self, cifpat: Dict, x: np.ndarray, cchi2_y_ordinates: List[str],
+                          axis_scale: Dict, cchi2_zero: float, flip_cchi2: bool,
                           fontdict: Dict, ax1: Axes) -> Axes:
-        """
-
-        :param cifpat:
-        :param x:
-        :param cchi2_y_ordinates:
-        :param axis_scale:
-        :param cchi2_zero:
-        :param flip_cchi2:
-        :param fontdict:
-        :param ax1:
-        :return:
-        """
         # https://stackoverflow.com/a/10482477/36061
         def align_cchi2(ax_1, v1, ax_2):
             """adjust cchi2 ylimits so that 0 in cchi2 axis is aligned to v1 in main axis"""
@@ -689,16 +679,11 @@ class PlotCIF:
 
         cchi2 = _scale_y_ordinate(parse_cif.calc_cumchi2(cifpat, cchi2_y_ordinates[0], cchi2_y_ordinates[1]), axis_scale)
 
-        if array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2):
-            flip_cchi2 = True
-        else:
-            pass
+        flip_cchi2 = (array_strictly_increasing_or_equal(x) != array_strictly_increasing_or_equal(cchi2)) or flip_cchi2
 
         if flip_cchi2:
-            # this keeps the differences between datapoints, but inverts their sign, so
-            #  the list ends up changing from increasing to decreasing, or vice versa.
-            #  This is done to counteract an inverted plotting axis so I can keep the
-            #  cchi2 plot increasing from left to right
+            # this keeps the differences between datapoints, but inverts their sign, so the list ends up changing from increasing to decreasing, or vice versa.
+            #  This is done to counteract an inverted plotting axis so I can keep the cchi2 plot increasing from left to right
             ylag = np.diff(cchi2, prepend=cchi2[0])
             ynew = np.zeros(len(cchi2))
             ynew[0] = cchi2[-1]
