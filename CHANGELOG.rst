@@ -2,6 +2,17 @@
 Changelog
 =========
 
+0.1.2 (2022-07-14)
+-------------------
+* Misc. bug fixes 
+
+
+0.1.1 (2022-06-30)
+-------------------
+* More features! 
+* Added the ability to alter font details on the plots
+* Added the ability to alter relative plot widths on the surface plot when showing QPA/temperatures...
+
 0.1.0 (2022-03-14)
 -------------------
 * Submitting final version of manuscript for publication - feature freeze!
