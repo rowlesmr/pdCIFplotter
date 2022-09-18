@@ -867,6 +867,12 @@ def open_cif_popup(text: str, icon: str) -> sg.Window:
 #
 #################################################################################################################
 def gui() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        from CifFile import CifFile, StarFile
+        ciftmp = CifFile({"aCif": StarFile.StarBlock("hello")})
+        print(ciftmp)
+        sys.exit()
+
     global plotcif, single_figure_agg, stack_figure_agg, surface_figure_agg, surface_temp_pres_qpa
 
     # This bit gets the taskbar icon working properly in Windows
