@@ -26,6 +26,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+AXAA/
 build/
 develop-eggs/
 downloads/
