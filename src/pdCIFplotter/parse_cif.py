@@ -227,10 +227,9 @@ def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> 
 
 def get_weights_for_yobs(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = None) -> List[float]:
     if yobs_dataname_err is None:
-        y_weights = cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
+        return cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
     else:
-        y_weights = 1 / (cifpat[yobs_dataname_err] ** 2)
-    return y_weights
+        return 1 / (cifpat[yobs_dataname_err] ** 2)
 
 
 def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):

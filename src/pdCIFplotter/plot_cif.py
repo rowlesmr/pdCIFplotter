@@ -414,7 +414,7 @@ class PlotCIF:
         return d
 
     def single_update_plot(self, pattern: str, x_ordinate: str, y_ordinates: List[str], fig: Figure, ax: Axes, **kwargs) \
-        -> Tuple[Figure, Axes, Tuple[float, float], Tuple[float,float]]:
+        -> Tuple[Figure, Axes, Tuple[float, float], Tuple[float, float]]:
 
         # Unpack all the kwargs to make it all neater down below:
         plot_hkls = kwargs.get("plot_hkls")
