@@ -9,8 +9,11 @@ Why does this file exist, and why __main__? For more info, read:
 - https://docs.python.org/3/using/cmdline.html#cmdoption-m
 """
 import sys
-
 from pdCIFplotter.gui import gui
 
 if __name__ == "__main__":
-    sys.exit(gui())
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        from CifFile import CifFile, StarFile
+        cif = CifFile({"aCif": StarFile.StarBlock("hello")})
+    else:
+        sys.exit(gui())
