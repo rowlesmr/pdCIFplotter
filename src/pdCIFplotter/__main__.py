@@ -12,8 +12,4 @@ import sys
 from pdCIFplotter.gui import gui
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        from CifFile import CifFile, StarFile
-        cif = CifFile({"aCif": StarFile.StarBlock("hello")})
-    else:
-        sys.exit(gui())
+    sys.exit(gui())
