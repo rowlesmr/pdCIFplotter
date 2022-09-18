@@ -2,6 +2,11 @@
 Changelog
 =========
 
+0.1.3 (2022-09-18)
+-------------------
+* Adding package to conda-forge
+
+
 0.1.2 (2022-07-14)
 -------------------
 * Misc. bug fixes 
