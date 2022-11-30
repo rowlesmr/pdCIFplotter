@@ -426,6 +426,32 @@ def calc_dataname_and_err(cifpat: Dict, dataname: str, default_error: str = "zer
     if default_error in {"sqrt", "zero"} or do_errors:
         cifpat[f"{dataname}_err"] = np.asarray(err, dtype=float)
 
+def get_wavelength(cifpat) -> float:
+    if not any(k in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
+        return 0
+
+    lam = cifpat.get("_diffrn_radiation_wavelength", cifpat.get("_cell_measurement_wavelength"))
+    if len(lam) == 1:
+        return lam
+
+    # assumes that the most important wavelength is first if you don't specify a weight. Why? Why not.
+    if "_diffrn_radiation_wavelength_wt" not in cifpat:
+        return lam[0]
+
+    wts = cifpat.get("_diffrn_radiation_wavelength_wt")
+    max_index = np.argmax(wts)
+    return lam[max_index]
+
+def remove_leading_trailing_newlines(s: str) -> str:
+    while s[-1] in ['\n', '\r']:
+        s=s[:-1]
+
+    while s[0] in ['\n', '\r']:
+        s=s[1:]
+
+    return s
+
+
 
 class ParseCIF:
     # these are all the values that could be an x-ordinate. I added the last two to be place-holders
@@ -462,7 +488,7 @@ class ParseCIF:
                               "_refine_ls_goodness_of_fit_all", "_pd_proc_ls_prof_wr_factor",
                               "_pd_proc_ls_prof_wr_expected", "_pd_meas_datetime_initiated"]
 
-    DATANAMES_THAT_SHOULD_BE_NUMERIC = ["_pd_phase_mass_%", "_refln_d_spacing"] + \
+    DATANAMES_THAT_SHOULD_BE_NUMERIC = ["_pd_phase_mass_%", "_refln_d_spacing", "_diffrn_radiation_wavelength_wt"] + \
                                        COMPLETE_X_LIST + COMPLETE_Y_LIST + MODIFIER_Y_LIST + \
                                        NICE_TO_HAVE_DATANAMES[:-1]
 
@@ -472,10 +498,12 @@ class ParseCIF:
         self.ncif: Dict = {}  # this will be the cif file with pattern information only
         self.cif: Dict = {}
 
+
         if self.ciffile is None:
             raise ValueError("CIF file is empty.")
 
         self._remove_empty_items()
+        self._clean_block_ids()
         self._make_up_block_id()
         self._expand_2theta_min_max_inc()
         self._expand_multiple_dataloops()
@@ -511,6 +539,23 @@ class ParseCIF:
                 else:
                     print("How did we even get here?")
 
+    def _clean_block_ids(self) -> None:
+        """
+        Removes leading and trailing newlines from _pd_block_id, _pd_block_diffractogram_id, and _pd_phase_block_id
+        :return: none. alters in place
+        """
+        for block in self.ciffile.block_input_order:
+            cifblk = self.ciffile[block]
+            dataitems = ["_pd_block_id", "_pd_block_diffractogram_id", "_pd_phase_block_id"]
+            for item in dataitems:
+                value = cifblk.get(item)
+                if isinstance(value, list):
+                    for i in range(len(value)):
+                        value[i] = remove_leading_trailing_newlines(value[i])
+                elif isinstance(value, str):
+                    value = remove_leading_trailing_newlines(value)
+
+
     def _make_up_block_id(self) -> None:
         """
         Some people confuse the _pd_block_id and the data_ blockname.
@@ -519,7 +564,8 @@ class ParseCIF:
         """
         for block in self.ciffile.block_input_order:
             cifblk = self.ciffile[block]
-            cifblk["_pd_block_id"] = block if "_pd_block_id" not in cifblk else cifblk["_pd_block_id"]
+            block_id = block if "_pd_block_id" not in cifblk else cifblk["_pd_block_id"]
+            cifblk["_pd_block_id"] = remove_leading_trailing_newlines(block_id)
 
     def _expand_2theta_min_max_inc(self) -> None:
         """
@@ -687,7 +733,7 @@ class ParseCIF:
 
             lam = None
             if any(k in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
-                lam = cifpat.get("_diffrn_radiation_wavelength", cifpat.get("_cell_measurement_wavelength"))
+                lam = get_wavelength(cifpat)
                 cifpat["wavelength"] = lam
                 if all (k not in cifpat for k in ("_pd_proc_d_spacing", "d")):
                     for th2 in ["_pd_proc_2theta_corrected", "_pd_meas_2theta_scan"]:
