@@ -426,12 +426,13 @@ def calc_dataname_and_err(cifpat: Dict, dataname: str, default_error: str = "zer
     if default_error in {"sqrt", "zero"} or do_errors:
         cifpat[f"{dataname}_err"] = np.asarray(err, dtype=float)
 
+
 def get_wavelength(cifpat) -> float:
-    if not any(k in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
+    if all(k not in cifpat for k in ("_diffrn_radiation_wavelength", "_cell_measurement_wavelength")):
         return 0
 
     lam = cifpat.get("_diffrn_radiation_wavelength", cifpat.get("_cell_measurement_wavelength"))
-    if len(lam) == 1:
+    if lam.size == 1:
         return lam
 
     # assumes that the most important wavelength is first if you don't specify a weight. Why? Why not.
@@ -442,6 +443,7 @@ def get_wavelength(cifpat) -> float:
     max_index = np.argmax(wts)
     return lam[max_index]
 
+
 def remove_leading_trailing_newlines(s: str) -> str:
     while s[-1] in ['\n', '\r']:
         s=s[:-1]
@@ -450,7 +452,6 @@ def remove_leading_trailing_newlines(s: str) -> str:
         s=s[1:]
 
     return s
-
 
 
 class ParseCIF:
@@ -497,7 +498,6 @@ class ParseCIF:
         self.ciffile: CifFile = ReadCif(ciffilename, scantype=scantype, grammar=grammar, scoping=scoping, permissive=permissive)
         self.ncif: Dict = {}  # this will be the cif file with pattern information only
         self.cif: Dict = {}
-
 
         if self.ciffile is None:
             raise ValueError("CIF file is empty.")
@@ -554,7 +554,6 @@ class ParseCIF:
                         value[i] = remove_leading_trailing_newlines(value[i])
                 elif isinstance(value, str):
                     value = remove_leading_trailing_newlines(value)
-
 
     def _make_up_block_id(self) -> None:
         """
@@ -790,7 +789,7 @@ class ParseCIF:
 
 
 if __name__ == "__main__":
-    filename = r"c:\data\La2Ti2O7-n-883C-mono.cif"
+    filename = r"C:\Users\184277j\Desktop\mansnao\control_1 (2).cif"
     cf = ParseCIF(filename)
     cifd = cf.get_processed_cif()
     print("This is the end of the file:")

@@ -322,7 +322,7 @@ class PlotCIF:
                 continue
             # now the cifpat has both x and y
             y = cifpat[y_ordinate]
-            y_norm = y * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else y / cifpat[y_ordinate + "_err"] ** 2
+            y_norm = y * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else y / cifpat[f"{y_ordinate}_err"] ** 2
             y_norms.append(y_norm)
         return y_norms
 
@@ -352,7 +352,7 @@ class PlotCIF:
             z = cifpat[z_ordinate]
             y = i if y_ordinate == "Pattern number" else cifpat[y_ordinate]
             z_norm = cifpat[z_norm_ordinate]
-            z_norm = z_norm * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else z_norm / cifpat[z_ordinate + "_err"] ** 2
+            z_norm = z_norm * cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else z_norm / cifpat[f"{z_ordinate}_err"] ** 2
             # interpolation only works if the x-ordinate is increasing.
             # if it doesn't, I need to flip all the ordinates to maintain
             # the relative ordering.
