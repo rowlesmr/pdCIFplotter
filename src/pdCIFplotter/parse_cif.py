@@ -164,7 +164,7 @@ def get_hkld_from_matching_id(hkld_ids: Dict) -> Dict:
             for idv in unique_ids}
 
 
-def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[float, None]]:
+def _split_val_su(ve: str, default_su: str = "zero") -> Tuple[float, Union[float, None]]:
     """
     Takes a string representing a number with an error in brackets
     such as 12.34(4), and splits off the value and error terms,
@@ -176,7 +176,7 @@ def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[f
     13 -> (13.0, 0.0)
     1.2(34) -> (1.2, 3.4)
 
-    :param default_error: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
+    :param default_su: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
     :param ve: a string representing a number with/without an error eg '12.34(5)' or '10'
     :return: a tuple of floats (val, err)
     """
@@ -187,9 +187,9 @@ def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[f
             return val, err
         else:
             val = float(ve)
-        if default_error == "sqrt":
+        if default_su == "sqrt":
             err = math.sqrt(math.fabs(val))
-        elif default_error == "zero":
+        elif default_su == "zero":
             err = 0.0
         else:
             err = None
@@ -202,11 +202,11 @@ def _split_val_err(ve: str, default_error: str = "zero") -> Tuple[float, Union[f
     return float(val), float(err) / 10 ** pow10
 
 
-def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> Union[Tuple[float, float], Tuple[List[float], List[float]]]:
+def split_val_su(value: Union[str, List[str]], default_su: str = "none") -> Union[Tuple[float, float], Tuple[List[float], List[float]]]:
     """
     Takes a list of strings representing values with/without errors and gives back a tuple
     of two lists of floats. The first is the values, the second is the errors
-    :param default_error: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
+    :param default_su: if there is no error present, what do you want it to be? "zero" == 0, "sqrt" == sqrt(val)
     :param value: string or list of strings representing floats
     :return: tuple of lists of floats containing valus and errors.
     """
@@ -218,21 +218,21 @@ def split_val_err(value: Union[str, List[str]], default_error: str = "none") -> 
     vals = []
     errs = []
     for entry in value:
-        v, e = _split_val_err(entry, default_error=default_error)
+        v, e = _split_val_su(entry, default_su=default_su)
         vals.append(v)
         errs.append(e)
 
     return (vals, errs) if isList else (vals[0], errs[0])
 
 
-def get_weights_for_yobs(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = None) -> List[float]:
-    if yobs_dataname_err is None:
-        return cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_err"] ** 2)
+def get_weights_for_yobs(cifpat: Dict, yobs_dataname: str, yobs_dataname_su: str = None) -> List[float]:
+    if yobs_dataname_su is None:
+        return cifpat["_pd_proc_ls_weight"] if "_pd_proc_ls_weight" in cifpat else 1 / (cifpat[f"{yobs_dataname}_su"] ** 2)
     else:
-        return 1 / (cifpat[yobs_dataname_err] ** 2)
+        return 1 / (cifpat[yobs_dataname_su] ** 2)
 
 
-def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_su: str = None, ymod_dataname: str = None):
     """
     Calculate the cumulative chi-squared statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     This is an indication of the value of chi2 taking into account only the data with the x-ordinate <= the current
@@ -245,7 +245,7 @@ def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
-    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param yobs_dataname_su: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_su" column
     :param ymod_dataname: this currently does nothing.
     :return: a numpy array with values of cumchi2. It has the same length as yobs
     """
@@ -256,19 +256,19 @@ def calc_cumchi2(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dat
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return [-1] * len(yobs)
 
-    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_su)
 
     return np.nancumsum(yweight * ((yobs - ycalc) ** 2)) / N  # treats nan as 0
 
 
-def calc_rwp(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None) -> float:
+def calc_rwp(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_su: str = None, ymod_dataname: str = None) -> float:
     """
     Calculate the Rwp statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
-    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param yobs_dataname_su: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_su" column
     :param ymod_dataname: this currently does nothing.
     :return: a float with value of Rwp.
     """
@@ -278,14 +278,14 @@ def calc_rwp(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_datanam
     if ymod_dataname is not None:  # I don't know what ymod means yet...
         return -1
 
-    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_su)
 
     top = np.nansum(yweight * ((yobs - ycalc) ** 2))
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(top / bottom)
 
 
-def calc_rexp_approx(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = "", ymod_dataname: str = "") -> float:
+def calc_rexp_approx(cifpat: Dict, yobs_dataname: str, yobs_dataname_su: str = "", ymod_dataname: str = "") -> float:
     """
     Calculate the Rexp statistic using the given yobs, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -294,7 +294,7 @@ def calc_rexp_approx(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = 
 
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
-    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param yobs_dataname_su: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_su" column
     :param ymod_dataname: this currently does nothing.
     :return: a float with value of Rexp.
     """
@@ -304,13 +304,13 @@ def calc_rexp_approx(cifpat: Dict, yobs_dataname: str, yobs_dataname_err: str = 
     if ymod_dataname:  # I don't know what ymod means yet...
         return -1
 
-    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_err)
+    yweight = get_weights_for_yobs(cifpat, yobs_dataname, yobs_dataname_su)
 
     bottom = np.nansum(yweight * (yobs ** 2))
     return np.sqrt(N / bottom)
 
 
-def calc_gof_approx(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_err: str = None, ymod_dataname: str = None):
+def calc_gof_approx(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_dataname_su: str = None, ymod_dataname: str = None):
     """
     Calculate the goodness-of-fit statistic using the given yobs, ycalc, uncertinaty, and y_modifier.
     See Table 1.3 in "The Rietveld Method" by RA Young
@@ -320,12 +320,12 @@ def calc_gof_approx(cifpat: Dict, yobs_dataname: str, ycalc_dataname: str, yobs_
     :param cifpat: dictionary representation of the cif pattern you want
     :param yobs_dataname: dataname of the yobs value
     :param ycalc_dataname: dataname of the ycalc value
-    :param yobs_dataname_err: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_err" column
+    :param yobs_dataname_su: defaults to the '_pd_proc_ls_weight'. If this isn't present, it goes for the "_su" column
     :param ymod_dataname: this currently does nothing.
     :return: a float with values of gof.
     """
-    rwp = calc_rwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_err, ymod_dataname)
-    rexp = calc_rexp_approx(cifpat, yobs_dataname, yobs_dataname_err, ymod_dataname)
+    rwp = calc_rwp(cifpat, yobs_dataname, ycalc_dataname, yobs_dataname_su, ymod_dataname)
+    rexp = calc_rexp_approx(cifpat, yobs_dataname, yobs_dataname_su, ymod_dataname)
     return rwp / rexp
 
 
@@ -404,16 +404,16 @@ def add_hklds_to_cifpatstr(cifpatstr: Dict, hkld_dict: Dict) -> None:
         cifpatstr[refln] = hkld_dict[idx]
 
 
-def calc_dataname_and_err(cifpat: Dict, dataname: str, default_error: str = "zero") -> None:
+def calc_dataname_and_su(cifpat: Dict, dataname: str, default_su: str = "zero") -> None:
     """
     gets a single value-as-string or list of values-as-strings and correctly turns them in to a float or lists of floats
     with an error term, if applicable
     :param cifpat: the pattern from which you are getting the data
     :param dataname: the name of the dataitem you want to obtain
-    :param default_error: how to treat the presence (or otherwiase) of errors. "sqrt" - if no error, use the sqrt. "zero" - if no error, return 0.0. "none" - if no error, then don't do anything about it.
+    :param default_su: how to treat the presence (or otherwiase) of errors. "sqrt" - if no error, use the sqrt. "zero" - if no error, return 0.0. "none" - if no error, then don't do anything about it.
     :return:
     """
-    val, err = split_val_err(cifpat[dataname], default_error=default_error)
+    val, err = split_val_su(cifpat[dataname], default_su=default_su)
 
     do_errors = True
     if isinstance(err, list):
@@ -423,8 +423,8 @@ def calc_dataname_and_err(cifpat: Dict, dataname: str, default_error: str = "zer
         do_errors = False
 
     cifpat[dataname] = np.asarray(val, dtype=float)
-    if default_error in {"sqrt", "zero"} or do_errors:
-        cifpat[f"{dataname}_err"] = np.asarray(err, dtype=float)
+    if default_su in {"sqrt", "zero"} or do_errors:
+        cifpat[f"{dataname}_su"] = np.asarray(err, dtype=float)
 
 
 def get_wavelength(cifpat) -> float:
@@ -716,11 +716,11 @@ class ParseCIF:
                 if dataname not in cifpat:
                     continue
                 if dataname in self.OBSERVED_Y_LIST:
-                    calc_dataname_and_err(cifpat, dataname, default_error="sqrt")
+                    calc_dataname_and_su(cifpat, dataname, default_su="sqrt")
                 elif dataname in ["_pd_phase_mass_%"]:
-                    calc_dataname_and_err(cifpat, dataname, default_error="zero")  # for single phase, so there is no error on the wt%
+                    calc_dataname_and_su(cifpat, dataname, default_su="zero")  # for single phase, so there is no error on the wt%
                 else:
-                    calc_dataname_and_err(cifpat, dataname, default_error="none")
+                    calc_dataname_and_su(cifpat, dataname, default_su="none")
 
     def _calc_extra_data(self) -> None:
         for pattern in self.ncif:
@@ -762,10 +762,10 @@ class ParseCIF:
                 continue
             phase_ids = cifpat["_pd_phase_id"]
             qpas = cifpat["_pd_phase_mass_%"]
-            qpa_errs = cifpat["_pd_phase_mass_%_err"]
+            qpa_errs = cifpat["_pd_phase_mass_%_su"]
             for phase, qpa, err in zip(phase_ids, qpas, qpa_errs):
                 cifpat["str"][phase]["_pd_phase_mass_%"] = qpa
-                cifpat["str"][phase]["_pd_phase_mass_%_err"] = err
+                cifpat["str"][phase]["_pd_phase_mass_%_su"] = err
 
     def _rename_datablock_from_blockid(self) -> None:
         """
