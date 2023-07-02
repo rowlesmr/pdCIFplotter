@@ -1,6 +1,8 @@
 
 import re
 import datetime
+from typing import Union
+
 import numpy as np
 
 def parse_datetime(dt: str) -> [datetime, None]:
@@ -66,7 +68,7 @@ def dt_to_string(dt: datetime) -> str:
     return str(dt).replace(" ", "T")
 
 
-def float_from_cif_string(s: str) -> float:
+def float_from_cif_string(s: Union[str, float]) -> float:
     if isinstance(s, (float, int)):
         return s
     bracket = s.find("(")
@@ -77,7 +79,7 @@ def none_or(val, parent):
     return val if parent is not None else None
 
 class CellParameters:
-    def __init__(self, a, b, c, al, be, ga):
+    def __init__(self, a, b, c, al=90.0, be=90.0, ga=90.0):
         self.a =  float_from_cif_string(a)
         self.b =  float_from_cif_string(b)
         self.c =  float_from_cif_string(c)
@@ -132,7 +134,7 @@ class Phase:
         return f"{self.name} ({self.id})"
 
     def __getitem__(self, item:str):
-        match item:
+        match item.lower():
             case "id": return self.id
             case "name": return self.name
             case "a": return self.cell_prms.a
@@ -182,7 +184,7 @@ class Diffractogram:
 
             case "rwp" | "r_wp": return none_or(self.rfactors.rwp, self.rfactors)
             case "gof": return none_or(self.rfactors.gof, self.rfactors)
-            case "rexp" | "r_exp": return none_or(self.rfactors.exp, self.rfactors)
+            case "rexp" | "r_exp": return none_or(self.rfactors.rexp, self.rfactors)
             case "rp" | "r_p": return none_or(self.rfactors.rp, self.rfactors)
 
             case "2th_meas" | "2θ_meas": return self.xcoords.get("2th_meas")
@@ -242,13 +244,61 @@ class Diffractogram:
         self.pressure = float_from_cif_string(pressure)
 
 
+if __name__ == '__main__':
+    cp1 = CellParameters("4.5991(2)", "9.9268(5)", "3.01059(14)")
+    cp2 = CellParameters("5.0253(11)", "5.0253(11)", "13.744(5)", ga="120")
+
+    aps1 = [
+            AtomPosition("Fe1", "0.04893", "0.853657", "0.25", "Fe+3", "0.9205(8)", 4, "0.4642662"),
+            AtomPosition("Al1", "0.04893", "0.853657", "0.25", "Al+3", "0.0795(8)", 4, "0.4642662"),
+            AtomPosition("O1", "0.7057", "0.19914", "0.25", "O-2", "1", 4, "0.5661205"),
+            AtomPosition("O2", "0.1987", "0.05298", "0.25", "O-2", "1", 4, "0.5842806")
+           ]
+
+    aps2 = [
+            AtomPosition("Fe1", "0", "0", "0.35528", "Fe+3", "0.928(7)", "12", "0.35"),
+            AtomPosition("Al1", "0", "0", "0.35528", "Al+3", "0.072(7)", "12", "0.35"),
+            AtomPosition("O1", "0.3071", "0", "0.25", "O-2", "1", "18", "0.74")
+           ]
+
+    p1 = Phase("uuid1", "Goethite", cp1, aps1)
+    p2 = Phase("uuid2", "Hematite", cp2, aps2)
 
 
+    rf = RFactor(0.08219, 1.33237, 0.06168, 0.06355)
 
+    xc = {"2th_meas": np.array([5.007880,5.023636,5.039393])}
+    yc = {"meas_counts_tot": np.array([737, 791, 736]),
+          "calc_intensity_tot": np.array([805.948339, 799.014950, 792.168220]),
+          "calc_intensity_bkg": np.array([805.681930, 798.748050, 791.900820]),
+          }
 
+    dp1 = Diffractogram("DIFFPAT1", xc, yc)
 
+    dp1.add_phases([p1, p2])
+    dp1.add_rfactors(rf)
+    dp1.add_wavelength("1.7889847")
+    dp1.add_datetime_initiated("2023-06-19T21:00:34+08:00")
+    dp1.add_order(1)
+    dp1.add_temperature(293)
+    dp1.add_pressure(101.3)
 
-
-
-
+    print(f"{dp1['id']=}")
+    print(f"{dp1['order']=}")
+    print(f"{dp1['datetime']=}")
+    print(f"{dp1['dtstr']=}")
+    print(f"{dp1['wavelength']=}")
+    print(f"{dp1['λ']=}")
+    print(f"{dp1['pressure']=}")
+    print(f"{dp1['temperature']=}")
+    print(f"{dp1['rwp']=}")
+    print(f"{dp1['r_exp']=}")
+    print(f"{dp1['r_p']=}")
+    print(f"{dp1['2th_meas']=}")
+    print(f"{dp1['2θ_meas']=}")
+    print(f"{dp1['2th_proc']=}")
+    print(f"{dp1['meas_counts_tot']=}")
+    print(f"{dp1['meas_intensity_tot']=}")
+    print(f"{dp1['calc_intensity_bkg']=}")
+    print(f"{dp1['calc_intensity_tot']=}")
 
