@@ -1,7 +1,7 @@
 
 import re
 import datetime
-import numpy
+import numpy as np
 
 def parse_datetime(dt: str) -> [datetime, None]:
     dtre = re.compile(r"(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.(\d+))?)?(Z|(([+-])(\d{2}):(\d{2})))?")
@@ -62,12 +62,19 @@ CENTRAL_LOOKUP = {
 }
 
 
+def dt_to_string(dt: datetime) -> str:
+    return str(dt).replace(" ", "T")
+
+
 def float_from_cif_string(s: str) -> float:
     if isinstance(s, (float, int)):
         return s
     bracket = s.find("(")
     return float(s) if bracket == -1 else float(s[:bracket])
 
+
+def none_or(val, parent):
+    return val if parent is not None else None
 
 class CellParameters:
     def __init__(self, a, b, c, al, be, ga):
@@ -149,18 +156,63 @@ class RFactor:
 
 class Diffractogram:
     def __init__(self, idvalue: str, xcoords, ycoords):
-        self.pressure = None
-        self.temperature = None
-        self.hkls = None
+        self.id: str = idvalue
+        self.xcoords: dict[str, np.array] = xcoords
+        self.ycoords: dict[str, np.array] = ycoords
         self.order = 0
-        self.datetime: datetime.datetime = None
-        self.wavelength = None
-        self.rfactors = None
-        self.qpa: list[float] = None
-        self.id = idvalue
-        self.xcoords = xcoords
-        self.ycoords = ycoords
         self.phases: list[Phase] = None
+        self.qpa: list[float] = None
+        self.hkls = None
+        self.datetime: datetime.datetime = None
+        self.wavelength: float = None
+        self.rfactors = None
+        self.pressure: float = None
+        self.temperature: float = None
+
+    def __getitem__(self, item:str):
+        match item.lower():
+            case "id": return self.id
+            case "order": return self.order
+
+            case "datetime": return self.datetime
+            case "dtstr": return dt_to_string(self.datetime)
+            case "wavelength" | "lambda" | "λ" | "lam": return self.wavelength
+            case "pressure": return self.pressure
+            case "temperature": return self.temperature
+
+            case "rwp" | "r_wp": return none_or(self.rfactors.rwp, self.rfactors)
+            case "gof": return none_or(self.rfactors.gof, self.rfactors)
+            case "rexp" | "r_exp": return none_or(self.rfactors.exp, self.rfactors)
+            case "rp" | "r_p": return none_or(self.rfactors.rp, self.rfactors)
+
+            case "2th_meas" | "2θ_meas": return self.xcoords.get("2th_meas")
+            case "2th_proc" | "2θ_proc": return self.xcoords.get("2th_proc")
+            case "tof": return self.xcoords.get("tof")
+            case "position": return self.xcoords.get("position")
+            case "energy": return self.xcoords.get("energy")
+            case "d": return self.xcoords.get("d")
+            case "q": return self.xcoords.get("q")
+
+            case "meas_counts_tot": return self.ycoords.get("meas_counts_tot")
+            case "meas_intensity_tot": return self.ycoords.get("meas_intensity_tot")
+            case "proc_intensity_tot": return self.ycoords.get("proc_intensity_tot")
+            case "proc_intensity_net": return self.ycoords.get("proc_intensity_net")
+            case "calc_intensity_bkg": return self.ycoords.get("calc_intensity_bkg")
+            case "calc_intensity_tot": return self.ycoords.get("calc_intensity_tot")
+            case "calc_intensity_net": return self.ycoords.get("calc_intensity_net")
+            case "proc_ls_weight": return self.ycoords.get("proc_ls_weight")
+            case "meas_step_count_time": return self.ycoords.get("meas_step_count_time")
+            case "proc_intensity_fix_bkg": return self.ycoords.get("proc_intensity_fix_bkg")
+            case "meas_counts_monitor": return self.ycoords.get("meas_counts_monitor")
+            case "meas_intensity_monitor": return self.ycoords.get("meas_intensity_monitor")
+            case "proc_intensity_norm": return self.ycoords.get("proc_intensity_norm")
+            case "proc_intensity_incident": return self.ycoords.get("proc_intensity_incident")
+            case "meas_counts_bkg": return self.ycoords.get("meas_counts_bkg")
+            case "meas_counts_container": return self.ycoords.get("meas_counts_container")
+            case "meas_intensity_bkg": return self.ycoords.get("meas_intensity_bkg")
+            case "meas_intensity_container": return self.ycoords.get("meas_intensity_container")
+
+            case _: return None
 
     def add_phases(self, phases: list[Phase]):
         self.phases = phases
@@ -174,8 +226,8 @@ class Diffractogram:
     def add_wavelength(self, wavelength):
         self.wavelength = float_from_cif_string(wavelength)
 
-    def add_datetime_initiated(self, datetime: str):
-        self.datetime = parse_datetime(datetime)
+    def add_datetime_initiated(self, dts: str):
+        self.datetime = parse_datetime(dts)
 
     def add_order(self, order):
         self.order = float(order)
