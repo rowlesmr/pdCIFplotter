@@ -6,7 +6,7 @@ Created on Sun Jul  4 20:56:13 2021
 """
 
 import tkinter
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import pdCIFplotter as pcp
 from pdCIFplotter import parse_cif, plot_cif
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
