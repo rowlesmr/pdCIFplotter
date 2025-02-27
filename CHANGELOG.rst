@@ -2,6 +2,11 @@
 Changelog
 =========
 
+0.1.4 (2025-02-27)
+-------------------
+* Changed to freesimplegui as the GUI framework
+
+
 0.1.3 (2022-09-18)
 -------------------
 * Adding package to conda-forge
@@ -9,12 +14,12 @@ Changelog
 
 0.1.2 (2022-07-14)
 -------------------
-* Misc. bug fixes 
+* Misc. bug fixes
 
 
 0.1.1 (2022-06-30)
 -------------------
-* More features! 
+* More features!
 * Added the ability to alter font details on the plots
 * Added the ability to alter relative plot widths on the surface plot when showing QPA/temperatures...
 
