@@ -25,6 +25,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+.pyirc
 .Python
 AXAA/
 build/
@@ -108,6 +109,8 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv*/
+venv*/
 env/
 venv/
 ENV/
